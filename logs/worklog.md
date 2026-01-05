@@ -60,3 +60,22 @@ Result:
 - Plan A is not downshifted. Raw RGB24 over 1GbE/TB2 looks mathematically constrained, but receiver render and measured transport data are still required.
 Next:
 - Build and run the synthetic renderer on the Windows iMac, then record receiver_stats.csv and a measured summary.
+
+## 2026-05-15 01:07 — Record Plan A Windows synthetic benchmark result
+
+Prompt: prompts/02_PLAN_A_5K60_FIRST_SPIKE.md
+Changed files:
+- benchmarks/runs/2026-05-15_0107_plan_a_synthetic_5k60/console.txt
+- benchmarks/runs/2026-05-15_0107_plan_a_synthetic_5k60/receiver_stats.csv
+- benchmarks/runs/2026-05-15_0107_plan_a_synthetic_5k60/run_status.txt
+- benchmarks/runs/2026-05-15_0107_plan_a_synthetic_5k60/summary.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] Pulled result zip from Windows iMac over SSH/SCP.
+- [x] Parsed console output and receiver_stats.csv.
+- [x] Recorded actual fps, p95/max frame time, missed frame count, and likely bottleneck.
+Result:
+- Dynamic 5120x2880 CPU-filled BGRA32 full-frame upload measured 36.034 fps and missed every 16.667 ms frame budget.
+Next:
+- Run static-frame and no-vsync static-frame isolation variants from the iMac interactive desktop.
