@@ -79,3 +79,18 @@ Result:
 - Dynamic 5120x2880 CPU-filled BGRA32 full-frame upload measured 36.034 fps and missed every 16.667 ms frame budget.
 Next:
 - Run static-frame and no-vsync static-frame isolation variants from the iMac interactive desktop.
+
+## 2026-05-15 01:20 — Prompt 09 review gate after Plan A spike
+
+Prompt: prompts/09_REVIEW_GATE.md
+Changed files:
+- logs/review_gate.md
+- logs/worklog.md
+Verification:
+- [x] Reviewed Prompt 02 against build/run/log/downshift criteria.
+- [x] Confirmed measured Windows iMac result exists.
+- [x] Confirmed no Plan A downshift was made without isolation follow-up.
+Result:
+- Prompt 02 passes review with required static/no-vsync isolation follow-up before Plan A closure.
+Next:
+- Start prompts/06_WINDOWS_RECEIVER_IMPLEMENTATION.md.
