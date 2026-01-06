@@ -26,6 +26,8 @@ namespace {
 struct Options {
   int width = 5120;
   int height = 2880;
+  int output_width = 0;
+  int output_height = 0;
   int fps = 60;
   int duration_seconds = 60;
   bool synthetic = false;
@@ -37,6 +39,7 @@ struct Options {
   bool hud = true;
   bool transport_sink = false;
   int port = 48320;
+  std::string scale_mode = "nearest";
   std::string csv_path;
 };
 
@@ -122,7 +125,8 @@ void PrintUsage() {
   std::cout
       << "ibridge-receiver --synthetic --resolution 5120x2880 --fps 60 "
          "--duration 60 [--fullscreen] [--csv path] [--no-vsync] "
-         "[--static-frame] [--gpu-pattern] [--uncapped] [--no-hud]\n"
+         "[--static-frame] [--gpu-pattern] [--uncapped] [--no-hud] "
+         "[--output-resolution 5120x2880] [--scale-mode nearest|linear]\n"
          "ibridge-receiver --transport-sink --port 48320 --duration 10 "
          "[--csv path]\n";
 }
@@ -167,6 +171,14 @@ Options ParseOptions(int argc, char** argv) {
     } else if (arg.rfind("--resolution=", 0) == 0) {
       ParseResolution(arg.substr(std::strlen("--resolution=")), &options.width,
                       &options.height);
+    } else if (arg == "--output-resolution") {
+      if (!ConsumeValue(i, argc, argv, &value)) {
+        throw std::runtime_error("--output-resolution requires a value");
+      }
+      ParseResolution(value, &options.output_width, &options.output_height);
+    } else if (arg.rfind("--output-resolution=", 0) == 0) {
+      ParseResolution(arg.substr(std::strlen("--output-resolution=")),
+                      &options.output_width, &options.output_height);
     } else if (arg == "--fps") {
       if (!ConsumeValue(i, argc, argv, &value)) {
         throw std::runtime_error("--fps requires a value");
@@ -200,6 +212,13 @@ Options ParseOptions(int argc, char** argv) {
       options.port = std::stoi(value);
     } else if (arg.rfind("--port=", 0) == 0) {
       options.port = std::stoi(arg.substr(std::strlen("--port=")));
+    } else if (arg == "--scale-mode") {
+      if (!ConsumeValue(i, argc, argv, &value)) {
+        throw std::runtime_error("--scale-mode requires a value");
+      }
+      options.scale_mode = value;
+    } else if (arg.rfind("--scale-mode=", 0) == 0) {
+      options.scale_mode = arg.substr(std::strlen("--scale-mode="));
     } else if (arg == "--csv") {
       if (!ConsumeValue(i, argc, argv, &value)) {
         throw std::runtime_error("--csv requires a value");
@@ -217,6 +236,15 @@ Options ParseOptions(int argc, char** argv) {
   }
   if (options.fps <= 0 || options.duration_seconds <= 0) {
     throw std::runtime_error("--fps and --duration must be positive");
+  }
+  if (options.output_width <= 0) {
+    options.output_width = options.width;
+  }
+  if (options.output_height <= 0) {
+    options.output_height = options.height;
+  }
+  if (options.scale_mode != "nearest" && options.scale_mode != "linear") {
+    throw std::runtime_error("--scale-mode must be nearest or linear");
   }
   return options;
 }
@@ -314,12 +342,12 @@ HWND CreateBenchmarkWindow(const Options& options) {
   RegisterClassW(&wc);
 
   DWORD style = options.fullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW;
-  RECT rect = {0, 0, options.width, options.height};
+  RECT rect = {0, 0, options.output_width, options.output_height};
 
   int x = CW_USEDEFAULT;
   int y = CW_USEDEFAULT;
-  int window_width = options.width;
-  int window_height = options.height;
+  int window_width = options.output_width;
+  int window_height = options.output_height;
 
   if (options.fullscreen) {
     MONITORINFO monitor_info = {};
@@ -337,7 +365,7 @@ HWND CreateBenchmarkWindow(const Options& options) {
     window_height = rect.bottom - rect.top;
   }
 
-  HWND hwnd = CreateWindowExW(0, class_name, L"iBridge Plan A Synthetic 5K60",
+  HWND hwnd = CreateWindowExW(0, class_name, L"iBridge Synthetic Renderer",
                               style, x, y, window_width, window_height, nullptr,
                               nullptr, instance, nullptr);
   if (!hwnd) {
@@ -413,8 +441,8 @@ class D3DRenderer {
  private:
   void CreateDeviceAndSwapChain(HWND hwnd) {
     DXGI_SWAP_CHAIN_DESC desc = {};
-    desc.BufferDesc.Width = static_cast<UINT>(options_.width);
-    desc.BufferDesc.Height = static_cast<UINT>(options_.height);
+    desc.BufferDesc.Width = static_cast<UINT>(options_.output_width);
+    desc.BufferDesc.Height = static_cast<UINT>(options_.output_height);
     desc.BufferDesc.RefreshRate.Numerator = static_cast<UINT>(options_.fps);
     desc.BufferDesc.RefreshRate.Denominator = 1;
     desc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -449,8 +477,8 @@ class D3DRenderer {
             "CreateRenderTargetView");
     viewport_.TopLeftX = 0.0f;
     viewport_.TopLeftY = 0.0f;
-    viewport_.Width = static_cast<float>(options_.width);
-    viewport_.Height = static_cast<float>(options_.height);
+    viewport_.Width = static_cast<float>(options_.output_width);
+    viewport_.Height = static_cast<float>(options_.output_height);
     viewport_.MinDepth = 0.0f;
     viewport_.MaxDepth = 1.0f;
   }
@@ -532,7 +560,8 @@ float4 ps_gpu_pattern(VsOut input) : SV_TARGET {
 
   void CreateSampler() {
     D3D11_SAMPLER_DESC desc = {};
-    desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+    desc.Filter = options_.scale_mode == "linear" ? D3D11_FILTER_MIN_MAG_MIP_LINEAR
+                                                   : D3D11_FILTER_MIN_MAG_MIP_POINT;
     desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
     desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
     desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -891,14 +920,16 @@ int RunSynthetic(const Options& options) {
       std::ostringstream hud_text;
       hud_text << "iBridge Receiver\n"
                << options.width << "x" << options.height << " @ " << options.fps
-               << " target\n"
+               << " -> " << options.output_width << "x" << options.output_height
+               << " @ " << options.fps << " target\n"
                << "fps " << std::fixed << std::setprecision(2) << running_fps
                << "  total " << frame.total_ms << " ms\n"
                << "fill " << frame.fill_ms << " ms  upload " << frame.upload_ms
                << " ms  present " << frame.draw_present_ms << " ms\n"
                << "mode "
                << (options.gpu_pattern ? "gpu-pattern"
-                                       : (options.static_frame ? "static" : "dynamic"));
+                                       : (options.static_frame ? "static" : "dynamic"))
+               << " scale " << options.scale_mode;
       hud.Update(hud_text.str());
     }
 
@@ -929,7 +960,9 @@ int RunSynthetic(const Options& options) {
 
   std::cout << std::fixed << std::setprecision(3)
             << "iBridge Plan A synthetic renderer\n"
-            << "resolution=" << options.width << 'x' << options.height << '\n'
+            << "source_resolution=" << options.width << 'x' << options.height << '\n'
+            << "output_resolution=" << options.output_width << 'x'
+            << options.output_height << '\n'
             << "target_fps=" << options.fps << '\n'
             << "actual_fps=" << actual_fps << '\n'
             << "frames=" << stats.size() << '\n'
@@ -941,6 +974,7 @@ int RunSynthetic(const Options& options) {
             << "static_frame=" << (options.static_frame ? "on" : "off") << '\n'
             << "gpu_pattern=" << (options.gpu_pattern ? "on" : "off") << '\n'
             << "uncapped=" << (options.uncapped ? "on" : "off") << '\n'
+            << "scale_mode=" << options.scale_mode << '\n'
             << "hud=" << (options.hud ? "on" : "off") << '\n';
 
   return 0;

@@ -132,3 +132,35 @@ Decision:
 - H.264 fails at encode for this 5K synthetic path.
 - HEVC encodes 5K60 but current latency is too high, and TCP over the current Tailscale path is a transport bottleneck.
 - Decode/render remains unmeasured and must not be claimed as working.
+
+## 2026-05-15 02:55 — Plan C scaled mode comparison
+
+Prompt: `prompts/04_PLAN_C_60HZ_SCALED_MODES.md`
+
+Summary:
+- Added receiver source/output resolution split and `--scale-mode nearest|linear`.
+- Ran iMac Windows D3D11 static scaled-render tests from the active console session.
+- Ran macOS Primary HEVC 120Mbps local encode tests for each fallback source mode.
+
+Measured receiver render results:
+
+| Mode | Receiver fps | P95 total ms | Max total ms |
+|---|---:|---:|---:|
+| 1440p nearest | 59.881 | 17.476 | 25.163 |
+| 1440p linear | 59.994 | 17.459 | 23.271 |
+| 3200x1800 linear | 59.885 | 17.477 | 31.456 |
+| 4K linear | 59.840 | 17.418 | 35.613 |
+| 4096x2304 linear | 59.777 | 17.473 | 38.184 |
+
+Measured Primary local encode results:
+
+| Mode | Avg generate ms | Avg encode latency ms | P95 encode latency ms |
+|---|---:|---:|---:|
+| 1440p | 5.389 | 16.876 | 40.792 |
+| 3200x1800 | 8.520 | 14.738 | 23.529 |
+| 4K | 10.963 | 21.164 | 38.249 |
+| 4096x2304 | 12.332 | 27.231 | 48.630 |
+
+Decision:
+- Temporary engineering default is 3200x1800 @ 60fps with linear scaling because it had the best encode latency in this sample while sustaining the receiver render test.
+- Subjective text quality and screenshot samples remain pending until compressed decode/render exists.

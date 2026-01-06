@@ -52,6 +52,12 @@ apps\receiver-windows\build\Release\ibridge-receiver.exe --synthetic --resolutio
 
 The first acceptance run should keep vsync enabled because iBridge is display-facing software.
 
+Plan C scaled-mode example:
+
+```powershell
+apps\receiver-windows\build\manual\ibridge-receiver.exe --synthetic --resolution 2560x1440 --output-resolution 5120x2880 --fps 60 --duration 10 --fullscreen --static-frame --scale-mode nearest --csv benchmarks\runs\YYYY-MM-DD_HHMM_plan_c_modes\receiver_1440p_nearest.csv
+```
+
 ## Protocol v0 transport sink
 
 The receiver can also run a no-GUI TCP sink for Plan B transport tests. This validates protocol v0 frame headers, rejects wrong magic/version/header length, receives compressed frame payloads, and logs receive timing. It does not decode or render compressed frames yet.

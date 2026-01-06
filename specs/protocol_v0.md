@@ -24,6 +24,7 @@ Primary sends JSON over TCP:
   "session_id": 1234,
   "supported_codecs": ["h264", "hevc", "raw_bgra"],
   "supported_modes": ["plan_a_5k60_raw", "plan_b_5k60_hevc", "plan_c_1440p60"],
+  "supported_scale_modes": ["nearest", "linear"],
   "frame_transport": ["udp", "tcp"],
   "control_port": 48320,
   "udp_port": 48321
@@ -41,13 +42,30 @@ Receiver replies:
   "accepted": true,
   "selected_codec": "h264",
   "selected_mode": "plan_b_5k60_hevc",
+  "selected_scale_mode": "linear",
   "selected_frame_transport": "udp",
   "max_payload_bytes": 1200,
   "reason": ""
 }
 ```
 
-Wrong `magic`, wrong `version`, unsupported codec, unsupported mode, or unsupported frame transport must be rejected before any frame payload is accepted.
+Wrong `magic`, wrong `version`, unsupported codec, unsupported mode, unsupported scale mode, or unsupported frame transport must be rejected before any frame payload is accepted.
+
+## Mode IDs
+
+| ID | Source resolution | Output resolution | Target | Notes |
+|---|---:|---:|---:|---|
+| `plan_a_5k60_raw` | 5120x2880 | 5120x2880 | 60fps | Raw/near-raw feasibility path. |
+| `plan_b_5k60_hevc` | 5120x2880 | 5120x2880 | 60fps | Compressed 5K practical path. |
+| `plan_c_1440p60` | 2560x1440 | 5120x2880 | 60fps | Exact 2x integer scale candidate. |
+| `plan_c_1800p60` | 3200x1800 | 5120x2880 | 60fps | Balanced detail/bandwidth candidate. |
+| `plan_c_4k60` | 3840x2160 | 5120x2880 | 60fps | Common 4K fallback candidate. |
+| `plan_c_2304p60` | 4096x2304 | 5120x2880 | 60fps | Higher-detail fallback candidate. |
+
+Scale mode IDs:
+
+- `nearest`: point/integer sampling. Primary candidate for exact 2560x1440 -> 5120x2880.
+- `linear`: bilinear sampling. First fallback for non-integer scaled modes.
 
 ## Clock Offset Probe
 

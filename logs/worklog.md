@@ -251,3 +251,24 @@ Result:
 - Prompt 03 passes as a measured failed Plan B attempt with decode/render gap explicitly open.
 Next:
 - Start prompts/04_PLAN_C_60HZ_SCALED_MODES.md.
+
+## 2026-05-15 02:55 — Prompt 04 Plan C scaled modes
+
+Prompt: prompts/04_PLAN_C_60HZ_SCALED_MODES.md
+Changed files:
+- apps/receiver-windows/README.md
+- apps/receiver-windows/src/main.cpp
+- benchmarks/runs/2026-05-15_0255_plan_c_scaled_modes/*
+- logs/experiments.md
+- logs/worklog.md
+- specs/protocol_v0.md
+Verification:
+- [x] Windows MSVC build of `ibridge-receiver.exe`
+- [x] iMac Windows D3D11 scaled-render suite through Task Scheduler
+- [x] macOS Primary HEVC 120Mbps local encode suite
+Result:
+- All receiver scaled-render modes reached about 60fps.
+- 3200x1800 had the best short-run Primary HEVC encode latency.
+- Screenshot/text-quality scoring remains pending because compressed decode/render is not implemented.
+Next:
+- Run prompts/09_REVIEW_GATE.md for Prompt 04.
