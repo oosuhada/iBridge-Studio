@@ -102,3 +102,33 @@ Measured results:
 Decision:
 - Primary synthetic encode path is functional for both H.264 and HEVC at 1440p60.
 - Current encode callback latency is too high for an external-display target and needs low-latency tuning before transport integration.
+
+## 2026-05-15 02:38 — Plan B 5K60 compressed TCP attempts
+
+Prompt: `prompts/03_PLAN_B_5K60_PRACTICAL.md`
+
+Summary:
+- Added protocol v0 TCP sending to the macOS Primary synthetic encoder.
+- Added a no-GUI protocol v0 TCP sink to the Windows Receiver.
+- Ran 5120x2880 @ 60 target H.264 and HEVC synthetic compressed tests.
+
+Measured results:
+
+| Test | Frames | Failed | Payload bytes | Key result |
+|---|---:|---:|---:|---|
+| H.264 5K60 TCP | 60 | 60 | 0 | VideoToolbox returned status -10279 for every frame. |
+| HEVC 5K60 local default bitrate | 60 | 0 | 87,013,939 | Avg encode callback latency 116.081 ms. |
+| HEVC 5K60 local 120Mbps | 60 | 0 | 15,356,893 | Avg encode callback latency 149.548 ms. |
+| HEVC 5K60 TCP 120Mbps | 60 | 0 | 15,356,893 | Receiver got all 60 frames, but wall time was 38.60 s and measured receive throughput was 3.092 Mbps. |
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_0210_plan_b_5k_h264_tcp/`
+- `benchmarks/runs/2026-05-15_0220_plan_b_5k_hevc_local60/`
+- `benchmarks/runs/2026-05-15_0235_plan_b_5k_hevc_120mbps_local/`
+- `benchmarks/runs/2026-05-15_0238_plan_b_5k_hevc_120mbps_tcp/`
+
+Decision:
+- Plan B has been attempted at 5K60.
+- H.264 fails at encode for this 5K synthetic path.
+- HEVC encodes 5K60 but current latency is too high, and TCP over the current Tailscale path is a transport bottleneck.
+- Decode/render remains unmeasured and must not be claimed as working.

@@ -51,3 +51,11 @@ apps\receiver-windows\build\Release\ibridge-receiver.exe --synthetic --resolutio
 ```
 
 The first acceptance run should keep vsync enabled because iBridge is display-facing software.
+
+## Protocol v0 transport sink
+
+The receiver can also run a no-GUI TCP sink for Plan B transport tests. This validates protocol v0 frame headers, rejects wrong magic/version/header length, receives compressed frame payloads, and logs receive timing. It does not decode or render compressed frames yet.
+
+```powershell
+apps\receiver-windows\build\manual\ibridge-receiver.exe --transport-sink --port 48320 --duration 60 --csv benchmarks\runs\YYYY-MM-DD_HHMM_plan_b_5k_hevc_tcp\receiver_stats.csv
+```

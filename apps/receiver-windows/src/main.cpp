@@ -1,3 +1,5 @@
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
@@ -33,6 +35,8 @@ struct Options {
   bool gpu_pattern = false;
   bool uncapped = false;
   bool hud = true;
+  bool transport_sink = false;
+  int port = 48320;
   std::string csv_path;
 };
 
@@ -43,6 +47,46 @@ struct FrameStats {
   double draw_present_ms = 0.0;
   double total_ms = 0.0;
   bool missed_budget = false;
+};
+
+#pragma pack(push, 1)
+struct ProtocolFrameHeaderV0 {
+  uint32_t magic = 0;
+  uint16_t version = 0;
+  uint16_t header_len = 0;
+  uint64_t session_id = 0;
+  uint64_t frame_id = 0;
+  uint16_t chunk_id = 0;
+  uint16_t chunk_count = 0;
+  uint16_t width = 0;
+  uint16_t height = 0;
+  uint16_t fps_target = 0;
+  uint8_t codec = 0;
+  uint8_t color_format = 0;
+  uint32_t flags = 0;
+  uint64_t capture_ns = 0;
+  uint64_t encode_start_ns = 0;
+  uint64_t encode_done_ns = 0;
+  uint64_t send_ns = 0;
+  uint32_t payload_len = 0;
+  uint32_t dropped_before = 0;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(ProtocolFrameHeaderV0) == 80,
+              "protocol v0 frame header must be 80 bytes");
+
+struct TransportStats {
+  uint64_t frame_id = 0;
+  uint32_t payload_len = 0;
+  uint32_t dropped_before = 0;
+  uint64_t missing_before = 0;
+  double receive_ms = 0.0;
+  uint16_t width = 0;
+  uint16_t height = 0;
+  uint16_t fps_target = 0;
+  uint8_t codec = 0;
+  uint32_t flags = 0;
 };
 
 double MsSince(Clock::time_point start, Clock::time_point end) {
@@ -78,7 +122,9 @@ void PrintUsage() {
   std::cout
       << "ibridge-receiver --synthetic --resolution 5120x2880 --fps 60 "
          "--duration 60 [--fullscreen] [--csv path] [--no-vsync] "
-         "[--static-frame] [--gpu-pattern] [--uncapped] [--no-hud]\n";
+         "[--static-frame] [--gpu-pattern] [--uncapped] [--no-hud]\n"
+         "ibridge-receiver --transport-sink --port 48320 --duration 10 "
+         "[--csv path]\n";
 }
 
 bool ConsumeValue(int& index, int argc, char** argv, std::string* value) {
@@ -109,6 +155,8 @@ Options ParseOptions(int argc, char** argv) {
     if (arg == "--help" || arg == "-h") {
       PrintUsage();
       std::exit(0);
+    } else if (arg == "--transport-sink") {
+      options.transport_sink = true;
     } else if (arg == "--synthetic") {
       options.synthetic = true;
     } else if (arg == "--resolution") {
@@ -145,6 +193,13 @@ Options ParseOptions(int argc, char** argv) {
       options.uncapped = true;
     } else if (arg == "--no-hud") {
       options.hud = false;
+    } else if (arg == "--port") {
+      if (!ConsumeValue(i, argc, argv, &value)) {
+        throw std::runtime_error("--port requires a value");
+      }
+      options.port = std::stoi(value);
+    } else if (arg.rfind("--port=", 0) == 0) {
+      options.port = std::stoi(arg.substr(std::strlen("--port=")));
     } else if (arg == "--csv") {
       if (!ConsumeValue(i, argc, argv, &value)) {
         throw std::runtime_error("--csv requires a value");
@@ -157,8 +212,8 @@ Options ParseOptions(int argc, char** argv) {
     }
   }
 
-  if (!options.synthetic) {
-    throw std::runtime_error("only --synthetic mode exists in the Plan A spike");
+  if (!options.synthetic && !options.transport_sink) {
+    throw std::runtime_error("choose --synthetic or --transport-sink");
   }
   if (options.fps <= 0 || options.duration_seconds <= 0) {
     throw std::runtime_error("--fps and --duration must be positive");
@@ -559,6 +614,220 @@ void WriteCsv(const std::string& path, const std::vector<FrameStats>& stats) {
   }
 }
 
+void WriteTransportCsv(const std::string& path,
+                       const std::vector<TransportStats>& stats) {
+  if (path.empty()) {
+    return;
+  }
+  std::ofstream csv(path);
+  if (!csv) {
+    throw std::runtime_error("could not open CSV output: " + path);
+  }
+  csv << "frame_id,payload_len,dropped_before,missing_before,receive_ms,width,"
+         "height,fps_target,codec,flags\n";
+  csv << std::fixed << std::setprecision(4);
+  for (const TransportStats& frame : stats) {
+    csv << frame.frame_id << ',' << frame.payload_len << ','
+        << frame.dropped_before << ',' << frame.missing_before << ','
+        << frame.receive_ms << ',' << frame.width << ',' << frame.height << ','
+        << frame.fps_target << ',' << static_cast<int>(frame.codec) << ','
+        << frame.flags << '\n';
+  }
+}
+
+class WinsockSession {
+ public:
+  WinsockSession() {
+    WSADATA data = {};
+    const int result = WSAStartup(MAKEWORD(2, 2), &data);
+    if (result != 0) {
+      throw std::runtime_error("WSAStartup failed: " + std::to_string(result));
+    }
+  }
+
+  ~WinsockSession() { WSACleanup(); }
+};
+
+class SocketHandle {
+ public:
+  explicit SocketHandle(SOCKET socket = INVALID_SOCKET) : socket_(socket) {}
+  ~SocketHandle() { Close(); }
+
+  SocketHandle(const SocketHandle&) = delete;
+  SocketHandle& operator=(const SocketHandle&) = delete;
+
+  SOCKET get() const { return socket_; }
+
+  SOCKET release() {
+    SOCKET out = socket_;
+    socket_ = INVALID_SOCKET;
+    return out;
+  }
+
+  void reset(SOCKET socket) {
+    Close();
+    socket_ = socket;
+  }
+
+ private:
+  void Close() {
+    if (socket_ != INVALID_SOCKET) {
+      closesocket(socket_);
+      socket_ = INVALID_SOCKET;
+    }
+  }
+
+  SOCKET socket_ = INVALID_SOCKET;
+};
+
+bool RecvAll(SOCKET socket, void* buffer, int bytes) {
+  char* cursor = static_cast<char*>(buffer);
+  int received = 0;
+  while (received < bytes) {
+    const int result = recv(socket, cursor + received, bytes - received, 0);
+    if (result <= 0) {
+      return false;
+    }
+    received += result;
+  }
+  return true;
+}
+
+std::string RecvLine(SOCKET socket) {
+  std::string line;
+  char ch = 0;
+  while (recv(socket, &ch, 1, 0) == 1) {
+    if (ch == '\n') {
+      break;
+    }
+    line.push_back(ch);
+    if (line.size() > 4096) {
+      throw std::runtime_error("handshake line too long");
+    }
+  }
+  return line;
+}
+
+int RunTransportSink(const Options& options) {
+  constexpr uint32_t kMagic = 0x47524249;
+  constexpr uint16_t kVersion = 0;
+  constexpr uint16_t kHeaderLen = 80;
+
+  WinsockSession winsock;
+  SocketHandle listener(socket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
+  if (listener.get() == INVALID_SOCKET) {
+    throw std::runtime_error("socket failed");
+  }
+
+  sockaddr_in address = {};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(INADDR_ANY);
+  address.sin_port = htons(static_cast<u_short>(options.port));
+
+  int reuse = 1;
+  setsockopt(listener.get(), SOL_SOCKET, SO_REUSEADDR,
+             reinterpret_cast<const char*>(&reuse), sizeof(reuse));
+
+  if (bind(listener.get(), reinterpret_cast<sockaddr*>(&address),
+           sizeof(address)) == SOCKET_ERROR) {
+    throw std::runtime_error("bind failed: " + std::to_string(WSAGetLastError()));
+  }
+  if (listen(listener.get(), 1) == SOCKET_ERROR) {
+    throw std::runtime_error("listen failed: " + std::to_string(WSAGetLastError()));
+  }
+
+  std::cout << "iBridge receiver transport sink listening on port "
+            << options.port << "\n";
+
+  SocketHandle client(accept(listener.get(), nullptr, nullptr));
+  if (client.get() == INVALID_SOCKET) {
+    throw std::runtime_error("accept failed: " + std::to_string(WSAGetLastError()));
+  }
+
+  int timeout_ms = 10000;
+  setsockopt(client.get(), SOL_SOCKET, SO_RCVTIMEO,
+             reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms));
+
+  const std::string handshake = RecvLine(client.get());
+  if (handshake.find("\"magic\":\"IBRIDGE\"") == std::string::npos ||
+      handshake.find("\"version\":0") == std::string::npos) {
+    throw std::runtime_error("bad protocol handshake");
+  }
+
+  std::vector<TransportStats> stats;
+  const auto run_start = Clock::now();
+  uint64_t previous_frame_id = 0;
+  bool have_previous = false;
+  uint64_t missing_total = 0;
+  uint64_t payload_total = 0;
+
+  while (std::chrono::duration_cast<std::chrono::seconds>(Clock::now() - run_start)
+             .count() < options.duration_seconds) {
+    ProtocolFrameHeaderV0 header = {};
+    const auto frame_start = Clock::now();
+    if (!RecvAll(client.get(), &header, sizeof(header))) {
+      break;
+    }
+
+    if (header.magic != kMagic) {
+      throw std::runtime_error("wrong protocol magic");
+    }
+    if (header.version != kVersion) {
+      throw std::runtime_error("unsupported protocol version");
+    }
+    if (header.header_len != kHeaderLen) {
+      throw std::runtime_error("unsupported protocol header length");
+    }
+
+    std::vector<char> payload(header.payload_len);
+    if (!payload.empty() &&
+        !RecvAll(client.get(), payload.data(), static_cast<int>(payload.size()))) {
+      break;
+    }
+
+    TransportStats frame = {};
+    frame.frame_id = header.frame_id;
+    frame.payload_len = header.payload_len;
+    frame.dropped_before = header.dropped_before;
+    frame.width = header.width;
+    frame.height = header.height;
+    frame.fps_target = header.fps_target;
+    frame.codec = header.codec;
+    frame.flags = header.flags;
+
+    if (have_previous && header.frame_id > previous_frame_id + 1) {
+      frame.missing_before = header.frame_id - previous_frame_id - 1;
+      missing_total += frame.missing_before;
+    }
+    previous_frame_id = header.frame_id;
+    have_previous = true;
+
+    frame.receive_ms = MsSince(frame_start, Clock::now());
+    payload_total += header.payload_len;
+    stats.push_back(frame);
+  }
+
+  WriteTransportCsv(options.csv_path, stats);
+
+  const double elapsed_sec =
+      std::chrono::duration<double>(Clock::now() - run_start).count();
+  const double mbps =
+      elapsed_sec > 0.0 ? (static_cast<double>(payload_total) * 8.0 / 1'000'000.0) /
+                               elapsed_sec
+                         : 0.0;
+
+  std::cout << std::fixed << std::setprecision(3)
+            << "iBridge transport sink\n"
+            << "frames_received=" << stats.size() << '\n'
+            << "payload_bytes=" << payload_total << '\n'
+            << "receive_mbps=" << mbps << '\n'
+            << "missing_frames=" << missing_total << '\n'
+            << "csv=" << (options.csv_path.empty() ? "none" : options.csv_path)
+            << '\n';
+
+  return 0;
+}
+
 int RunSynthetic(const Options& options) {
   HWND hwnd = CreateBenchmarkWindow(options);
   HudOverlay hud;
@@ -682,6 +951,9 @@ int RunSynthetic(const Options& options) {
 int main(int argc, char** argv) {
   try {
     const Options options = ParseOptions(argc, argv);
+    if (options.transport_sink) {
+      return RunTransportSink(options);
+    }
     return RunSynthetic(options);
   } catch (const std::exception& error) {
     std::cerr << "error: " << error.what() << "\n\n";
