@@ -357,3 +357,39 @@ Next:
 - Build the receiver on Windows and run `--decode-file` with a known-good compressed sample.
 - Extend decode from offline files to protocol v0 TCP payloads.
 - Run live Plan C end-to-end before UDP or tiled 5K work.
+
+## 2026-05-15 10:12 — MacBook Pro Primary comparison
+
+Prompt: user requested cloning iBridge to the MacBook Pro and testing the MBP environment
+Changed files:
+- apps/primary-macos/README.md
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- benchmarks/runs/2026-05-15_0950_mbp_environment_baseline/*
+- benchmarks/runs/2026-05-15_0952_mbp_encoder_baseline/*
+- benchmarks/runs/2026-05-15_1000_mbp_encoder_id_probe/*
+- benchmarks/runs/2026-05-15_1005_mbp_to_imac_tailscale_probe/*
+- benchmarks/runs/2026-05-15_1010_mbp_display_capture_smoke/*
+- benchmarks/runs/2026-05-15_1012_mbp_display_resolution_encode/*
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] Cloned `feat/plan-a-5k60-benchmark` into `/Users/gabriel/Development/iBridge`.
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] `python3 apps/shared-protocol/test_protocol_v0.py`
+- [x] `ibridge-primary --list-encoders`
+- [x] MBP automatic encoder baseline for HEVC/H.264 Plan C modes.
+- [x] Added and built `--encoder-id` option for VideoToolbox encoder isolation.
+- [x] MBP forced `ave.hevc` encoder probe.
+- [x] `screencapture` captured built-in, external portrait, Sidecar, and external FHD displays.
+- [x] Display-resolution synthetic encode probe for all four active displays.
+- [x] Tailscale reachability probe to Windows iMac.
+- [ ] Live receiver send/decode test skipped because Windows iMac receiver port `48320` was not listening and SSH auth from this MBP is blocked.
+Result:
+- Best MBP Plan C result is HEVC 3200x1800 @ 60, 120Mbps with forced `com.apple.videotoolbox.videoencoder.ave.hevc` and low-latency rate-control disabled: avg encode 16.612 ms, p95 16.777 ms.
+- H.264 5K still fails with payload 0.
+- Sidecar and both external displays are visible to macOS and capturable by `screencapture`, but iBridge live ScreenCaptureKit capture is not implemented yet.
+Next:
+- Authorize MBP SSH key on the Windows iMac or manually start the receiver on the iMac.
+- Run live TCP Plan C from MBP using forced `ave.hevc`.
+- Keep LAN/Thunderbolt Bridge tests separate from Tailscale.

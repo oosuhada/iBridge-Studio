@@ -591,3 +591,93 @@ Windows MSVC build: skipped. SSH to `100.86.52.88` failed with `Permission denie
 ## Next Prompt To Run
 
 Focused Windows receiver decode validation and live protocol v0 TCP decode/render integration. Do not run `prompts/10_PACKAGING_AND_RELEASE.md`.
+
+## 2026-05-15 10:12 — Prompt 09 after MacBook Pro Primary comparison
+
+Prompt reviewed: user-requested MacBook Pro clone and environment tests
+
+## Summary
+
+Pass for MacBook Pro Primary baseline and display/capture smoke testing; live receiver validation remains blocked by Windows iMac SSH/auth and receiver startup.
+
+The branch was cloned to `/Users/gabriel/Development/iBridge` on the M1 Max MacBook Pro. Local Swift build and protocol tests passed. Current displays include built-in XDR, external portrait display, Sidecar, and external FHD display; all four were captured with `screencapture`. Automatic VideoToolbox low-latency selection was poor on this MBP, but forcing `com.apple.videotoolbox.videoencoder.ave.hevc` while disabling low-latency rate-control produced the best Plan C encode result so far.
+
+## Changed Files
+
+- `apps/primary-macos/README.md`
+- `apps/primary-macos/Sources/iBridgePrimary/main.swift`
+- `benchmarks/runs/2026-05-15_0950_mbp_environment_baseline/*`
+- `benchmarks/runs/2026-05-15_0952_mbp_encoder_baseline/*`
+- `benchmarks/runs/2026-05-15_1000_mbp_encoder_id_probe/*`
+- `benchmarks/runs/2026-05-15_1005_mbp_to_imac_tailscale_probe/*`
+- `benchmarks/runs/2026-05-15_1010_mbp_display_capture_smoke/*`
+- `benchmarks/runs/2026-05-15_1012_mbp_display_resolution_encode/*`
+- `docs/current-work.md`
+- `logs/experiments.md`
+- `logs/worklog.md`
+
+## Verification Commands / Results
+
+```bash
+swift build --package-path apps/primary-macos -c release
+```
+
+Result: passed.
+
+```bash
+python3 apps/shared-protocol/test_protocol_v0.py
+```
+
+Result: passed, 8 tests.
+
+```bash
+apps/primary-macos/.build/release/ibridge-primary --list-encoders
+```
+
+Result: passed and recorded encoder IDs.
+
+```bash
+screencapture -x -D <display> benchmarks/runs/2026-05-15_1010_mbp_display_capture_smoke/display_<display>.png
+```
+
+Result: captured built-in, external portrait, Sidecar, and external FHD displays.
+
+## Benchmarks
+
+| Test | Avg encode ms | P95 encode ms | Result |
+|---|---:|---:|---|
+| HEVC 3200x1800 120Mbps, automatic low-latency | 96.271 | 196.283 | failed for Plan C |
+| HEVC 3200x1800 120Mbps, forced `ave.hevc`, no low-latency RC | 16.612 | 16.777 | strongest Plan C signal |
+| HEVC 3840x2160 120Mbps, forced `ave.hevc`, no low-latency RC | 21.884 | 22.839 | close but above 20ms avg |
+| H.264 5120x2880 120Mbps | 8.309 | 8.684 | failed, payload 0 |
+
+Display-resolution forced `ave.hevc` probe:
+
+| Source | Resolution | Avg encode ms | P95 encode ms |
+|---|---:|---:|---:|
+| Built-in XDR | 3024x1964 | 16.941 | 17.235 |
+| External portrait | 1080x1920 | 9.718 | 9.559 |
+| Sidecar | 2360x1640 | 16.205 | 17.276 |
+| External FHD | 1920x1080 | 9.498 | 9.485 |
+
+## Known Failures
+
+- `--encoder-id` combined with `EnableLowLatencyRateControl` returned `VTCompressionSessionCreate -12902` on this MBP.
+- `hevc.vcp` forced encoder had very high latency and is not suitable.
+- Windows iMac port 22 is open, but SSH auth from the MBP is blocked.
+- Receiver port `48320` was not listening during the probe.
+- ScreenCaptureKit live capture is still not implemented in iBridge.
+
+## Review Questions
+
+1. Did this stage only do the requested goal? Yes; it stayed on MBP environment testing and did not start packaging.
+2. Did it start the next prompt early? No.
+3. Was build/run verification real? Yes for MBP local tests; Windows live receiver remains pending.
+4. Are logs saved? Yes.
+5. Were failures hidden? No.
+6. Were hardware facts guessed? No; display state and Tailscale behavior were measured.
+7. Was Plan downshift measured? Plan C remains the active path; MBP adds a stronger Plan C encode result.
+
+## Next Prompt To Run
+
+Authorize MBP SSH to the Windows iMac or manually start the receiver, then run live TCP Plan C using forced `ave.hevc`. Do not run `prompts/10_PACKAGING_AND_RELEASE.md`.

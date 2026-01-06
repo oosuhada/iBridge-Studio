@@ -22,6 +22,7 @@ struct Options {
     var senderQueueDepth = 4
     var listEncoders = false
     var printSupportedProperties = false
+    var encoderID = ""
 }
 
 struct EncodedFrame {
@@ -453,7 +454,7 @@ func compressionOutputCallback(
 
 func usage() {
     print("""
-    ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--bitrate-mbps 120] [--no-realtime] [--send-host host --send-port 48320] [--sender-queue-depth 4]
+    ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--bitrate-mbps 120] [--no-realtime] [--send-host host --send-port 48320] [--sender-queue-depth 4] [--encoder-id com.apple.videotoolbox.videoencoder.ave.hevc]
     ibridge-primary --list-encoders
     """)
 }
@@ -542,6 +543,10 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.maxKeyFrameIntervalDuration = Double(arg.dropFirst("--max-keyframe-interval-duration=".count)) ?? options.maxKeyFrameIntervalDuration
         } else if arg == "--disable-low-latency-rate-control" {
             options.lowLatencyRateControl = false
+        } else if arg == "--encoder-id" {
+            options.encoderID = try value()
+        } else if arg.hasPrefix("--encoder-id=") {
+            options.encoderID = String(arg.dropFirst("--encoder-id=".count))
         } else if arg == "--list-encoders" {
             options.listEncoders = true
         } else if arg == "--print-supported-properties" {
@@ -622,10 +627,14 @@ func codecType(_ codec: String) -> CMVideoCodecType {
 }
 
 func encoderSpecification(options: Options) -> CFDictionary? {
-    guard options.lowLatencyRateControl else { return nil }
-    let spec: [String: Any] = [
-        kVTVideoEncoderSpecification_EnableLowLatencyRateControl as String: true
-    ]
+    guard options.lowLatencyRateControl || !options.encoderID.isEmpty else { return nil }
+    var spec: [String: Any] = [:]
+    if options.lowLatencyRateControl {
+        spec[kVTVideoEncoderSpecification_EnableLowLatencyRateControl as String] = true
+    }
+    if !options.encoderID.isEmpty {
+        spec[kVTVideoEncoderSpecification_EncoderID as String] = options.encoderID
+    }
     return spec as CFDictionary
 }
 
@@ -812,6 +821,7 @@ func runSynthetic(options: Options) throws {
     print("target_fps=\(options.fps)")
     print("duration_seconds=\(options.durationSeconds)")
     print("codec=\(options.codec)")
+    print("encoder_id=\(options.encoderID.isEmpty ? "auto" : options.encoderID)")
     print("bitrate_mbps=\(options.bitrateMbps > 0 ? options.bitrateMbps : 0)")
     print("low_latency_rate_control=\(options.lowLatencyRateControl ? "on" : "off")")
     print("max_keyframe_interval=\(options.maxKeyFrameInterval)")

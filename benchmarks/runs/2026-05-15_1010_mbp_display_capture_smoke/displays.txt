@@ -1,0 +1,38 @@
+Graphics/Displays:
+
+    Apple M1 Max:
+
+      Chipset Model: Apple M1 Max
+      Type: GPU
+      Bus: Built-In
+      Total Number of Cores: 24
+      Vendor: Apple (0x106b)
+      Metal Support: Metal 3
+      Displays:
+        Color LCD:
+          Display Type: Built-in Liquid Retina XDR Display
+          Resolution: 3024 x 1964 Retina
+          Main Display: Yes
+          Mirror: Off
+          Online: Yes
+          Automatically Adjust Brightness: No
+          Connection Type: Internal
+        TFX173T:
+          Resolution: 1080 x 1920
+          UI Looks like: 1080 x 1920 @ 60.00Hz
+          Mirror: Off
+          Online: Yes
+          Rotation: 90
+        Sidecar Display:
+          Resolution: 2360 x 1640
+          UI Looks like: 1180 x 820 @ 60.00Hz
+          Framebuffer Depth: 24-Bit Color (ARGB8888)
+          Mirror: Off
+          Connection Type: AirPlay
+          Virtual Device: Yes
+        LG IPS FULLHD:
+          Resolution: 1920 x 1080 (1080p FHD - Full High Definition)
+          UI Looks like: 1920 x 1080 @ 60.00Hz
+          Mirror: Off
+          Online: Yes
+          Rotation: Supported
