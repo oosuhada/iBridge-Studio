@@ -285,3 +285,21 @@ Result:
 - Prompt 04 passes as an engineering comparison; screenshot/text-quality scoring remains pending.
 Next:
 - Start prompts/08_POWER_PROBE.md.
+
+## 2026-05-15 03:08 — Prompt 08 power probe setup
+
+Prompt: prompts/08_POWER_PROBE.md
+Changed files:
+- logs/power_probe.md
+- logs/worklog.md
+- scripts/mac_power_probe.sh
+Verification:
+- [x] `scripts/mac_power_probe.sh`
+- [x] `pmset -g batt`
+- [x] `system_profiler SPPowerDataType`
+- [x] `ioreg -rn AppleSmartBattery`
+Result:
+- Current MacBook Air snapshot is battery power, 98%, not charging, no AC charger connected.
+- Manual test matrix is documented for no cable, iMac USB-A, iMac TB2 adapter, and PD hub baseline across idle/streaming workloads.
+Next:
+- Run prompts/09_REVIEW_GATE.md for Prompt 08.
