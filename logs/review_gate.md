@@ -438,3 +438,71 @@ Primary HEVC 120Mbps local encode:
 ## Next Prompt To Run
 
 `prompts/08_POWER_PROBE.md`
+
+## 2026-05-15 03:12 — Prompt 09 after Prompt 08
+
+Prompt reviewed: `prompts/08_POWER_PROBE.md`
+
+## Summary
+
+Pass for probe setup, with physical cable tests pending.
+
+Prompt 08 added a macOS power collection script and `logs/power_probe.md` with a manual test matrix for no cable, iMac USB-A, iMac TB2-to-TB3 adapter, and PD hub baseline. The current MacBook Air snapshot was measured as battery power at 98%, not charging, with no AC charger connected.
+
+## Changed Files
+
+- `.gitignore`
+- `logs/power_probe.md`
+- `logs/worklog.md`
+- `scripts/mac_power_probe.sh`
+
+## Verification Commands / Results
+
+```bash
+scripts/mac_power_probe.sh
+```
+
+Result: passed; wrote ignored raw artifacts under `logs/power/2026-05-15_082738/`.
+
+```bash
+pmset -g batt
+```
+
+Result: Battery Power, 98%, discharging.
+
+```bash
+system_profiler SPPowerDataType
+```
+
+Result: AC charger connected: No; charging: No.
+
+```bash
+ioreg -rn AppleSmartBattery
+```
+
+Result: `ExternalConnected` No and `ExternalChargeCapable` No in current baseline snapshot.
+
+## Benchmarks
+
+No drain-rate benchmark completed because cable changes require physical intervention.
+
+## Known Failures
+
+- USB-A and TB2 power cases are not measured yet.
+- Idle vs streaming drain-rate comparisons are not measured yet.
+- No wattage can be claimed for iMac USB-A or TB2.
+- The current result is only a no-cable/current-state baseline snapshot, not a full power conclusion.
+
+## Review Questions
+
+1. Did this stage only do the requested goal? Yes.
+2. Did it start the next prompt early? No.
+3. Was build/run verification real? Yes; macOS power commands and script ran locally.
+4. Are logs saved? Yes.
+5. Were failures hidden? No.
+6. Were hardware facts guessed? No; cable tests are pending.
+7. Was Plan downshift measured? Not applicable.
+
+## Next Prompt To Run
+
+`prompts/10_PACKAGING_AND_RELEASE.md` is blocked until compressed decode/render and at least one end-to-end display mode work. Recommended next engineering prompt is a focused decoder/render integration spike, not packaging.

@@ -303,3 +303,16 @@ Result:
 - Manual test matrix is documented for no cable, iMac USB-A, iMac TB2 adapter, and PD hub baseline across idle/streaming workloads.
 Next:
 - Run prompts/09_REVIEW_GATE.md for Prompt 08.
+
+## 2026-05-15 03:12 — Prompt 09 review gate after power probe
+
+Prompt: prompts/09_REVIEW_GATE.md
+Changed files:
+- logs/review_gate.md
+- logs/worklog.md
+Verification:
+- [x] Reviewed Prompt 08 against script, current baseline, manual matrix, and no-wattage-claim rule.
+Result:
+- Prompt 08 passes as a setup/current-snapshot probe; physical cable/drain-rate tests remain pending.
+Next:
+- Do not run prompts/10_PACKAGING_AND_RELEASE.md until an end-to-end display mode works.
