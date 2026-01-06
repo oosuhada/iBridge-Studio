@@ -179,3 +179,21 @@ Result:
 - macOS Primary synthetic encode milestone passes review; ScreenCaptureKit capture and transport remain open.
 Next:
 - Start prompts/07_PROTOCOL_AND_TRANSPORT.md.
+
+## 2026-05-15 01:52 — Prompt 07 protocol v0 and parser tests
+
+Prompt: prompts/07_PROTOCOL_AND_TRANSPORT.md
+Changed files:
+- apps/shared-protocol/README.md
+- apps/shared-protocol/protocol_v0.py
+- apps/shared-protocol/test_protocol_v0.py
+- specs/protocol_v0.md
+- logs/worklog.md
+Verification:
+- [x] `python3 apps/shared-protocol/test_protocol_v0.py`
+- [x] `git diff --check`
+Result:
+- Protocol v0 now defines TCP control negotiation, UDP frame chunks, TCP frame fallback, ping/echo clock-offset estimation, fixed 80-byte frame header, frame ids, timestamps, keyframe/config flags, payload length, and dropped-frame counters.
+- Shared parser tests caught and fixed an initial header-size mismatch before commit.
+Next:
+- Run prompts/09_REVIEW_GATE.md for Prompt 07.
