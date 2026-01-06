@@ -164,3 +164,39 @@ Measured Primary local encode results:
 Decision:
 - Temporary engineering default is 3200x1800 @ 60fps with linear scaling because it had the best encode latency in this sample while sustaining the receiver render test.
 - Subjective text quality and screenshot samples remain pending until compressed decode/render exists.
+
+## 2026-05-15 08:54 — Plan C sender queue and encoder low-latency probe
+
+Prompt: focused Plan C end-to-end pipeline spike
+
+Summary:
+- Classified previous transport measurements as Tailscale / likely Wi-Fi 2.4GHz / TCP early experiments, not representative LAN or Thunderbolt Bridge results.
+- Added a bounded async TCP sender queue so the VideoToolbox callback no longer performs blocking socket writes.
+- Moved `kVTVideoEncoderSpecification_EnableLowLatencyRateControl` into the `VTCompressionSessionCreate` encoder specification.
+- Added VideoToolbox encoder-list diagnostics and a Plan C encode matrix runner.
+- Added an offline Windows Receiver Media Foundation compressed file decode/render smoke path; Windows build/run validation is pending because SSH to the iMac was not available from this session.
+
+Measured local Primary results:
+
+| Test | Frames | Failed | Avg encode ms | P95 encode ms | Max encode ms | Payload bytes |
+|---|---:|---:|---:|---:|---:|---:|
+| HEVC 2560x1440 @ 60, 120Mbps, 5s | 300 | 0 | 13.783 | 13.295 | 103.114 | 14,103,635 |
+| HEVC 3200x1800 @ 60, 120Mbps, 5s | 300 | 0 | 24.293 | 65.947 | 110.441 | 22,315,381 |
+| HEVC 3200x1800 @ 60, 80Mbps, KFI 120, 5s | 300 | 0 | 23.791 | 63.425 | 112.681 | 21,962,861 |
+| H.264 5120x2880 @ 60, 120Mbps, 1s | 60 | 60 | 9.321 | 10.073 | 75.755 | 0 |
+
+Transport smoke:
+- Loopback TCP drain at 1280x720 HEVC sent 60/60 frames with `avg_send_ms=0.040`, `p95_send_ms=0.059`, `sender_dropped_frames=0`, and `send_failed_frames=0`.
+
+Artifacts:
+- `benchmarks/plans/network_matrix.md`
+- `benchmarks/runs/2026-05-15_sender_queue_loopback_smoke/primary_stats.csv`
+- `benchmarks/runs/2026-05-15_encoder_matrix_smoke/`
+- `benchmarks/runs/2026-05-15_0854_encoder_lowlatency/summary.md`
+- `benchmarks/runs/primary_encoder_list_latest.txt`
+
+Decision:
+- Plan C remains the next implementation path.
+- 2560x1440 HEVC meets the requested avg encode latency target in this local run; 3200x1800 does not yet meet avg < 20ms after the new low-latency settings and needs additional tuning.
+- H.264 5K remains a failed payload-producing path on this Primary and should not block HEVC Plan C.
+- LAN and Thunderbolt Bridge tests remain pending physical setup and must be measured separately from Tailscale.

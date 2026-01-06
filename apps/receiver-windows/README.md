@@ -65,3 +65,13 @@ The receiver can also run a no-GUI TCP sink for Plan B transport tests. This val
 ```powershell
 apps\receiver-windows\build\manual\ibridge-receiver.exe --transport-sink --port 48320 --duration 60 --csv benchmarks\runs\YYYY-MM-DD_HHMM_plan_b_5k_hevc_tcp\receiver_stats.csv
 ```
+
+## Compressed file decode/render smoke path
+
+The receiver has an offline Media Foundation decode smoke path before live TCP decode. Use it with a container file that Windows Media Foundation can open, then render decoded RGB32 frames through the existing D3D11 renderer:
+
+```powershell
+apps\receiver-windows\build\manual\ibridge-receiver.exe --decode-file sample.mp4 --fullscreen --output-resolution 5120x2880 --scale-mode linear --duration 10 --csv benchmarks\runs\YYYY-MM-DD_HHMM_decode_file\receiver_decode.csv
+```
+
+This path is intended to verify compressed decode -> texture upload -> D3D11 present timing. Live protocol v0 TCP decode/render is still the next receiver step after the offline decode smoke test passes on the Windows iMac.

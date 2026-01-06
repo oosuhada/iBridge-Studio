@@ -19,6 +19,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Protocol v0 has a fixed 80-byte header and parser tests.
 - Plan B 5K60 compressed mode was attempted and currently fails practical gates due to H.264 encode failure, HEVC latency, and slow TCP/Tailscale transport.
 - Plan C scaled modes have an engineering comparison; `3200x1800 @ 60fps` is the temporary engineering default, but text quality is not validated.
+- Current transport results are classified as Tailscale / likely Wi-Fi 2.4GHz / TCP early experiments and are not representative of LAN or Thunderbolt Bridge.
+- macOS Primary now separates VideoToolbox output callback timing from TCP socket send timing with a bounded async sender queue.
+- Windows Receiver has a new offline Media Foundation compressed file decode/render smoke path, but live TCP compressed decode/render is still pending Windows-side validation.
 
 ## Key Results
 
@@ -33,6 +36,10 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 - `apps/primary-macos/Sources/iBridgePrimary/main.swift`
 - `apps/receiver-windows/src/main.cpp`
+- `benchmarks/plans/network_matrix.md`
+- `scripts/mac_network_matrix.sh`
+- `scripts/windows_network_matrix.ps1`
+- `scripts/mac_plan_c_encode_matrix.sh`
 - `apps/shared-protocol/protocol_v0.py`
 - `specs/protocol_v0.md`
 - `benchmarks/runs/2026-05-15_0238_plan_b_5k_hevc_120mbps_tcp/summary.md`
@@ -56,11 +63,14 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - ScreenCaptureKit capture is not implemented.
 - Text-quality screenshots are pending.
 - Power cable/drain-rate tests require physical cable changes.
+- LAN/Thunderbolt Bridge throughput tests require physical cable changes and `iperf3` on both machines.
+- Windows compressed file decode/render code needs MSVC build/run validation on the iMac.
 - `prompts/10_PACKAGING_AND_RELEASE.md` is blocked until at least one end-to-end display mode works.
 
 ## Next Steps
 
-1. Add a sender queue so VideoToolbox callbacks do not block on network send.
-2. Implement Windows compressed decode path, preferably H.264 first if a lower-resolution mode is selected, then HEVC.
-3. Render decoded frames into the D3D11 scaled renderer.
-4. Run end-to-end Plan C mode tests with screenshots and text-quality scoring.
+1. Build and run the Windows `--decode-file` smoke path on the iMac with a known-good H.264/HEVC MP4 sample.
+2. Extend receiver decode from offline file to protocol v0 TCP payloads.
+3. Run Plan C live TCP end-to-end at 2560x1440 or 3200x1800 before any UDP work.
+4. Run network matrix after LAN and Thunderbolt Bridge cables are attached.
+5. Capture Plan C screenshots and text-quality scoring after compressed decode/render works.

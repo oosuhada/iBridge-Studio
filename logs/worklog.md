@@ -316,3 +316,44 @@ Result:
 - Prompt 08 passes as a setup/current-snapshot probe; physical cable/drain-rate tests remain pending.
 Next:
 - Do not run prompts/10_PACKAGING_AND_RELEASE.md until an end-to-end display mode works.
+
+## 2026-05-15 08:54 — Focused Plan C pipeline spike setup
+
+Prompt: user-requested Plan C end-to-end preparation after Plan B/Plan C findings
+Changed files:
+- apps/primary-macos/README.md
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- apps/receiver-windows/CMakeLists.txt
+- apps/receiver-windows/README.md
+- apps/receiver-windows/src/main.cpp
+- benchmarks/plans/network_matrix.md
+- benchmarks/runs/2026-05-15_0854_encoder_lowlatency/*
+- benchmarks/runs/2026-05-15_encoder_matrix_smoke/*
+- benchmarks/runs/2026-05-15_primary_lowlatency_smoke/*
+- benchmarks/runs/2026-05-15_sender_queue_loopback_smoke/*
+- benchmarks/runs/primary_encoder_list_latest.txt
+- docs/04_SOURCE_LEDGER.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- scripts/mac_network_matrix.sh
+- scripts/mac_plan_c_encode_matrix.sh
+- scripts/windows_network_matrix.ps1
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] `ibridge-primary --list-encoders`
+- [x] `ibridge-primary` HEVC 2560x1440 120Mbps 5s local encode
+- [x] `ibridge-primary` HEVC 3200x1800 120Mbps 5s local encode
+- [x] `ibridge-primary` H.264 5120x2880 120Mbps 1s probe
+- [x] Loopback TCP drain with `nc` confirmed async sender queue records send timing without receiver app.
+- [x] `LIMIT_CASES=1 DURATION=1 scripts/mac_plan_c_encode_matrix.sh`
+- [ ] Windows MSVC build skipped because SSH to `100.86.52.88` failed with `Permission denied` and this MacBook Air does not have the Windows SDK.
+- [ ] LAN/Thunderbolt Bridge network matrix skipped because physical cables are not attached in this session.
+Result:
+- Primary callback timing and socket send timing are now separated in CSV diagnostics.
+- Network matrix docs/scripts leave explicit room for 5GHz Wi-Fi, 1GbE LAN, Thunderbolt Bridge, and Tailscale direct/relay tests.
+- Offline Windows compressed file decode/render path is implemented but not yet built on Windows.
+Next:
+- Build the receiver on Windows and run `--decode-file` with a known-good compressed sample.
+- Extend decode from offline files to protocol v0 TCP payloads.
+- Run live Plan C end-to-end before UDP or tiled 5K work.
