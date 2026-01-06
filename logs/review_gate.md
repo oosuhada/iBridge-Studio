@@ -349,3 +349,92 @@ Result: passed.
 ## Next Prompt To Run
 
 `prompts/04_PLAN_C_60HZ_SCALED_MODES.md`
+
+## 2026-05-15 03:02 — Prompt 09 after Prompt 04
+
+Prompt reviewed: `prompts/04_PLAN_C_60HZ_SCALED_MODES.md`
+
+## Summary
+
+Pass for engineering-mode comparison, with visual quality pending.
+
+Prompt 04 added receiver source/output resolution separation and `nearest|linear` scaling, then measured the required fallback resolutions against 5120x2880 output. It also measured Primary HEVC 120Mbps local encode cost for each fallback source mode. All receiver static scaled-render runs sustained about 60fps. `3200x1800 @ 60fps, linear` is the temporary engineering default based on the best short-run encode latency, but it is not yet a user-facing default because text screenshots and compressed decode/render are missing.
+
+## Changed Files
+
+- `apps/receiver-windows/README.md`
+- `apps/receiver-windows/src/main.cpp`
+- `benchmarks/runs/2026-05-15_0255_plan_c_scaled_modes/*`
+- `logs/experiments.md`
+- `logs/worklog.md`
+- `specs/protocol_v0.md`
+
+## Verification Commands / Results
+
+```bash
+swift build --package-path apps/primary-macos -c release
+```
+
+Result: passed.
+
+```bash
+python3 apps/shared-protocol/test_protocol_v0.py
+```
+
+Result: passed, 8 tests.
+
+```bash
+git diff --check
+```
+
+Result: passed.
+
+Windows iMac MSVC build:
+
+```cmd
+cl /nologo /EHsc /std:c++17 /O2 /W4 /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN apps\receiver-windows\src\main.cpp /Fe:apps\receiver-windows\build\manual\ibridge-receiver.exe /link d3d11.lib dxgi.lib d3dcompiler.lib user32.lib gdi32.lib ws2_32.lib
+```
+
+Result: passed.
+
+## Benchmarks
+
+Receiver scaled-render to 5120x2880:
+
+| Mode | Receiver fps | P95 total ms | Max total ms |
+|---|---:|---:|---:|
+| 1440p nearest | 59.881 | 17.476 | 25.163 |
+| 1440p linear | 59.994 | 17.459 | 23.271 |
+| 3200x1800 linear | 59.885 | 17.477 | 31.456 |
+| 4K linear | 59.840 | 17.418 | 35.613 |
+| 4096x2304 linear | 59.777 | 17.473 | 38.184 |
+
+Primary HEVC 120Mbps local encode:
+
+| Mode | Avg generate ms | Avg encode latency ms | P95 encode latency ms |
+|---|---:|---:|---:|
+| 1440p | 5.389 | 16.876 | 40.792 |
+| 3200x1800 | 8.520 | 14.738 | 23.529 |
+| 4K | 10.963 | 21.164 | 38.249 |
+| 4096x2304 | 12.332 | 27.231 | 48.630 |
+
+## Known Failures
+
+- No compressed decode/render path yet, so mode comparison is not end-to-end.
+- No screenshot samples or subjective text scores yet.
+- Bicubic/sharpen scaling is not implemented; only nearest and linear are available.
+- Static scaled-render runs measure present/scaling cost, not video decode cost.
+
+## Review Questions
+
+1. Did this stage only do the requested goal? Yes, except screenshot scoring was explicitly left pending because decode/render is absent.
+2. Did it start the next prompt early? No.
+3. Was build/run verification real? Yes; Windows iMac and macOS runs were executed.
+4. Are logs saved? Yes.
+5. Were failures hidden? No.
+6. Were hardware facts guessed? No.
+7. Was Plan downshift measured? Yes; Plan C followed measured Plan B failures.
+
+## Next Prompt To Run
+
+`prompts/08_POWER_PROBE.md`
