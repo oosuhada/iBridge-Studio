@@ -30,6 +30,8 @@ struct Options {
   bool fullscreen = false;
   bool vsync = true;
   bool static_frame = false;
+  bool gpu_pattern = false;
+  bool uncapped = false;
   std::string csv_path;
 };
 
@@ -75,7 +77,7 @@ void PrintUsage() {
   std::cout
       << "ibridge-receiver --synthetic --resolution 5120x2880 --fps 60 "
          "--duration 60 [--fullscreen] [--csv path] [--no-vsync] "
-         "[--static-frame]\n";
+         "[--static-frame] [--gpu-pattern] [--uncapped]\n";
 }
 
 bool ConsumeValue(int& index, int argc, char** argv, std::string* value) {
@@ -136,6 +138,10 @@ Options ParseOptions(int argc, char** argv) {
       options.vsync = false;
     } else if (arg == "--static-frame") {
       options.static_frame = true;
+    } else if (arg == "--gpu-pattern") {
+      options.gpu_pattern = true;
+    } else if (arg == "--uncapped") {
+      options.uncapped = true;
     } else if (arg == "--csv") {
       if (!ConsumeValue(i, argc, argv, &value)) {
         throw std::runtime_error("--csv requires a value");
@@ -246,16 +252,20 @@ class D3DRenderer {
     CreateSampler();
   }
 
-  FrameStats Render(uint64_t frame_id, const std::vector<uint32_t>& pixels) {
+  FrameStats Render(uint64_t frame_id,
+                    const std::vector<uint32_t>& pixels,
+                    bool upload_frame) {
     FrameStats stats;
     stats.frame_id = frame_id;
 
-    auto upload_start = Clock::now();
-    context_->UpdateSubresource(frame_texture_.Get(), 0, nullptr, pixels.data(),
-                                static_cast<UINT>(options_.width * sizeof(uint32_t)),
-                                0);
-    auto upload_end = Clock::now();
-    stats.upload_ms = MsSince(upload_start, upload_end);
+    if (upload_frame) {
+      auto upload_start = Clock::now();
+      context_->UpdateSubresource(
+          frame_texture_.Get(), 0, nullptr, pixels.data(),
+          static_cast<UINT>(options_.width * sizeof(uint32_t)), 0);
+      auto upload_end = Clock::now();
+      stats.upload_ms = MsSince(upload_start, upload_end);
+    }
 
     auto draw_start = Clock::now();
     const float clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -264,9 +274,13 @@ class D3DRenderer {
     context_->RSSetViewports(1, &viewport_);
     context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context_->VSSetShader(vertex_shader_.Get(), nullptr, 0);
-    context_->PSSetShader(pixel_shader_.Get(), nullptr, 0);
+    context_->PSSetShader(
+        options_.gpu_pattern ? gpu_pixel_shader_.Get() : pixel_shader_.Get(),
+        nullptr, 0);
     context_->PSSetSamplers(0, 1, sampler_.GetAddressOf());
-    context_->PSSetShaderResources(0, 1, frame_srv_.GetAddressOf());
+    if (!options_.gpu_pattern) {
+      context_->PSSetShaderResources(0, 1, frame_srv_.GetAddressOf());
+    }
     context_->Draw(3, 0);
     CheckHR(swap_chain_->Present(options_.vsync ? 1 : 0, 0), "Present");
     auto draw_end = Clock::now();
@@ -367,10 +381,19 @@ VsOut vs_main(uint id : SV_VertexID) {
 float4 ps_main(VsOut input) : SV_TARGET {
   return frame_texture.Sample(frame_sampler, input.uv);
 }
+
+float4 ps_gpu_pattern(VsOut input) : SV_TARGET {
+  float2 grid = floor(input.uv * float2(80.0, 45.0));
+  float checker = fmod(grid.x + grid.y, 2.0);
+  float3 a = float3(input.uv.x, input.uv.y, 0.15);
+  float3 b = float3(0.05, input.uv.x, input.uv.y);
+  return float4(lerp(a, b, checker), 1.0);
+}
 )";
 
     ComPtr<ID3DBlob> vs = CompileShader(hlsl, "vs_main", "vs_5_0");
     ComPtr<ID3DBlob> ps = CompileShader(hlsl, "ps_main", "ps_5_0");
+    ComPtr<ID3DBlob> gpu_ps = CompileShader(hlsl, "ps_gpu_pattern", "ps_5_0");
     CheckHR(device_->CreateVertexShader(vs->GetBufferPointer(),
                                         vs->GetBufferSize(), nullptr,
                                         &vertex_shader_),
@@ -378,6 +401,10 @@ float4 ps_main(VsOut input) : SV_TARGET {
     CheckHR(device_->CreatePixelShader(ps->GetBufferPointer(),
                                        ps->GetBufferSize(), nullptr,
                                        &pixel_shader_),
+            "CreatePixelShader");
+    CheckHR(device_->CreatePixelShader(gpu_ps->GetBufferPointer(),
+                                       gpu_ps->GetBufferSize(), nullptr,
+                                       &gpu_pixel_shader_),
             "CreatePixelShader");
   }
 
@@ -402,6 +429,7 @@ float4 ps_main(VsOut input) : SV_TARGET {
   ComPtr<ID3D11ShaderResourceView> frame_srv_;
   ComPtr<ID3D11VertexShader> vertex_shader_;
   ComPtr<ID3D11PixelShader> pixel_shader_;
+  ComPtr<ID3D11PixelShader> gpu_pixel_shader_;
   ComPtr<ID3D11SamplerState> sampler_;
   D3D11_VIEWPORT viewport_ = {};
 };
@@ -468,7 +496,10 @@ int RunSynthetic(const Options& options) {
   HWND hwnd = CreateBenchmarkWindow(options);
   D3DRenderer renderer(hwnd, options);
 
-  std::vector<uint32_t> pixels(static_cast<size_t>(options.width) * options.height);
+  std::vector<uint32_t> pixels;
+  if (!options.gpu_pattern) {
+    pixels.resize(static_cast<size_t>(options.width) * options.height);
+  }
   std::vector<FrameStats> stats;
   stats.reserve(static_cast<size_t>(options.fps) * options.duration_seconds);
 
@@ -477,7 +508,9 @@ int RunSynthetic(const Options& options) {
   const auto frame_duration =
       std::chrono::duration<double>(1.0 / static_cast<double>(options.fps));
 
-  FillSyntheticFrame(&pixels, options.width, options.height, 0);
+  if (!options.gpu_pattern) {
+    FillSyntheticFrame(&pixels, options.width, options.height, 0);
+  }
 
   const auto run_start = Clock::now();
   auto next_frame_time = run_start;
@@ -492,14 +525,19 @@ int RunSynthetic(const Options& options) {
     FrameStats frame;
     frame.frame_id = frame_id;
 
-    if (!options.static_frame || frame_id == 0) {
+    const bool fill_frame =
+        !options.gpu_pattern && (!options.static_frame || frame_id == 0);
+    const bool upload_frame =
+        !options.gpu_pattern && (!options.static_frame || frame_id == 0);
+
+    if (fill_frame) {
       const auto fill_start = Clock::now();
       FillSyntheticFrame(&pixels, options.width, options.height, frame_id);
       const auto fill_end = Clock::now();
       frame.fill_ms = MsSince(fill_start, fill_end);
     }
 
-    FrameStats render_stats = renderer.Render(frame_id, pixels);
+    FrameStats render_stats = renderer.Render(frame_id, pixels, upload_frame);
     frame.upload_ms = render_stats.upload_ms;
     frame.draw_present_ms = render_stats.draw_present_ms;
 
@@ -510,7 +548,7 @@ int RunSynthetic(const Options& options) {
 
     ++frame_id;
     next_frame_time += std::chrono::duration_cast<Clock::duration>(frame_duration);
-    if (!options.vsync) {
+    if (!options.vsync && !options.uncapped) {
       std::this_thread::sleep_until(next_frame_time);
     }
   }
@@ -544,7 +582,9 @@ int RunSynthetic(const Options& options) {
             << "max_total_ms=" << max_total << '\n'
             << "missed_frames=" << missed << '\n'
             << "vsync=" << (options.vsync ? "on" : "off") << '\n'
-            << "static_frame=" << (options.static_frame ? "on" : "off") << '\n';
+            << "static_frame=" << (options.static_frame ? "on" : "off") << '\n'
+            << "gpu_pattern=" << (options.gpu_pattern ? "on" : "off") << '\n'
+            << "uncapped=" << (options.uncapped ? "on" : "off") << '\n';
 
   return 0;
 }

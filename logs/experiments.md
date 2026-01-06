@@ -40,3 +40,27 @@ Artifacts:
 Decision:
 - Plan A dynamic CPU-filled BGRA32 full-frame upload does not meet the receiver-side 5K60 gate.
 - Run static-frame and no-vsync static-frame isolation tests before declaring all near-raw receiver paths failed.
+
+## 2026-05-15 01:26 — Windows Receiver isolation suite
+
+Prompt: `prompts/06_WINDOWS_RECEIVER_IMPLEMENTATION.md`
+
+Summary:
+- Updated receiver synthetic modes so `--static-frame` uploads only once.
+- Added `--gpu-pattern` to render a GPU-generated pattern without CPU fill or texture upload.
+- Added `--uncapped` so no-vsync runs can measure ceiling instead of sleeping to target fps.
+- Rebuilt on the Windows iMac with MSVC and ran the suite from the active console session via Task Scheduler.
+
+Measured results:
+
+| Mode | Actual fps | Avg fill ms | Avg upload ms | Avg draw/present ms | P95 total ms | Missed frames |
+|---|---:|---:|---:|---:|---:|---:|
+| dynamic_5k60 | 29.979 | 14.4046 | 18.6822 | 0.2685 | 34.2572 | 1799 / 1799 |
+| static_once_upload_5k60 | 61.749 | 0.0040 | 0.0168 | 16.1721 | 16.8029 | 1684 / 3705 |
+| gpu_pattern_5k60 | 61.140 | 0.0000 | 0.0000 | 16.3543 | 16.7943 | 1724 / 3669 |
+| gpu_pattern_uncapped_5k60 | 290.663 | 0.0000 | 0.0000 | 3.4389 | 9.0732 | 0 / 4362 |
+
+Decision:
+- iMac D3D11 draw/present can sustain 5K60 when full-frame CPU fill/upload is removed.
+- Dynamic CPU-filled BGRA32 full-frame upload is a failed Plan A receiver path.
+- Receiver work should continue with low-copy/hardware surfaces and compressed decode paths rather than CPU-filled full-frame uploads.

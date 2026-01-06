@@ -94,3 +94,23 @@ Result:
 - Prompt 02 passes review with required static/no-vsync isolation follow-up before Plan A closure.
 Next:
 - Start prompts/06_WINDOWS_RECEIVER_IMPLEMENTATION.md.
+
+## 2026-05-15 01:26 — Prompt 06 receiver synthetic isolation modes
+
+Prompt: prompts/06_WINDOWS_RECEIVER_IMPLEMENTATION.md
+Changed files:
+- apps/receiver-windows/README.md
+- apps/receiver-windows/src/main.cpp
+- benchmarks/runs/2026-05-15_0126_receiver_isolation_suite/*
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] Rebuilt `ibridge-receiver.exe` on Windows iMac with MSVC.
+- [x] Ran dynamic 5K60, static once-upload 5K60, GPU-pattern 5K60, and GPU-pattern uncapped 5K60 from the active console session.
+- [x] Recorded receiver CSV/console/status artifacts and summary.
+Result:
+- Dynamic CPU-filled full-frame BGRA upload measured 29.979 fps and failed the 5K60 frame budget.
+- Static once-upload and GPU-pattern vsync modes reached about 61 fps.
+- GPU-pattern no-vsync uncapped reached 290.663 fps.
+Next:
+- Run prompts/09_REVIEW_GATE.md for Prompt 06, then proceed to Prompt 05 if review passes.
