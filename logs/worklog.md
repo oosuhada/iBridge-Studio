@@ -504,3 +504,76 @@ Result:
 Next:
 - Treat tiled encoding as the next Plan B experiment if preserving 5K logical resolution matters.
 - Treat 4096x2304 or 3840x2160 as the stronger single-session 60Hz fallback candidates.
+
+## 2026-05-15 11:45 — In-process tiled encode follow-up
+
+Prompt: user asked whether NV12 4K/4096x2304 and tiled encoding were actually tested, then asked to continue the next step
+Changed files:
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- apps/primary-macos/README.md
+- benchmarks/runs/2026-05-15_1138_inprocess_tiled_5k60/*
+- benchmarks/runs/2026-05-15_1140_inprocess_tiled_reuse_5k60/*
+- benchmarks/runs/2026-05-15_1141_inprocess_tiled_reuse_steady_5k60/*
+- benchmarks/runs/2026-05-15_1141_inprocess_tiled_long_gop_5k60/*
+- benchmarks/runs/2026-05-15_1142_inprocess_tiled_h264_5k60/*
+- benchmarks/runs/2026-05-15_1143_sck_4096x2304_duration_5s/*
+- benchmarks/runs/2026-05-15_1144_sck_3840x2160_duration_5s/*
+- benchmarks/runs/2026-05-15_1144_nv12_3840x2160_5s_solo/*
+- benchmarks/runs/2026-05-15_1144_nv12_4096x2304_5s_solo/*
+- benchmarks/runs/2026-05-15_1144_encode_followup/summary.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- scripts/mac_encode_strategy_matrix.sh
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] In-process 2x2 HEVC tiled 5K60 fresh NV12 tile probe.
+- [x] In-process 2x2 HEVC tiled 5K60 reusable-buffer lower-bound probes.
+- [x] In-process 2x2 H.264 tiled 5K60 probe.
+- [x] ScreenCaptureKit 3840x2160 and 4096x2304 duration-based probes.
+- [x] Solo synthetic NV12 3840x2160 and 4096x2304 5-second sustained probes.
+Result:
+- `synthetic-nv12-tiled` now measures synchronized logical-frame completion time inside one Primary process.
+- Solo synthetic NV12 3840x2160 @ 60 passes 5-second encode budget: avg 11.297 ms, p95 11.665 ms.
+- Solo synthetic NV12 4096x2304 @ 60 passes 5-second encode budget: avg 12.629 ms, p95 12.957 ms.
+- In-process 2x2 HEVC tiled 5K60 has a promising short-run lower bound, but fails sustained 5-second testing due to accumulated VideoToolbox latency after about 3 seconds.
+- In-process 2x2 H.264 tiled 5K60 is not viable.
+- ScreenCaptureKit duration probes show fewer than target frames on a static screen; treat SCK as changed-frame driven, not as proof of continuous 60fps full-frame capture.
+Next:
+- Prefer single-session 4096x2304 or 3840x2160 for the next receiver/decode step.
+- Keep tiled 5K60 as a research branch only until backpressure/drop/staggering can keep four sessions sustainable.
+
+## 2026-05-15 12:13 — Tiled 5K60 backpressure and reset probe
+
+Prompt: user asked to continue from the previous tiled 5K60 result and investigate it first because Plan A targets 5K60
+Changed files:
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- apps/primary-macos/README.md
+- scripts/mac_encode_strategy_matrix.sh
+- benchmarks/runs/2026-05-15_1206_tiled_5k60_backpressure_probe/*
+- benchmarks/runs/2026-05-15_1207_tiled_5k60_pts_fix_probe/*
+- benchmarks/runs/2026-05-15_1209_tiled_5k60_tile_shape_probe/*
+- benchmarks/runs/2026-05-15_1211_tiled_5k60_session_reset_probe/*
+- benchmarks/runs/2026-05-15_1212_tiled_5k60_reset_sustain_10s/*
+- benchmarks/runs/2026-05-15_1213_tiled_5k60_reset_sustain_30s/*
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] 2x2 tiled 5K60 backpressure matrix.
+- [x] 2x2 tiled 5K60 PTS-fix probe.
+- [x] 1x4/2x2/4x1/4x2/2x4 tile-shape probe.
+- [x] 2x2 session-reset probe.
+- [x] 10-second 2x2 reset150/inflight1 sustained probe at 30Mbps/tile and 60Mbps/tile.
+- [x] 30-second 2x2 reset150/inflight1 sustained probe at 30Mbps/tile.
+Result:
+- Fixed the in-process tiled benchmark PTS bug: each tile encoder now gets per-session logical-frame PTS instead of interleaved global frame IDs.
+- Added `--tile-max-inflight-logical-frames` and `--tile-reset-every-frames`.
+- No-reset tiled 5K60 still fails sustained 5-second p95 after about frame 180.
+- `2x2`, `30Mbps/tile`, `reset150`, `inflight1` sustained 30 seconds at effective 60.002fps with avg 12.374 ms and p95 12.920 ms.
+- Reset-frame max spikes remain around 100-133 ms and are the main caveat before this can become a smooth display path.
+Next:
+- Keep tiled 5K60 as the top Plan B prototype candidate if preserving full 5120x2880 logical resolution matters.
+- Investigate reset-spike mitigation before receiver work, or design the receiver protocol so reset/keyframe spikes can be dropped, hidden, or staggered.
+- Add tiled metadata/decode/recomposition only after deciding how to handle reset spikes.

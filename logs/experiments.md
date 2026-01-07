@@ -336,3 +336,42 @@ Decision:
 - NV12-style input materially improves 4K/4096x2304 encode results and should replace BGRA synthetic as the main encode benchmark path.
 - The only current 5K60-shaped positive signal is tiled encoding; it requires protocol, receiver decode, synchronization, and recomposition work before it can count as a display solution.
 - Recommended single-session quality candidates are now `4096x2304 @ 60` and `3840x2160 @ 60`; `5120x2880 @ 30` is a high-quality low-refresh fallback.
+
+## 2026-05-15 12:13 — Tiled 5K60 deeper probe
+
+Prompt: user asked to prioritize the promising 2x2 tiled 5K60 signal for Plan A/Plan B investigation.
+
+Summary:
+- Added tiled benchmark controls for logical-frame in-flight depth and periodic tile-session reset.
+- Fixed tiled presentation timestamps so each tile encoder session receives 0, 1, 2... frame PTS instead of global interleaved frame IDs 0, 4, 8...
+- Re-ran 2x2 tiled 5K60 with bitrate, backpressure, tile-shape, session-reset, 10-second, and 30-second sustain probes.
+
+Key findings:
+- PTS fix reduced the post-3-second no-reset failure from about 136 ms p95 to about 43 ms p95, but no-reset tiled 5K60 still fails the 16.67 ms budget after frame 180.
+- Tile shape changes (`1x4`, `2x2`, `4x1`, `4x2`, `2x4`) did not remove the post-180-frame latency rise.
+- Periodic session reset alone creates large reset-frame spikes and fails p95 in short 5-second runs.
+- Periodic reset plus `--tile-max-inflight-logical-frames 1` is the first strong sustained tiled 5K60 encode-only pass.
+
+Measured highlights:
+
+| Case | Duration | Frames | Effective fps | Avg logical ms | P95 logical ms | Max logical ms | Result |
+|---|---:|---:|---:|---:|---:|---:|---|
+| 2x2 30Mbps/tile, no reset | 5s | 300 | 59.543 | 24.733 | 42.688 | 108.377 | Fail |
+| 2x2 30Mbps/tile, reset150 | 5s | 300 | 60.003 | 17.509 | 65.848 | 111.154 | Fail |
+| 2x2 30Mbps/tile, reset150, inflight1 | 5s | 300 | 60.040 | 12.255 | 12.937 | 112.592 | Pass p95, reset spike remains |
+| 2x2 30Mbps/tile, reset150, inflight1 | 10s | 600 | 60.025 | 12.436 | 13.816 | 123.366 | Pass p95, reset spike remains |
+| 2x2 60Mbps/tile, reset150, inflight1 | 10s | 600 | 60.005 | 12.428 | 13.814 | 127.576 | Pass p95, reset spike remains |
+| 2x2 30Mbps/tile, reset150, inflight1 | 30s | 1800 | 60.002 | 12.374 | 12.920 | 132.944 | Pass p95, reset spike remains |
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1206_tiled_5k60_backpressure_probe/summary.md`
+- `benchmarks/runs/2026-05-15_1207_tiled_5k60_pts_fix_probe/summary.md`
+- `benchmarks/runs/2026-05-15_1209_tiled_5k60_tile_shape_probe/summary.md`
+- `benchmarks/runs/2026-05-15_1211_tiled_5k60_session_reset_probe/summary.md`
+- `benchmarks/runs/2026-05-15_1212_tiled_5k60_reset_sustain_10s/summary.md`
+- `benchmarks/runs/2026-05-15_1213_tiled_5k60_reset_sustain_30s/summary.md`
+
+Decision:
+- Tiled 5K60 should move from "research only" to the next Plan B prototype candidate, but only with explicit caveats.
+- The encode-only budget is now promising for p95, but reset-frame max spikes around 100-133 ms must be solved or hidden before calling it display-smooth.
+- Next tiled work should investigate receiver protocol metadata, multi-stream decode/recomposition, and reset-spike mitigation such as staggered/prewarmed tile sessions or dropping/hiding reset frames.

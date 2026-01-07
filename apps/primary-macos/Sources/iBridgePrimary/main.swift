@@ -34,6 +34,12 @@ struct Options {
     var staticChangeEvery = 1
     var captureDisplayIndex = 0
     var captureQueueDepth = 8
+    var tileColumns = 2
+    var tileRows = 2
+    var tileReuseBuffers = false
+    var tileMaxInFlightLogicalFrames = 0
+    var tileResetEveryFrames = 0
+    var warmupFrames = 0
     var senderQueueDepth = 4
     var listEncoders = false
     var printSupportedProperties = false
@@ -64,11 +70,13 @@ final class EncoderState {
     private var framesByID: [Int: EncodedFrame] = [:]
     let codec: String
     let payloadFormat: String
+    let onFrameFinished: ((EncodedFrame) -> Void)?
     var sender: AsyncTcpFrameSender?
 
-    init(codec: String, payloadFormat: String) {
+    init(codec: String, payloadFormat: String, onFrameFinished: ((EncodedFrame) -> Void)? = nil) {
         self.codec = codec
         self.payloadFormat = payloadFormat
+        self.onFrameFinished = onFrameFinished
     }
 
     func markFrame(_ frameID: Int, generateMS: Double) {
@@ -149,6 +157,7 @@ final class EncoderState {
         lock.lock()
         framesByID[frameID] = frame
         lock.unlock()
+        onFrameFinished?(frame)
     }
 
     func markSenderDropped(frameID: UInt64) {
@@ -583,7 +592,9 @@ func usage() {
       --source synthetic-bgra
       --source synthetic-nv12
       --source synthetic-static-skip --static-change-every 60
+      --source synthetic-nv12-tiled --tile-columns 2 --tile-rows 2 [--tile-reuse-buffers] [--tile-max-inflight-logical-frames 1] [--tile-reset-every-frames 150]
       --source screen-capture --capture-display-index 0 --capture-queue-depth 8
+      --warmup-frames 20
 
     Reference-informed VideoToolbox options:
       --disable-low-latency-rate-control
@@ -737,6 +748,28 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.captureQueueDepth = try Int(value()) ?? options.captureQueueDepth
         } else if arg.hasPrefix("--capture-queue-depth=") {
             options.captureQueueDepth = Int(arg.dropFirst("--capture-queue-depth=".count)) ?? options.captureQueueDepth
+        } else if arg == "--tile-columns" {
+            options.tileColumns = try Int(value()) ?? options.tileColumns
+        } else if arg.hasPrefix("--tile-columns=") {
+            options.tileColumns = Int(arg.dropFirst("--tile-columns=".count)) ?? options.tileColumns
+        } else if arg == "--tile-rows" {
+            options.tileRows = try Int(value()) ?? options.tileRows
+        } else if arg.hasPrefix("--tile-rows=") {
+            options.tileRows = Int(arg.dropFirst("--tile-rows=".count)) ?? options.tileRows
+        } else if arg == "--tile-reuse-buffers" {
+            options.tileReuseBuffers = true
+        } else if arg == "--tile-max-inflight-logical-frames" {
+            options.tileMaxInFlightLogicalFrames = try Int(value()) ?? options.tileMaxInFlightLogicalFrames
+        } else if arg.hasPrefix("--tile-max-inflight-logical-frames=") {
+            options.tileMaxInFlightLogicalFrames = Int(arg.dropFirst("--tile-max-inflight-logical-frames=".count)) ?? options.tileMaxInFlightLogicalFrames
+        } else if arg == "--tile-reset-every-frames" {
+            options.tileResetEveryFrames = try Int(value()) ?? options.tileResetEveryFrames
+        } else if arg.hasPrefix("--tile-reset-every-frames=") {
+            options.tileResetEveryFrames = Int(arg.dropFirst("--tile-reset-every-frames=".count)) ?? options.tileResetEveryFrames
+        } else if arg == "--warmup-frames" {
+            options.warmupFrames = try Int(value()) ?? options.warmupFrames
+        } else if arg.hasPrefix("--warmup-frames=") {
+            options.warmupFrames = Int(arg.dropFirst("--warmup-frames=".count)) ?? options.warmupFrames
         } else if arg == "--disable-low-latency-rate-control" {
             options.lowLatencyRateControl = false
         } else if arg == "--encoder-id" {
@@ -758,7 +791,7 @@ func parseOptions(_ args: [String]) throws -> Options {
     if options.listEncoders {
         return options
     }
-    let validSources = ["synthetic-bgra", "synthetic-nv12", "synthetic-static-skip", "screen-capture"]
+    let validSources = ["synthetic-bgra", "synthetic-nv12", "synthetic-static-skip", "synthetic-nv12-tiled", "screen-capture"]
     guard validSources.contains(options.source) else {
         throw RuntimeError("--source must be one of \(validSources.joined(separator: ", "))")
     }
@@ -795,6 +828,26 @@ func parseOptions(_ args: [String]) throws -> Options {
     }
     guard options.captureDisplayIndex >= 0, options.captureQueueDepth > 0 else {
         throw RuntimeError("--capture-display-index must be non-negative and --capture-queue-depth must be positive")
+    }
+    guard options.warmupFrames >= 0 else {
+        throw RuntimeError("--warmup-frames must be non-negative")
+    }
+    guard options.tileColumns > 0, options.tileRows > 0 else {
+        throw RuntimeError("--tile-columns and --tile-rows must be positive")
+    }
+    guard options.tileMaxInFlightLogicalFrames >= 0 else {
+        throw RuntimeError("--tile-max-inflight-logical-frames must be non-negative")
+    }
+    guard options.tileResetEveryFrames >= 0 else {
+        throw RuntimeError("--tile-reset-every-frames must be non-negative")
+    }
+    if options.source == "synthetic-nv12-tiled" {
+        guard options.width % options.tileColumns == 0, options.height % options.tileRows == 0 else {
+            throw RuntimeError("resolution must divide evenly by --tile-columns and --tile-rows")
+        }
+        guard options.sendHost.isEmpty else {
+            throw RuntimeError("synthetic-nv12-tiled is an encode benchmark only; live tiled transport is not implemented yet")
+        }
     }
     return options
 }
@@ -1005,8 +1058,12 @@ func percentile(_ values: [Double], _ p: Double) -> Double {
     return sorted[lower] * (1 - fraction) + sorted[upper] * fraction
 }
 
-func makeState(options: Options) throws -> EncoderState {
-    let state = EncoderState(codec: options.codec, payloadFormat: options.payloadFormat)
+func makeState(options: Options, onFrameFinished: ((EncodedFrame) -> Void)? = nil) throws -> EncoderState {
+    let state = EncoderState(
+        codec: options.codec,
+        payloadFormat: options.payloadFormat,
+        onFrameFinished: onFrameFinished
+    )
     if !options.sendHost.isEmpty {
         state.sender = try AsyncTcpFrameSender(
             host: options.sendHost,
@@ -1062,13 +1119,14 @@ func makeCompressionSession(options: Options, state: EncoderState) throws -> VTC
 func encodePixelBuffer(
     _ pixelBuffer: CVPixelBuffer,
     frameID: Int,
+    presentationFrameID: Int? = nil,
     generateMS: Double,
     frameDuration: CMTime,
     session: VTCompressionSession,
     state: EncoderState
 ) {
     state.markFrame(frameID, generateMS: generateMS)
-    let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frameID))
+    let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(presentationFrameID ?? frameID))
     let status = VTCompressionSessionEncodeFrame(
         session,
         imageBuffer: pixelBuffer,
@@ -1139,6 +1197,296 @@ func printRunSummary(options: Options, state: EncoderState, frameCount: Int, sub
     print("bytes_sent=\(totalBytesSent)")
     print("send_target=\(options.sendHost.isEmpty ? "none" : "\(options.sendHost):\(options.sendPort)")")
     print("csv=\(options.csvPath.isEmpty ? "none" : options.csvPath)")
+}
+
+struct TileLogicalFrame {
+    let frameID: Int
+    let completedTiles: Int
+    let failedTiles: Int
+    let groupLatencyMS: Double
+    let maxTileEncodeLatencyMS: Double
+    let payloadBytes: Int
+}
+
+final class TileFrameTracker {
+    private let condition = NSCondition()
+    private let tileCount: Int
+    private var startNSByFrameID: [Int: UInt64] = [:]
+    private var completedTilesByFrameID: [Int: Int] = [:]
+    private var failedTilesByFrameID: [Int: Int] = [:]
+    private var maxTileEncodeByFrameID: [Int: Double] = [:]
+    private var payloadBytesByFrameID: [Int: Int] = [:]
+    private var logicalFrames: [TileLogicalFrame] = []
+
+    init(tileCount: Int) {
+        self.tileCount = tileCount
+    }
+
+    func startFrame(_ logicalFrameID: Int) {
+        condition.lock()
+        startNSByFrameID[logicalFrameID] = DispatchTime.now().uptimeNanoseconds
+        completedTilesByFrameID[logicalFrameID] = 0
+        failedTilesByFrameID[logicalFrameID] = 0
+        maxTileEncodeByFrameID[logicalFrameID] = 0
+        payloadBytesByFrameID[logicalFrameID] = 0
+        condition.unlock()
+    }
+
+    func finishTile(_ frame: EncodedFrame) {
+        let logicalFrameID = frame.frameID / tileCount
+        condition.lock()
+        completedTilesByFrameID[logicalFrameID, default: 0] += 1
+        if frame.status != noErr {
+            failedTilesByFrameID[logicalFrameID, default: 0] += 1
+        }
+        maxTileEncodeByFrameID[logicalFrameID] = max(
+            maxTileEncodeByFrameID[logicalFrameID, default: 0],
+            frame.encodeLatencyMS
+        )
+        payloadBytesByFrameID[logicalFrameID, default: 0] += frame.payloadBytes
+
+        let completedTiles = completedTilesByFrameID[logicalFrameID, default: 0]
+        if completedTiles == tileCount, let startNS = startNSByFrameID[logicalFrameID] {
+            let groupLatencyMS = Double(DispatchTime.now().uptimeNanoseconds - startNS) / 1_000_000.0
+            logicalFrames.append(
+                TileLogicalFrame(
+                    frameID: logicalFrameID,
+                    completedTiles: completedTiles,
+                    failedTiles: failedTilesByFrameID[logicalFrameID, default: 0],
+                    groupLatencyMS: groupLatencyMS,
+                    maxTileEncodeLatencyMS: maxTileEncodeByFrameID[logicalFrameID, default: 0],
+                    payloadBytes: payloadBytesByFrameID[logicalFrameID, default: 0]
+                )
+            )
+            condition.broadcast()
+        }
+        condition.unlock()
+    }
+
+    func sortedLogicalFrames() -> [TileLogicalFrame] {
+        condition.lock()
+        let output = logicalFrames.sorted { $0.frameID < $1.frameID }
+        condition.unlock()
+        return output
+    }
+
+    func waitForFrame(_ logicalFrameID: Int, timeoutSeconds: TimeInterval = 10) -> Bool {
+        condition.lock()
+        defer { condition.unlock() }
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while !logicalFrames.contains(where: { $0.frameID == logicalFrameID }) {
+            if !condition.wait(until: deadline) {
+                return false
+            }
+        }
+        return true
+    }
+}
+
+func logicalCSVPath(for csvPath: String) -> String {
+    guard !csvPath.isEmpty else { return "" }
+    let url = URL(fileURLWithPath: csvPath)
+    let base = url.deletingPathExtension().path
+    return "\(base)_logical.csv"
+}
+
+func writeTileLogicalCSV(path: String, frames: [TileLogicalFrame]) throws {
+    guard !path.isEmpty else { return }
+    var output = "frame_id,completed_tiles,failed_tiles,group_latency_ms,max_tile_encode_latency_ms,payload_bytes\n"
+    for frame in frames {
+        output += "\(frame.frameID),\(frame.completedTiles),\(frame.failedTiles),"
+        output += String(format: "%.4f,%.4f,", frame.groupLatencyMS, frame.maxTileEncodeLatencyMS)
+        output += "\(frame.payloadBytes)\n"
+    }
+    try FileManager.default.createDirectory(
+        atPath: URL(fileURLWithPath: path).deletingLastPathComponent().path,
+        withIntermediateDirectories: true
+    )
+    try output.write(toFile: path, atomically: true, encoding: .utf8)
+}
+
+func printTiledRunSummary(
+    options: Options,
+    states: [EncoderState],
+    tracker: TileFrameTracker,
+    logicalFrameCount: Int,
+    submittedFrames: Int,
+    elapsedSeconds: Double
+) throws {
+    let tileFrames = states.flatMap { $0.sortedFrames() }.sorted { $0.frameID < $1.frameID }
+    try writeCSV(path: options.csvPath, frames: tileFrames)
+
+    let logicalFrames = tracker.sortedLogicalFrames()
+    let logicalPath = logicalCSVPath(for: options.csvPath)
+    try writeTileLogicalCSV(path: logicalPath, frames: logicalFrames)
+    let steadyLogicalFrames = logicalFrames.filter { $0.frameID >= options.warmupFrames }
+
+    let tileLatencies = tileFrames.map(\.encodeLatencyMS)
+    let groupLatencies = logicalFrames.map(\.groupLatencyMS)
+    let steadyGroupLatencies = steadyLogicalFrames.map(\.groupLatencyMS)
+    let maxTileLatencies = logicalFrames.map(\.maxTileEncodeLatencyMS)
+    let steadyMaxTileLatencies = steadyLogicalFrames.map(\.maxTileEncodeLatencyMS)
+    let totalPayloadBytes = logicalFrames.reduce(0) { $0 + $1.payloadBytes }
+    let failedLogicalFrames = logicalFrames.filter { $0.failedTiles > 0 }.count
+    let failedTileFrames = tileFrames.filter { $0.status != noErr }.count
+    let tileWidth = options.width / options.tileColumns
+    let tileHeight = options.height / options.tileRows
+
+    print("iBridge Primary encoder")
+    print("run_label=synthetic-tiled")
+    print("source=\(options.source)")
+    print("resolution=\(options.width)x\(options.height)")
+    print("tile_columns=\(options.tileColumns)")
+    print("tile_rows=\(options.tileRows)")
+    print("tile_resolution=\(tileWidth)x\(tileHeight)")
+    print("tile_reuse_buffers=\(options.tileReuseBuffers ? "on" : "off")")
+    print("tile_max_inflight_logical_frames=\(options.tileMaxInFlightLogicalFrames)")
+    print("tile_reset_every_frames=\(options.tileResetEveryFrames)")
+    print("warmup_frames=\(options.warmupFrames)")
+    print("target_fps=\(options.fps)")
+    print("duration_seconds=\(options.durationSeconds)")
+    print("codec=\(options.codec)")
+    print("encoder_id=\(options.encoderID.isEmpty ? "auto" : options.encoderID)")
+    print("bitrate_mbps=\(options.bitrateMbps > 0 ? options.bitrateMbps : 0)")
+    print("data_rate_limit_mbps=\(options.dataRateLimitMbps)")
+    print(String(format: "data_rate_window_seconds=%.3f", options.dataRateWindowSeconds))
+    print("low_latency_rate_control=\(options.lowLatencyRateControl ? "on" : "off")")
+    print("realtime=\(options.realtime ? "on" : "off")")
+    print("allow_temporal_compression=\(options.allowTemporalCompression ? "on" : "off")")
+    print("allow_frame_reordering=\(options.allowFrameReordering ? "on" : "off")")
+    print("allow_open_gop=\(options.allowOpenGOP ? "on" : "off")")
+    print("prioritize_speed=\(options.prioritizeSpeed.map { $0 ? "on" : "off" } ?? "unset")")
+    print("max_frame_delay_count=\(options.maxFrameDelayCount.map(String.init) ?? "unset")")
+    print("payload_format=\(options.payloadFormat)")
+    print("max_keyframe_interval=\(options.maxKeyFrameInterval)")
+    print(String(format: "max_keyframe_interval_duration=%.3f", options.maxKeyFrameIntervalDuration))
+    print("frames_requested=\(logicalFrameCount)")
+    print("frames_submitted=\(submittedFrames)")
+    print("frames_skipped=0")
+    print("frames_encoded=\(logicalFrames.count)")
+    print("failed_frames=\(failedLogicalFrames)")
+    print("steady_frames_encoded=\(steadyLogicalFrames.count)")
+    print(String(format: "elapsed_seconds=%.3f", elapsedSeconds))
+    print(String(format: "effective_logical_fps=%.3f", Double(logicalFrames.count) / max(elapsedSeconds, 0.001)))
+    print("tile_frames_requested=\(logicalFrameCount * options.tileColumns * options.tileRows)")
+    print("tile_frames_encoded=\(tileFrames.count)")
+    print("failed_tile_frames=\(failedTileFrames)")
+    print(String(format: "avg_encode_latency_ms=%.3f", groupLatencies.reduce(0, +) / Double(max(groupLatencies.count, 1))))
+    print(String(format: "p95_encode_latency_ms=%.3f", percentile(groupLatencies, 95)))
+    print(String(format: "max_encode_latency_ms=%.3f", groupLatencies.max() ?? 0))
+    print(String(format: "avg_steady_encode_latency_ms=%.3f", steadyGroupLatencies.reduce(0, +) / Double(max(steadyGroupLatencies.count, 1))))
+    print(String(format: "p95_steady_encode_latency_ms=%.3f", percentile(steadyGroupLatencies, 95)))
+    print(String(format: "max_steady_encode_latency_ms=%.3f", steadyGroupLatencies.max() ?? 0))
+    print(String(format: "avg_tile_encode_latency_ms=%.3f", tileLatencies.reduce(0, +) / Double(max(tileLatencies.count, 1))))
+    print(String(format: "p95_tile_encode_latency_ms=%.3f", percentile(tileLatencies, 95)))
+    print(String(format: "avg_max_tile_encode_latency_ms=%.3f", maxTileLatencies.reduce(0, +) / Double(max(maxTileLatencies.count, 1))))
+    print(String(format: "p95_max_tile_encode_latency_ms=%.3f", percentile(maxTileLatencies, 95)))
+    print(String(format: "avg_steady_max_tile_encode_latency_ms=%.3f", steadyMaxTileLatencies.reduce(0, +) / Double(max(steadyMaxTileLatencies.count, 1))))
+    print(String(format: "p95_steady_max_tile_encode_latency_ms=%.3f", percentile(steadyMaxTileLatencies, 95)))
+    print("payload_bytes=\(totalPayloadBytes)")
+    print("send_target=none")
+    print("csv=\(options.csvPath.isEmpty ? "none" : options.csvPath)")
+    print("logical_csv=\(logicalPath.isEmpty ? "none" : logicalPath)")
+}
+
+func runSyntheticTiled(options: Options) throws {
+    let tileCount = options.tileColumns * options.tileRows
+    let tileWidth = options.width / options.tileColumns
+    let tileHeight = options.height / options.tileRows
+    let tracker = TileFrameTracker(tileCount: tileCount)
+    var tileOptions = options
+    tileOptions.width = tileWidth
+    tileOptions.height = tileHeight
+
+    func makeTileStatesAndSessions() throws -> ([EncoderState], [VTCompressionSession]) {
+        let states = try (0..<tileCount).map { _ in
+            try makeState(options: tileOptions) { frame in
+                tracker.finishTile(frame)
+            }
+        }
+        let sessions = try states.map { try makeCompressionSession(options: tileOptions, state: $0) }
+        return (states, sessions)
+    }
+
+    var (states, sessions) = try makeTileStatesAndSessions()
+    var allStates = states
+    defer {
+        for session in sessions {
+            VTCompressionSessionInvalidate(session)
+        }
+    }
+
+    let logicalFrameCount = options.fps * options.durationSeconds
+    let frameDuration = CMTime(value: 1, timescale: CMTimeScale(options.fps))
+    let wallFrameDuration = 1.0 / Double(options.fps)
+    let runStart = DispatchTime.now()
+    var submittedFrames = 0
+    var sessionStartLogicalFrameID = 0
+    let reusablePixelBuffers: [(CVPixelBuffer, Double)] = options.tileReuseBuffers
+        ? try (0..<tileCount).map { try makeNV12PixelBuffer(width: tileWidth, height: tileHeight, frameID: $0) }
+        : []
+
+    for logicalFrameID in 0..<logicalFrameCount {
+        if options.tileResetEveryFrames > 0,
+           logicalFrameID > 0,
+           logicalFrameID % options.tileResetEveryFrames == 0 {
+            for session in sessions {
+                VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)
+                VTCompressionSessionInvalidate(session)
+            }
+            let replacement = try makeTileStatesAndSessions()
+            states = replacement.0
+            sessions = replacement.1
+            allStates.append(contentsOf: states)
+            sessionStartLogicalFrameID = logicalFrameID
+        }
+
+        if options.tileMaxInFlightLogicalFrames > 0 {
+            let oldestAllowed = logicalFrameID - options.tileMaxInFlightLogicalFrames
+            if oldestAllowed >= 0, !tracker.waitForFrame(oldestAllowed) {
+                fputs("warning: timed out waiting for logical tile frame \(oldestAllowed)\n", stderr)
+            }
+        }
+
+        if options.realtime {
+            let target = Double(logicalFrameID) * wallFrameDuration
+            let elapsed = Double(DispatchTime.now().uptimeNanoseconds - runStart.uptimeNanoseconds) / 1_000_000_000.0
+            if target > elapsed {
+                Thread.sleep(forTimeInterval: target - elapsed)
+            }
+        }
+
+        tracker.startFrame(logicalFrameID)
+        for tileIndex in 0..<tileCount {
+            let tileFrameID = logicalFrameID * tileCount + tileIndex
+            let (pixelBuffer, generateMS) = options.tileReuseBuffers
+                ? reusablePixelBuffers[tileIndex]
+                : try makeNV12PixelBuffer(width: tileWidth, height: tileHeight, frameID: tileFrameID)
+            encodePixelBuffer(
+                pixelBuffer,
+                frameID: tileFrameID,
+                presentationFrameID: logicalFrameID - sessionStartLogicalFrameID,
+                generateMS: generateMS,
+                frameDuration: frameDuration,
+                session: sessions[tileIndex],
+                state: states[tileIndex]
+            )
+        }
+        submittedFrames += 1
+    }
+
+    for session in sessions {
+        VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)
+    }
+    let elapsedSeconds = Double(DispatchTime.now().uptimeNanoseconds - runStart.uptimeNanoseconds) / 1_000_000_000.0
+    try printTiledRunSummary(
+        options: options,
+        states: allStates,
+        tracker: tracker,
+        logicalFrameCount: logicalFrameCount,
+        submittedFrames: submittedFrames,
+        elapsedSeconds: elapsedSeconds
+    )
 }
 
 func runSynthetic(options: Options) throws {
@@ -1240,6 +1588,10 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
                 self.stream = stream
                 try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "iBridgePrimary.ScreenCaptureOutput"))
                 try await stream.startCapture()
+                DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(self.options.durationSeconds)) { [weak self, weak stream] in
+                    guard let self, let stream else { return }
+                    self.requestStop(stream)
+                }
             } catch {
                 self.stateQueue.sync {
                     self.startError = error
@@ -1268,6 +1620,21 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
         done.signal()
     }
 
+    private func requestStop(_ stream: SCStream) {
+        let shouldStop = stateQueue.sync { () -> Bool in
+            if stopped {
+                return false
+            }
+            stopped = true
+            return true
+        }
+        guard shouldStop else { return }
+        stream.stopCapture { _ in
+            VTCompressionSessionCompleteFrames(self.session, untilPresentationTimeStamp: .invalid)
+            self.done.signal()
+        }
+    }
+
     func stream(
         _ stream: SCStream,
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
@@ -1287,9 +1654,6 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
             frameID += 1
             submittedFrames += 1
             let shouldStop = frameID >= frameCount
-            if shouldStop {
-                stopped = true
-            }
             return (currentFrameID, shouldStop)
         }
         guard let nextFrame else {
@@ -1306,10 +1670,7 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
         )
 
         if nextFrame.shouldStop {
-            stream.stopCapture { _ in
-                VTCompressionSessionCompleteFrames(self.session, untilPresentationTimeStamp: .invalid)
-                self.done.signal()
-            }
+            requestStop(stream)
         }
     }
 
@@ -1345,6 +1706,8 @@ do {
     let options = try parseOptions(CommandLine.arguments)
     if options.listEncoders {
         try printVideoEncoderList()
+    } else if options.source == "synthetic-nv12-tiled" {
+        try runSyntheticTiled(options: options)
     } else if options.screenCapture {
         try runScreenCapture(options: options)
     } else {

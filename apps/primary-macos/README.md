@@ -92,5 +92,10 @@ scripts/mac_encode_strategy_matrix.sh
 ```
 
 The Primary CLI can now compare `synthetic-bgra`, `synthetic-nv12`,
-`synthetic-static-skip`, and `screen-capture` sources. The strategy matrix
-also runs 5K45/5K30 and a 2x2 tiled-session approximation for 5K60.
+`synthetic-static-skip`, `synthetic-nv12-tiled`, and `screen-capture` sources.
+The strategy matrix also runs 5K45/5K30 and both in-process and multi-process
+2x2 tiled-session approximations for 5K60. Use
+`--tile-max-inflight-logical-frames 1` or `2` to test whether limiting
+VideoToolbox queue depth keeps tiled 5K60 stable under sustained load. Use
+`--tile-reset-every-frames 150` to test segmented tile sessions when a long
+VideoToolbox session accumulates latency after several seconds.
