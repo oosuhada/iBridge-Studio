@@ -39,3 +39,18 @@ This file stores plain-text source URLs in the user-requested format. Every tech
 | owc_tb_compat | reference | See related docs. | [내용 출처 : https://eshop.macsales.com/blog/96867-the-simple-guide-to-thunderbolt-forwards-and-backwards-compatibility/] |
 | karpathy_skills | reference | See related docs. | [내용 출처 : https://github.com/forrestchang/andrej-karpathy-skills] |
 | gstack | reference | See related docs. | [내용 출처 : https://github.com/garrytan/gstack] |
+| sunshine_repo | reference | Sunshine is an open-source self-hosted game stream host for Moonlight with hardware-encoding backends, including macOS VideoToolbox paths worth studying for iBridge. | [내용 출처 : https://github.com/LizardByte/Sunshine] |
+| moonlight_qt_repo | reference | Moonlight Qt is an open-source game streaming client with hardware-accelerated decode support across Windows, macOS, and Linux. | [내용 출처 : https://github.com/moonlight-stream/moonlight-qt] |
+| obs_studio_repo | reference | OBS Studio includes macOS capture and VideoToolbox encoder implementations useful as mature capture/encode references. | [내용 출처 : https://github.com/obsproject/obs-studio] |
+| transcoding_repo | reference | Transcoding is a Swift package for video encoding/decoding with Annex-B adapters and low-latency presets. | [내용 출처 : https://github.com/finnvoor/Transcoding] |
+| apple_sck_sample_mirror | reference | CapturingScreenContentInMacOS mirrors Apple's ScreenCaptureKit sample for high-performance macOS screen capture. | [내용 출처 : https://github.com/Fidetro/CapturingScreenContentInMacOS] |
+| videotoolbox_h265_sample | reference | VideoToolboxH265Encoder is a small Swift HEVC/H.264 VideoToolbox encoder sample. | [내용 출처 : https://github.com/zf3/VideoToolboxH265Encoder] |
+| ffmpeg_repo | reference | FFmpeg includes VideoToolbox and codec bitstream handling code useful as a reference implementation. | [내용 출처 : https://github.com/FFmpeg/FFmpeg] |
+| deskpad_repo | reference | DeskPad is an open-source macOS virtual monitor for screen sharing and uses virtual display concepts relevant to a Mac-Mac iBridge route. | [내용 출처 : https://github.com/Stengo/DeskPad] |
+| freedisplay_repo | reference | FreeDisplay is an open-source macOS virtual display/display-management reference. | [내용 출처 : https://github.com/huberdf/FreeDisplay] |
+| simpledisplay_repo | reference | SimpleDisplay is an open-source macOS display manager that creates virtual monitors using CGVirtualDisplay private API. | [내용 출처 : https://github.com/SamuelRioTz/SimpleDisplay] |
+| node_mac_virtual_display_repo | reference | node-mac-virtual-display is an open-source native bridge for creating macOS virtual displays from Node/Electron contexts. | [내용 출처 : https://github.com/enfp-dev-studio/node-mac-virtual-display] |
+| betterdisplay_repo | reference | BetterDisplay is an open-source macOS display/HiDPI/virtual-screen reference. | [내용 출처 : https://github.com/waydabber/BetterDisplay] |
+| rustdesk_repo | reference | RustDesk is an open-source remote desktop application with macOS capture and hardware codec paths worth studying for Mac-Mac and cross-platform routes. | [내용 출처 : https://github.com/rustdesk/rustdesk] |
+| deskreen_repo | reference | Deskreen is an open-source project that turns devices with a browser into secondary screens over WebRTC. | [내용 출처 : https://github.com/pavlobu/deskreen] |
+| screencat_repo | reference | ScreenCat is an open-source screen sharing and remote collaboration project using WebRTC. | [내용 출처 : https://github.com/max-mapper/screencat] |

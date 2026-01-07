@@ -7,3 +7,7 @@ apps/primary-macos/.build/
 
 # Local display captures can contain private screen contents.
 benchmarks/runs/**/*display_*.png
+
+# Local third-party source references are analysis inputs, not vendored code.
+reference/*
+!reference/README.md
