@@ -31,7 +31,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - iMac setup prep is documented with a Windows inventory script and a conservative remote-vs-physical-access boundary for Boot Camp/macOS work.
 - Primary VideoToolbox encoding has been rechecked with reference-informed controls. Plan B 5K60 still fails before any receiver dependency; 3200x1800 and 3840x2160 are the current strongest encode-only candidates.
 - Primary encoding now has source strategy probes for synthetic BGRA, synthetic NV12, static-frame skipping, ScreenCaptureKit capture, 5K45/5K30, and 2x2 tiled HEVC sessions.
-- Tiled 5K60 has a stronger encode-only path after deeper investigation: per-tile PTS was corrected, and `2x2 30Mbps/tile reset150 inflight1` sustained 30 seconds at 60.002 effective fps with p95 12.920 ms. Reset-frame max spikes around 100-133 ms remain unresolved.
+- Tiled 5K60 has a stronger encode-only path after deeper investigation: per-tile PTS was corrected, and `2x2 30Mbps/tile reset180 inflight1` sustained 30 seconds at 60.009 effective fps with p95 12.690 ms. Reset-frame max spikes around 100-136 ms remain unresolved, but deadline analysis shows only 18/1800 logical frames exceeded 16.67 ms.
 
 ## Key Results
 
@@ -52,7 +52,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Pro ScreenCaptureKit HEVC 5120x2880 @ 60, forced `ave.hevc`, DataRateLimits: 3s avg 302.354 ms, p95 360.042 ms.
 - MacBook Pro synthetic NV12 HEVC 5120x2880 @ 30, forced `ave.hevc`, DataRateLimits: 3s avg 19.296 ms, p95 19.824 ms.
 - MacBook Pro 2x2 tiled-session approximation for 5120x2880 @ 60 using four 2560x1440 NV12 HEVC sessions: per-tile avg 6.496-9.528 ms, p95 10.568-11.254 ms; recomposition is unimplemented.
-- MacBook Pro 2x2 tiled HEVC 5120x2880 @ 60, corrected per-tile PTS, 30Mbps/tile, reset every 150 logical frames, max 1 in-flight logical frame: 30s sustained avg 12.374 ms, p95 12.920 ms, effective 60.002 fps, max 132.944 ms on reset frames.
+- MacBook Pro 2x2 tiled HEVC 5120x2880 @ 60, corrected per-tile PTS, 30Mbps/tile, reset every 180 logical frames, max 1 in-flight logical frame: 30s sustained avg 12.100 ms, p95 12.690 ms, effective 60.009 fps, max 135.530 ms on reset frames.
 - MacBook Pro display-sized synthetic sources for built-in XDR, external portrait display, Sidecar iPad, and HDMI FHD display all encoded successfully with forced `ave.hevc`.
 - MacBook Pro to iMac Tailscale path is reachable, but ping is jittery: 20-packet ICMP min/avg/max/stddev 14.484/108.629/423.525/96.505 ms.
 
@@ -68,6 +68,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `scripts/mac_encode_strategy_matrix.sh`
 - `benchmarks/runs/2026-05-15_1213_tiled_5k60_reset_sustain_30s/summary.md`
 - `benchmarks/runs/2026-05-15_1212_tiled_5k60_reset_sustain_10s/summary.md`
+- `benchmarks/runs/2026-05-15_1222_tiled_5k60_reset180_sustain_30s/summary.md`
+- `docs/13_TILED_5K60_STRATEGY.md`
+- `scripts/analyze_tiled_deadline.py`
 - `benchmarks/runs/2026-05-15_1056_vt_property_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1058_vt_targeted_sustain/summary.md`
 - `benchmarks/runs/2026-05-15_1129_encode_strategy_matrix/summary.md`
@@ -111,7 +114,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 ## Next Steps
 
-1. For full 5120x2880 logical resolution, continue tiled 5K60 next: mitigate reset spikes with staggered/prewarmed sessions or an explicit drop/hide policy.
+1. For full 5120x2880 logical resolution, continue tiled 5K60 next: build receiver-side tiled composition with stale-tile/repeat policy instead of blocking the whole frame on reset spikes.
 2. Design tiled protocol metadata: tile index/grid, logical frame ID, codec config/keyframe boundaries, and receiver sync/recomposition behavior.
 3. If smoothness matters more than 5K logical resolution, run live TCP at 4096x2304 or 3840x2160 before any UDP work.
 4. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.
