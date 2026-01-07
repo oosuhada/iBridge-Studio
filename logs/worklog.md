@@ -477,3 +477,30 @@ Result:
 - 3200x1800 and 3840x2160 with forced `ave.hevc`, no low-latency RC, and DataRateLimits fit the synthetic encode-only 60 Hz budget in the 5-second probe.
 Next:
 - Compare these settings against real ScreenCaptureKit/IOSurface frames before proceeding deeper into receiver integration.
+
+## 2026-05-15 11:32 — Encode source strategy matrix
+
+Prompt: user requested tests for ScreenCaptureKit/IOSurface, NV12 input, unchanged-frame skipping, tiled encoding, and 5K45/5K30 before iMac connection
+Changed files:
+- apps/primary-macos/Package.swift
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- apps/primary-macos/README.md
+- benchmarks/runs/2026-05-15_1129_encode_strategy_matrix/*
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- scripts/mac_encode_strategy_matrix.sh
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] `bash -n scripts/mac_encode_strategy_matrix.sh`
+- [x] `DURATION=3 scripts/mac_encode_strategy_matrix.sh`
+- [x] Targeted ScreenCaptureKit 5120x2880 @ 60 follow-up.
+Result:
+- Added source modes for `synthetic-bgra`, `synthetic-nv12`, `synthetic-static-skip`, and `screen-capture`.
+- ScreenCaptureKit real capture can now feed VideoToolbox directly.
+- Single-session 5K60 HEVC still fails badly even with ScreenCaptureKit and NV12-style improvements.
+- 3840x2160 and 4096x2304 NV12 synthetic 60Hz look strong; ScreenCaptureKit 4K60 is close but p95 is still above 16.67 ms in this 3s run.
+- 2x2 tiled 5K60 approximation shows per-tile encode latency inside the 60Hz budget, but tiled protocol/recomposition is not implemented.
+Next:
+- Treat tiled encoding as the next Plan B experiment if preserving 5K logical resolution matters.
+- Treat 4096x2304 or 3840x2160 as the stronger single-session 60Hz fallback candidates.

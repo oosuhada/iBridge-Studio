@@ -85,4 +85,12 @@ Run the reference-informed VideoToolbox property matrix:
 scripts/mac_vt_property_matrix.sh
 ```
 
-This first CLI spike uses synthetic BGRA frames and VideoToolbox. ScreenCaptureKit capture and transport are separate follow-up steps so virtual-display research does not block the frame pipeline.
+Run the source/strategy matrix:
+
+```bash
+scripts/mac_encode_strategy_matrix.sh
+```
+
+The Primary CLI can now compare `synthetic-bgra`, `synthetic-nv12`,
+`synthetic-static-skip`, and `screen-capture` sources. The strategy matrix
+also runs 5K45/5K30 and a 2x2 tiled-session approximation for 5K60.
