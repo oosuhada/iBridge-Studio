@@ -257,3 +257,45 @@ Decision:
 - MacBook Pro Primary is a better candidate than the MacBook Air for Plan C HEVC if the encoder is forced to `ave.hevc`.
 - Do not treat automatic low-latency encoder selection as acceptable on this MBP.
 - Next live test needs Windows iMac receiver startup and/or SSH authorization from the MBP.
+
+## 2026-05-15 10:58 — VideoToolbox reference-informed property matrix
+
+Prompt: user pointed out that iMac connection is premature if encoding itself has only reached Plan C
+
+Summary:
+- Revisited Primary encoding using the reference analysis from Transcoding, OBS, FFmpeg, Sunshine, and Moonlight.
+- Split VideoToolbox controls into explicit CLI options instead of treating machine-level speed tests as the main signal.
+- Corrected the low-latency interpretation: frame reordering remains disabled, but temporal compression is now enabled by default so P-frames are allowed.
+- Added optional controls for DataRateLimits, speed priority, open GOP, max frame delay count, and Annex-B payload extraction.
+- Added `scripts/mac_vt_property_matrix.sh` and ran a HEVC property matrix before any iMac receiver dependency.
+
+Measured 2-second matrix highlights:
+
+| Mode | Avg encode ms | P95 encode ms | Result |
+|---|---:|---:|---|
+| 3200x1800 auto low-latency RC | 38.214 | 71.169 | too high |
+| 3200x1800 `ave.hevc`, no LLRC, DataRateLimits | 12.399 | 14.106 | passes 60 Hz encode budget |
+| 3840x2160 auto low-latency RC | 94.576 | 96.128 | too high |
+| 3840x2160 `ave.hevc`, no LLRC, DataRateLimits | 16.158 | 25.725 | average passes, p95 high |
+| 5120x2880 `ave.hevc`, no LLRC, speed priority | 47.842 | 65.002 | too high |
+
+Measured 5-second sustained probes:
+
+| Mode | Frames | Failed | Avg encode ms | P95 encode ms | Max encode ms |
+|---|---:|---:|---:|---:|---:|
+| 3200x1800 `ave.hevc`, no LLRC, DataRateLimits | 300 | 0 | 11.583 | 11.766 | 64.125 |
+| 3840x2160 `ave.hevc`, no LLRC, DataRateLimits | 300 | 0 | 15.457 | 15.831 | 62.353 |
+| 4096x2304 `ave.hevc`, no LLRC, DataRateLimits | 300 | 0 | 17.292 | 17.231 | 76.561 |
+| 5120x2880 `ave.hevc`, no LLRC, speed priority | 300 | 0 | 100.617 | 119.982 | 123.135 |
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1056_vt_property_matrix/summary.csv`
+- `benchmarks/runs/2026-05-15_1056_vt_property_matrix/summary.md`
+- `benchmarks/runs/2026-05-15_1058_vt_targeted_sustain/summary.md`
+- `scripts/mac_vt_property_matrix.sh`
+
+Decision:
+- The user's concern is correct: Plan B 5K60 is not satisfied before iMac connection. Current 5K HEVC encode remains far outside the 60 Hz frame budget.
+- The strongest encoding-only path is now 3200x1800 or 3840x2160 HEVC with forced `ave.hevc`, low-latency rate-control disabled, temporal compression enabled, frame reordering disabled, and DataRateLimits set.
+- `MaxFrameDelayCount` returned `-12900` in these probes and should be treated as unsupported for this encoder/session path.
+- Next encoding work should focus on real ScreenCaptureKit/IOSurface input and possibly lower-motion/static-screen modes, not receiver connection.

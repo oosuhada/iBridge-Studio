@@ -1,0 +1,36 @@
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+iBridge Primary synthetic encoder
+resolution=5120x2880
+target_fps=60
+duration_seconds=5
+codec=hevc
+encoder_id=com.apple.videotoolbox.videoencoder.ave.hevc
+bitrate_mbps=120
+data_rate_limit_mbps=0
+data_rate_window_seconds=1.000
+low_latency_rate_control=off
+realtime=on
+allow_temporal_compression=on
+allow_frame_reordering=off
+allow_open_gop=off
+prioritize_speed=on
+max_frame_delay_count=0
+payload_format=length-prefixed
+max_keyframe_interval=60
+max_keyframe_interval_duration=2.000
+sender_queue_depth=4
+frames_requested=300
+frames_encoded=300
+failed_frames=0
+sender_dropped_frames=0
+send_failed_frames=0
+avg_generate_ms=17.078
+avg_encode_latency_ms=100.617
+p95_encode_latency_ms=119.982
+max_encode_latency_ms=123.135
+avg_send_ms=0.000
+p95_send_ms=0.000
+payload_bytes=75570913
+bytes_sent=0
+send_target=none
+csv=benchmarks/runs/2026-05-15_1058_vt_targeted_sustain/5120x2880_speed.csv

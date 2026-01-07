@@ -451,3 +451,29 @@ Result:
 Next:
 - Run the Windows inventory script from RDP or an already-authorized shell on the iMac.
 - Choose the next implementation spike: VT property matrix plus Annex-B fixture path, or Windows compressed decode/render smoke.
+
+## 2026-05-15 11:00 — Encoding-first VT property spike
+
+Prompt: user challenged whether Plan A/B encode is satisfied before any iMac connection
+Changed files:
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- apps/primary-macos/README.md
+- benchmarks/runs/2026-05-15_1056_vt_property_matrix/*
+- benchmarks/runs/2026-05-15_1058_vt_targeted_sustain/*
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- scripts/mac_vt_property_matrix.sh
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] `python3 apps/shared-protocol/test_protocol_v0.py`
+- [x] `bash -n scripts/mac_vt_property_matrix.sh`
+- [x] `DURATION=2 FPS=60 scripts/mac_vt_property_matrix.sh`
+- [x] Targeted 5-second sustained probes for 3200x1800, 3840x2160, 4096x2304, and 5120x2880.
+Result:
+- Added explicit VT controls for temporal compression, frame reordering, open GOP, speed priority, max frame delay count, DataRateLimits, and Annex-B payload extraction.
+- Corrected default encode policy to allow temporal compression while keeping frame reordering disabled.
+- Plan B 5K60 still fails before receiver connection: best 5K sustained probe was avg 100.617 ms, p95 119.982 ms.
+- 3200x1800 and 3840x2160 with forced `ave.hevc`, no low-latency RC, and DataRateLimits fit the synthetic encode-only 60 Hz budget in the 5-second probe.
+Next:
+- Compare these settings against real ScreenCaptureKit/IOSurface frames before proceeding deeper into receiver integration.

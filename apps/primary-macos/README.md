@@ -35,10 +35,29 @@ apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 2560x
 On machines that expose multiple VideoToolbox encoders, force an encoder ID for isolation:
 
 ```bash
-apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 3200x1800 --fps 60 --duration 3 --codec hevc --bitrate-mbps 120 --disable-low-latency-rate-control --encoder-id com.apple.videotoolbox.videoencoder.ave.hevc --csv benchmarks/runs/YYYY-MM-DD_HHMM_primary_1800p60_hevc_ave/primary_stats.csv
+apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 3200x1800 --fps 60 --duration 3 --codec hevc --bitrate-mbps 120 --disable-low-latency-rate-control --encoder-id com.apple.videotoolbox.videoencoder.ave.hevc --data-rate-limit-mbps 120 --csv benchmarks/runs/YYYY-MM-DD_HHMM_primary_1800p60_hevc_ave/primary_stats.csv
 ```
 
 Use `--list-encoders` first and keep encoder-ID-specific results separate from automatic encoder selection.
+
+Reference-informed VideoToolbox controls:
+
+```bash
+apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 3840x2160 --fps 60 --duration 5 --codec hevc --bitrate-mbps 120 \
+  --encoder-id com.apple.videotoolbox.videoencoder.ave.hevc \
+  --disable-low-latency-rate-control \
+  --allow-temporal-compression \
+  --disable-frame-reordering \
+  --disable-open-gop \
+  --data-rate-limit-mbps 120 \
+  --payload-format annex-b \
+  --csv benchmarks/runs/YYYY-MM-DD_HHMM_vt_property_probe/primary_stats.csv
+```
+
+Frame reordering is disabled for latency, but temporal compression is enabled
+by default so the encoder can still emit P-frames. `--payload-format annex-b`
+adds VPS/SPS/PPS or SPS/PPS before keyframes and converts length-prefixed NALs
+to start-code-delimited elementary stream payloads for receiver experiments.
 
 Send encoded frames to a protocol v0 TCP receiver sink:
 
@@ -58,6 +77,12 @@ Run the Plan C low-latency matrix:
 
 ```bash
 scripts/mac_plan_c_encode_matrix.sh
+```
+
+Run the reference-informed VideoToolbox property matrix:
+
+```bash
+scripts/mac_vt_property_matrix.sh
 ```
 
 This first CLI spike uses synthetic BGRA frames and VideoToolbox. ScreenCaptureKit capture and transport are separate follow-up steps so virtual-display research does not block the frame pipeline.
