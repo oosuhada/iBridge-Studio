@@ -26,6 +26,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - On the MacBook Pro, forcing `com.apple.videotoolbox.videoencoder.ave.hevc` and disabling low-latency rate-control produced the best Plan C encode results so far.
 - A local ignored `reference/` workspace has been created for clean-room study of mature capture, encode, transport, decode, and frame-pacing implementations.
 - The reference scope has been widened beyond macOS-to-Windows. Mac-to-Mac routes are now explicitly in scope if an older macOS install on the iMac creates a stronger technical path.
+- Nested `.git` directories have been removed from the ignored `reference/` clones so VS Code only sees the outer iBridge repository.
+- Reference analysis now points to concrete next spikes: VT property matrix, Annex-B fixture path, bounded receiver pacing, GPU-native decode/render, and a local Mac virtual-display smoke.
+- iMac setup prep is documented with a Windows inventory script and a conservative remote-vs-physical-access boundary for Boot Camp/macOS work.
 
 ## Key Results
 
@@ -56,6 +59,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `logs/review_gate.md`
 - `logs/worklog.md`
 - `reference/README.md`
+- `docs/11_REFERENCE_TECH_ANALYSIS.md`
+- `docs/12_IMAC_SETUP_PREP.md`
+- `scripts/windows_imac_setup_inventory.ps1`
 
 ## Commands Run
 
@@ -88,3 +94,4 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 5. Capture Plan C screenshots and text-quality scoring after compressed decode/render works.
 6. Use the reference source map to choose the next deeper technical spike: VT property matrix, UDP/FEC transport, or D3D11VA decode/render.
 7. Compare Mac-Mac virtual-display and receiver options before assuming the Windows receiver is the long-term best path.
+8. Run `scripts/windows_imac_setup_inventory.ps1` on the iMac from RDP or an existing authorized remote shell before any boot-volume or macOS install decision.

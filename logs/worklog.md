@@ -427,3 +427,27 @@ Next:
 - Authorize MBP SSH key on the Windows iMac or manually start the receiver on the iMac.
 - Run live TCP Plan C from MBP using forced `ave.hevc`.
 - Keep LAN/Thunderbolt Bridge tests separate from Tailscale.
+
+## 2026-05-15 10:40 — Reference technology analysis and iMac prep
+
+Prompt: user requested deeper reference analysis and actionable prep before physical iMac access
+Changed files:
+- docs/04_SOURCE_LEDGER.md
+- docs/11_REFERENCE_TECH_ANALYSIS.md
+- docs/12_IMAC_SETUP_PREP.md
+- docs/current-work.md
+- logs/worklog.md
+- reference/README.md
+- scripts/windows_imac_setup_inventory.ps1
+Verification:
+- [x] Removed nested `.git` directories from ignored `reference/` clones.
+- [x] Confirmed no nested `.git` directories remain under `reference/`.
+- [x] Reviewed reference implementations for virtual displays, ScreenCaptureKit, VideoToolbox properties, Annex-B adaptation, UDP/RTP packetization, frame pacing, and D3D11VA decode/render.
+- [x] Added a Windows iMac inventory script that avoids printing SSH key contents or environment secrets.
+Result:
+- Reference analysis now maps mature implementations to iBridge-specific next spikes instead of only listing repositories.
+- Mac-to-Mac is treated as a first-class route, with local Mac virtual-display smoke testing identified as the safest immediate experiment.
+- Remote macOS installation/boot switching is classified as unsafe until an existing macOS volume and remote recovery path are confirmed.
+Next:
+- Run the Windows inventory script from RDP or an already-authorized shell on the iMac.
+- Choose the next implementation spike: VT property matrix plus Annex-B fixture path, or Windows compressed decode/render smoke.

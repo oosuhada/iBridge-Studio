@@ -56,7 +56,8 @@ The ignored local clone set currently has 39 repositories.
 ## Current Local Clone Command
 
 Run selected commands from the repository root. The clone bodies are intentionally
-ignored by Git.
+ignored by Git. After cloning, strip nested `.git` directories so VS Code and
+the outer iBridge Git repository do not treat references as active repos.
 
 ```bash
 mkdir -p reference
@@ -67,6 +68,7 @@ git clone --depth 1 https://github.com/finnvoor/Transcoding.git reference/Transc
 git clone --depth 1 https://github.com/Fidetro/CapturingScreenContentInMacOS.git reference/CapturingScreenContentInMacOS
 git clone --depth 1 https://github.com/zf3/VideoToolboxH265Encoder.git reference/VideoToolboxH265Encoder
 git clone --depth 1 https://github.com/FFmpeg/FFmpeg.git reference/FFmpeg
+find reference -name .git -type d -prune -exec rm -rf {} +
 ```
 
 ## First Analysis Targets
