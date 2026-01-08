@@ -17,6 +17,16 @@ struct RuntimeError: Error, CustomStringConvertible {
     }
 }
 
+func logLine(_ message: String) {
+    print(message)
+    fflush(stdout)
+}
+
+func logError(_ message: String) {
+    fputs("\(message)\n", stderr)
+    fflush(stderr)
+}
+
 struct SendableSampleBuffer: @unchecked Sendable {
     let value: CMSampleBuffer
 }
@@ -467,7 +477,7 @@ final class TCPReceiver: @unchecked Sendable {
                 try self.run()
             } catch {
                 self.viewController?.setStatus("receiver error: \(error)")
-                fputs("receiver error: \(error)\n", stderr)
+                logError("receiver error: \(error)")
             }
         }
     }
@@ -501,7 +511,7 @@ final class TCPReceiver: @unchecked Sendable {
         }
 
         viewController?.setStatus("Listening on TCP \(port)")
-        print("iBridge macOS receiver listening on TCP \(port)")
+        logLine("iBridge macOS receiver listening on TCP \(port)")
 
         while true {
             let clientFD = accept(listenFD, nil, nil)
@@ -516,14 +526,14 @@ final class TCPReceiver: @unchecked Sendable {
 
     private func handleClient(_ fd: Int32) {
         viewController?.setStatus("Primary connected")
-        print("primary connected")
+        logLine("primary connected")
         let formatBuilder = FormatDescriptionBuilder()
         var lastFrameID: UInt64?
         var receivedFrames: UInt64 = 0
 
         do {
             let handshake = try readLine(fd: fd, limit: 4096)
-            print("handshake=\(handshake)")
+            logLine("handshake=\(handshake)")
             while true {
                 let headerData = try readExact(fd: fd, byteCount: FrameHeader.byteCount)
                 let header = try FrameHeader(headerData)
@@ -534,7 +544,7 @@ final class TCPReceiver: @unchecked Sendable {
                 }
                 guard let format = try formatBuilder.update(codec: header.codec, units: units) else {
                     if header.isKeyframe {
-                        print("waiting for parameter sets on keyframe \(header.frameID)")
+                        logLine("waiting for parameter sets on keyframe \(header.frameID)")
                     }
                     continue
                 }
@@ -543,17 +553,18 @@ final class TCPReceiver: @unchecked Sendable {
                 let sampleBuffer = try makeSampleBuffer(header: header, payload: accessUnit, formatDescription: format)
 
                 if let lastFrameID, header.frameID > lastFrameID + 1 {
-                    print("receiver_missing_frames=\(header.frameID - lastFrameID - 1) before=\(header.frameID)")
+                    logLine("receiver_missing_frames=\(header.frameID - lastFrameID - 1) before=\(header.frameID)")
                 }
                 lastFrameID = header.frameID
                 receivedFrames += 1
                 if receivedFrames % 60 == 1 {
-                    print("received_frame=\(header.frameID) size=\(header.width)x\(header.height) payload=\(header.payloadLen) keyframe=\(header.isKeyframe)")
+                    logLine("received_frame=\(header.frameID) size=\(header.width)x\(header.height) payload=\(header.payloadLen) keyframe=\(header.isKeyframe)")
                 }
                 viewController?.enqueue(sampleBuffer, header: header)
             }
         } catch {
-            print("client disconnected or failed: \(error)")
+            logLine("client disconnected or failed: \(error)")
+            logLine("receiver_frames_total=\(receivedFrames)")
             viewController?.setStatus("Disconnected: \(receivedFrames) frames")
         }
     }
