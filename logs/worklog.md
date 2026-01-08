@@ -678,6 +678,36 @@ Next:
 - Treat high-detail fallback switching after tiled 5K60 as unsafe until a stronger reset/session strategy is proven.
 - Keep waiting for M1 Air results and physical cable tests for Thunderbolt Bridge / Ethernet.
 
+## 2026-05-15 14:24 — Encoder reset/session strategy probe
+
+Prompt: user asked to find stronger encoder reset/session strategies using references.
+Changed files:
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- scripts/mac_encoder_reset_strategy_probe.sh
+- docs/04_SOURCE_LEDGER.md
+- docs/15_ENCODER_RESET_STRATEGY.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe/*
+- benchmarks/runs/2026-05-15_1424_encoder_reset_strategy_probe_summary_fix/*
+Verification:
+- [x] Searched Apple VideoToolbox docs for compression-session lifecycle, prepare, complete, parallelization, concatenate hints, source frame count, and max frame delay.
+- [x] Inspected local FFmpeg, OBS, and Swift Transcoding VideoToolbox references.
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] `bash -n scripts/mac_encoder_reset_strategy_probe.sh`
+- [x] `DURATION=6 RUN_FALLBACK=1 RUN_ROOT=benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe scripts/mac_encoder_reset_strategy_probe.sh`
+- [x] `DURATION=6 RUN_FALLBACK=0 RUN_ROOT=benchmarks/runs/2026-05-15_1424_encoder_reset_strategy_probe_summary_fix scripts/mac_encoder_reset_strategy_probe.sh`
+Result:
+- Added VideoToolbox segment-hint controls: `MoreFramesBeforeStart`, `MoreFramesAfterEnd`, and `SourceFrameCount`.
+- Added tiled automatic segment hints and staggered per-tile reset probing.
+- Segment hints reduced short-run logical frames over 16.67 ms compared with baseline simultaneous reset.
+- Staggered reset lowered the worst max spike but spread reset misses across more logical frames, so it is not the default candidate yet.
+- Post-probe high-detail fallback remained slow, but this was not a clean A/B because the machine was already in a post-tiled slow state.
+Next:
+- From a known-clean login/reboot state, run segment-hints tiled first and immediately test high-detail fallback recovery.
+- Keep `2560x1440@60` as the safe emergency fallback until clean-session recovery is proven.
+
 ## 2026-05-15 13:18 — M1 Air sender profile matrix
 
 Prompt: user asked to pull latest branch and run the M1 Air encode-only sender profile matrix

@@ -514,6 +514,48 @@ Interpretation:
 Artifacts:
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
 
+## 2026-05-15 14:24 — VideoToolbox segment-hint reset strategy
+
+Prompt: find a stronger encoder reset/session strategy using references.
+
+Reference basis:
+- Apple documents parallel compression sessions as requiring `MoreFramesBeforeStart`, `MoreFramesAfterEnd`, and `SourceFrameCount`.
+- Apple documents `PrepareToEncodeFrames`; iBridge already calls it during compression-session configuration.
+- FFmpeg and OBS VideoToolbox references also prepare compression sessions before encode.
+
+Commands:
+
+```bash
+DURATION=6 RUN_FALLBACK=1 RUN_ROOT=benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe scripts/mac_encoder_reset_strategy_probe.sh
+DURATION=6 RUN_FALLBACK=0 RUN_ROOT=benchmarks/runs/2026-05-15_1424_encoder_reset_strategy_probe_summary_fix scripts/mac_encoder_reset_strategy_probe.sh
+```
+
+Clean summary-count run:
+
+| Case | Effective fps | Avg ms | P95 ms | Max ms | >16.67ms | >33.33ms |
+|---|---:|---:|---:|---:|---:|---:|
+| baseline simultaneous reset | 60.011 | 13.199 | 14.330 | 132.700 | 7/360 | 2/360 |
+| segment hints simultaneous reset | 59.995 | 13.362 | 14.158 | 134.008 | 4/360 | 2/360 |
+| segment hints staggered reset | 60.016 | 13.300 | 14.243 | 113.596 | 8/360 | 4/360 |
+
+Fallback probe after reset strategy run:
+
+| Fallback | Avg ms | P95 ms | Max ms | Result |
+|---|---:|---:|---:|---|
+| 4096x2304@60 | 25.838 | 46.578 | 47.764 | still slow |
+| 3200x1800@60 | 23.846 | 42.273 | 84.630 | still slow |
+| 2560x1440@60 | 10.345 | 16.866 | 30.266 | borderline/safest |
+
+Interpretation:
+- VideoToolbox segment hints are a useful improvement for tiled reset frame counts.
+- Staggered reset may help only if the receiver can hide stale tiles; otherwise it increases the number of reset-affected logical frames.
+- This does not yet solve post-tiled high-detail fallback contamination.
+- A fresh login/reboot A/B is needed because the machine was already in the slow post-tiled state before this probe.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe/`
+- `benchmarks/runs/2026-05-15_1424_encoder_reset_strategy_probe_summary_fix/`
+
 ## 2026-05-15 13:18 — M1 Air sender profile matrix
 
 Prompt: user asked to pull latest branch and run the sender-only Air profile matrix before receiver work
