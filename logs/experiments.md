@@ -681,3 +681,44 @@ Artifacts:
 - `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/ping_100.txt`
 - `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/iperf3_missing.txt`
 - `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/tailscale_missing.txt`
+
+## 2026-05-17 01:56 — MacBook Air to 2015 iMac Wi-Fi reachability
+
+Prompt: user said MacBook Pro Codex is working on 2017 iMac connection and asked this MacBook Air to proceed in parallel on the 2015 iMac, focusing on 5GHz Wi-Fi because Ethernet is not connected.
+
+Plan:
+- Pull latest git state and avoid colliding with 2017 iMac work.
+- Identify the 2015 iMac current Tailscale/local Wi-Fi target.
+- Capture MacBook Air -> 2015 iMac Wi-Fi reachability, port state, and any throughput blockers.
+
+Commands:
+
+```bash
+git pull --ff-only
+tailscale status
+ping -c 20 -i 0.2 100.84.32.31
+tailscale ping --c 5 100.84.32.31
+ping -c 20 -i 0.2 192.168.31.187
+RUN_ROOT=benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5 DURATION=10 scripts/mac_network_matrix.sh --case wifi5-2015-imac --receiver-ip 192.168.31.187 --tailscale-name 100.84.32.31
+brew install iperf3
+```
+
+Results:
+- Latest branch fast-forwarded from `bbc0c74` to `11d0904`.
+- Tailscale identifies the 2015 iMac as `gabriels-imac27-2015` at `100.84.32.31`.
+- Tailscale spot check reached it via local endpoint `192.168.31.187:41641`.
+- Local Wi-Fi ping to `192.168.31.187`: 100/100 received, min/avg/max/stddev `3.819/51.446/420.666/88.334 ms`.
+- TCP ports `22` and `5201` are open; TCP `48320` is refused.
+- `iperf3` throughput was not measured because local MacBook Air `iperf3` is missing.
+- `brew install iperf3` failed because local Homebrew cannot update cleanly and reports unsupported macOS `26.5`.
+- SSH authentication to the 2015 iMac is blocked for tested users even though port 22 is open.
+
+Interpretation:
+- The MacBook Air -> 2015 iMac Wi-Fi path is reachable and appears local-direct, but current jitter is too high for display-profile decisions.
+- Keep this path at reachability/prep status until SSH auth and throughput measurement are fixed.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/summary.md`
+- `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/ping_100.txt`
+- `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/port_probe.txt`
+- `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/tailscale_ping_10.txt`

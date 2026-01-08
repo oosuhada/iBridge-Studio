@@ -48,6 +48,18 @@ validate Mac-to-Mac receiver behavior up to `3840x2160@60`; reserve
 `4096x2304`, 5K, and tiled 5K-style profiles for the 2015 27-inch Retina 5K
 iMac.
 
+## Current Measured Path: MBA To 2015 iMac
+
+| Path | iMac IP | Result | Read |
+|---|---|---|---|
+| 5GHz/local Wi-Fi | `192.168.31.187` | ping `3.819/51.446/420.666/88.334 ms`; TCP `22` and `5201` open; TCP `48320` refused | Reachable but too jittery for display-profile decisions |
+| Tailscale local-direct spot check | `100.84.32.31` | `tailscale ping` reached `gabriels-imac27-2015` via `192.168.31.187:41641` | Useful for remote prep once SSH auth is fixed |
+
+Current blockers: MacBook Air SSH auth is not accepted on the 2015 iMac, local
+MacBook Air `iperf3` is missing, and `brew install iperf3` is blocked by the
+local Homebrew install on macOS 26.5. Do not reset `/opt/homebrew` without user
+approval.
+
 ## Ordered Test Matrix
 
 Run in this exact order unless a physical cable or OS-state blocker changes:
@@ -62,7 +74,7 @@ Run in this exact order unless a physical cable or OS-state blocker changes:
 | 6 | MacBook Air M1 | iMac 21.5 4K 2017 | Wireless / Tailscale or local Wi-Fi | ready after receiver prep | `2560x1440@60` HEVC |
 | 7 | MacBook Air M1 | iMac 21.5 4K 2017 | Ethernet | needs cable/hub; receiver SSH and `iperf3` are ready | `2560x1440@60`; retest `3200x1800@60` only if stable |
 | 8 | MacBook Air M1 | iMac 21.5 4K 2017 | Thunderbolt Bridge | needs TB3/USB-C cable and IP setup | `2560x1440@60` |
-| 9 | MacBook Air M1 | iMac 27 5K 2015 | Wireless / Tailscale or local Wi-Fi | receiver OS state must be known | `2560x1440@60` |
+| 9 | MacBook Air M1 | iMac 27 5K 2015 | Wireless / Tailscale or local Wi-Fi | reachable at `192.168.31.187` / `100.84.32.31`, but current jitter is severe and SSH auth is blocked | `2560x1440@60` reachability only until jitter improves |
 | 10 | MacBook Air M1 | iMac 27 5K 2015 | Ethernet | needs cable/hub and `iperf3` | `2560x1440@60` |
 | 11 | MacBook Pro M1 Max | iMac 27 5K 2015 | Thunderbolt 2 / Thunderbolt Bridge | blocked until TB2 cable/adapter chain exists | `4096x2304@60`; then 2x2 tiled HEVC 5K60 |
 | 12 | MacBook Air M1 | iMac 27 5K 2015 | Thunderbolt 2 / Thunderbolt Bridge | blocked until TB2 cable/adapter chain exists | `2560x1440@60`; no Air 5K60 unless sender strategy changes |

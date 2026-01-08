@@ -1,0 +1,7 @@
+case=wifi5-2015-imac
+receiver_ip=192.168.31.187
+duration_seconds=10
+timestamp=2026-05-17_0153
+hostname=Gabrielui-MacBookAir.local
+whoami=gabrieljang
+pwd=/Users/gabrieljang/development/iBridge

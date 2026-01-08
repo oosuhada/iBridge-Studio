@@ -803,3 +803,31 @@ Result:
 Next:
 - Install or expose `iperf3` on MBP and iMac before throughput experiments.
 - Run the real transport matrix only after Thunderbolt Bridge or 1GbE is active.
+
+## 2026-05-17 01:56 — MBA to 2015 iMac Wi-Fi prep
+
+Prompt: user asked this MacBook Air to proceed in parallel on the 2015 iMac connection while MacBook Pro Codex works on the 2017 iMac connection; focus on 5GHz Wi-Fi because Ethernet is not connected.
+Changed files:
+- benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/*
+- docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/questions.md
+- logs/worklog.md
+Verification:
+- [x] `git pull --ff-only`
+- [x] `tailscale status`
+- [x] `ping -c 20 -i 0.2 100.84.32.31`
+- [x] `tailscale ping --c 5 100.84.32.31`
+- [x] `ping -c 20 -i 0.2 192.168.31.187`
+- [x] `RUN_ROOT=benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5 DURATION=10 scripts/mac_network_matrix.sh --case wifi5-2015-imac --receiver-ip 192.168.31.187 --tailscale-name 100.84.32.31`
+- [ ] `iperf3` TCP/UDP throughput skipped because MacBook Air does not have `iperf3` and `brew install iperf3` failed on the local Homebrew/macOS 26.5 setup.
+Result:
+- 2015 iMac current target is `gabriels-imac27-2015`, Tailscale `100.84.32.31`, local Wi-Fi endpoint `192.168.31.187`.
+- Local Wi-Fi ping is reachable but jittery: 100/100 received, min/avg/max/stddev `3.819/51.446/420.666/88.334 ms`.
+- TCP `22` and `5201` are open; TCP `48320` is refused.
+- SSH auth is not ready from this MacBook Air.
+Next:
+- Authorize the MacBook Air SSH key on the 2015 iMac.
+- Repair/install a local throughput tool or use another prepared host for `iperf3`.
+- Keep `2560x1440@60` as the only realistic MacBook Air display candidate once receiver transport is stable.
