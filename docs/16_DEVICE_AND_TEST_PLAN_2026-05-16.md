@@ -40,9 +40,13 @@ Codex Cloud sessions share the same source of truth.
 | Direct Ethernet | `169.254.70.114` | ping `0.826/1.518/2.372/0.231 ms`; TCP `939.14 Mbps` to iMac / `937.50 Mbps` reverse; UDP 30/60/120 Mbps 0% loss | Excellent next test path |
 | 5GHz Wi-Fi | `192.168.31.249` | ping `3.663/56.773/261.386/70.416 ms`; TCP `86.54 Mbps` to iMac / `68.66 Mbps` reverse; UDP 120 Mbps had `8.202%` loss | Reachable but too jittery for display-profile decisions |
 
-Blocked next step: SSH port `22` is still refused on the 2017 iMac because
-`sshd` reports missing host keys. Generate host keys on the iMac before remote
-shell work.
+Current remote state: SSH is repaired on the 2017 iMac, `caffeinate -dimsu` is
+running, and `/usr/local/bin/iperf3 -s` is listening on TCP `5201`.
+
+Scope correction: the 2017 21.5-inch iMac is a 4K receiver target. Use it to
+validate Mac-to-Mac receiver behavior up to `3840x2160@60`; reserve
+`4096x2304`, 5K, and tiled 5K-style profiles for the 2015 27-inch Retina 5K
+iMac.
 
 ## Ordered Test Matrix
 
@@ -50,13 +54,13 @@ Run in this exact order unless a physical cable or OS-state blocker changes:
 
 | Order | Source | Receiver | Connection | Status / blocker | First profile |
 |---:|---|---|---|---|---|
-| 1 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Wireless / Tailscale or local Wi-Fi | ready after receiver prep | `3200x1800@60` or `2560x1440@60` HEVC |
-| 2 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Ethernet | cable connected; waiting for iMac `iperf3 -s` / Remote Login | `3840x2160@60` then `4096x2304@60` |
-| 3 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Thunderbolt Bridge | needs TB3/USB-C cable and IP setup | `4096x2304@60`; then tiled 5K-style stress if useful |
+| 1 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Wireless / Tailscale or local Wi-Fi | reachable but current 5GHz Wi-Fi is jittery | `2560x1440@60`, then `3200x1800@60` if useful |
+| 2 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Ethernet | SSH and `iperf3` ready; direct 1GbE measured good | `3840x2160@60` maximum |
+| 3 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Thunderbolt Bridge | needs TB3/USB-C cable and IP setup | `3840x2160@60` maximum |
 | 4 | MacBook Pro M1 Max | iMac 27 5K 2015 | Wireless / Tailscale or local Wi-Fi | Windows/macOS receiver state must be known | `3200x1800@60` then `2560x1440@60` |
 | 5 | MacBook Pro M1 Max | iMac 27 5K 2015 | Ethernet | needs cable/hub and `iperf3` | `3840x2160@60` then `4096x2304@60` |
 | 6 | MacBook Air M1 | iMac 21.5 4K 2017 | Wireless / Tailscale or local Wi-Fi | ready after receiver prep | `2560x1440@60` HEVC |
-| 7 | MacBook Air M1 | iMac 21.5 4K 2017 | Ethernet | needs cable/hub and `iperf3` | `2560x1440@60`; retest `3200x1800@60` only if stable |
+| 7 | MacBook Air M1 | iMac 21.5 4K 2017 | Ethernet | needs cable/hub; receiver SSH and `iperf3` are ready | `2560x1440@60`; retest `3200x1800@60` only if stable |
 | 8 | MacBook Air M1 | iMac 21.5 4K 2017 | Thunderbolt Bridge | needs TB3/USB-C cable and IP setup | `2560x1440@60` |
 | 9 | MacBook Air M1 | iMac 27 5K 2015 | Wireless / Tailscale or local Wi-Fi | receiver OS state must be known | `2560x1440@60` |
 | 10 | MacBook Air M1 | iMac 27 5K 2015 | Ethernet | needs cable/hub and `iperf3` | `2560x1440@60` |
