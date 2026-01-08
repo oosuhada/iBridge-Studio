@@ -60,6 +60,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Air -> 2015 iMac 5GHz/local Wi-Fi reachability is confirmed, but the path is jittery: 100-packet ping to `192.168.31.187` had 0% loss with min/avg/max/stddev `3.819/51.446/420.666/88.334 ms`. TCP ports `22` and `5201` are open; `48320` is refused.
 - MacBook Air could not complete iperf throughput from this machine yet because local `iperf3` is missing and Homebrew failed on macOS 26.5 / dirty `/opt/homebrew`. SSH to the 2015 iMac is also blocked by missing MacBook Air key authorization, despite the port being open.
 - MacBook Air Homebrew was repaired enough to install `iperf3`, and the MacBook Air -> 2015 iMac Wi-Fi throughput matrix now exists. Ping remains jittery at min/avg/max/stddev `3.690/30.495/258.942/44.687 ms`, but throughput is usable for low-bandwidth smoke testing: TCP to receiver `154.09 Mbps`, TCP reverse `129.43 Mbps`, UDP 30Mbps `0%` loss, UDP 60Mbps `0.333%` loss, UDP 120Mbps `0.003%` loss.
+- MacBook Air SSH to the 2015 iMac is now fixed with the existing `~/.ssh/ibridge_imac_ed25519` key. The active macOS user is `oosu`, so use `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31`. Remote prep is active: `caffeinate -dimsu` and `iperf3 -s` are running, Wi-Fi is `en1`, and the local IP is `192.168.31.187`.
 
 ## Key Results
 
@@ -228,7 +229,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MBP and the 2017 iMac now have `iperf3`; remote SSH non-login shells on the iMac need `/usr/local/bin/iperf3` because Homebrew is not in `PATH`.
 - Current 5GHz Wi-Fi to the 2017 iMac has severe jitter and should not be used to select high-detail display profiles.
 - Current 5GHz/local Wi-Fi from MacBook Air to the 2015 iMac has enough throughput for low-bandwidth smoke testing, but ICMP latency spikes remain severe. Use only `2560x1440@60` HEVC-class experiments on this path; do not use it to validate smooth 5K/high-detail behavior.
-- MacBook Air SSH auth to the 2015 iMac is blocked; port 22 is open, but the MacBook Air key is not accepted for tested users.
+- MacBook Air SSH auth to the 2015 iMac works for user `oosu`; prior `gabrieljang`/`gabriel` attempts failed because those were not the active account for this receiver.
 - MacBook Air local Homebrew cannot currently install `iperf3`; do not reset `/opt/homebrew` without user approval.
 - Windows compressed file decode/render code needs MSVC build/run validation on the iMac.
 - MacBook Pro SSH auth to Windows iMac is blocked; port 22 is open but the MBP key is not accepted.
@@ -243,7 +244,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 4. Use the repaired 2017 iMac SSH path to start receiver-side commands remotely instead of relying on screen sharing.
 5. Keep `3840x2160`, `3200x1800`, and `2560x1440` as the 2017 iMac receiver profiles; keep `4096x2304` as a sender-only or 2015 5K iMac candidate.
 6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate for the 2015 27-inch Retina 5K iMac only; solve/reset-hide the reset spikes before calling it display-smooth.
-7. For the MacBook Air -> 2015 iMac Wi-Fi path, authorize the MacBook Air SSH key on the 2015 iMac, then run only a conservative `2560x1440@60` HEVC receiver smoke; keep 5K, tiled 5K, and high-detail fallback testing blocked on wired transport.
+7. For the MacBook Air -> 2015 iMac Wi-Fi path, use `oosu@100.84.32.31` to start receiver-side commands remotely, then run only a conservative `2560x1440@60` HEVC receiver smoke; keep 5K, tiled 5K, and high-detail fallback testing blocked on wired transport.
 8. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
 9. Test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
 10. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.

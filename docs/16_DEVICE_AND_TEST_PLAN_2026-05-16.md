@@ -55,10 +55,12 @@ iMac.
 | 5GHz/local Wi-Fi | `192.168.31.187` | ping `3.690/30.495/258.942/44.687 ms`; TCP to receiver `154.09 Mbps`; TCP reverse `129.43 Mbps`; UDP 30/60/120Mbps loss `0/0.333/0.003%` | Enough throughput for conservative 1440p smoke, but too jittery for smooth-display confidence |
 | Tailscale local-direct spot check | `100.84.32.31` | `tailscale ping` reached `gabriels-imac27-2015` via `192.168.31.187:41641` | Useful for remote prep once SSH auth is fixed |
 
-Current blockers: MacBook Air SSH auth is not accepted on the 2015 iMac. Local
-MacBook Air `iperf3` is now installed after repairing the Homebrew git state.
-Keep this Wi-Fi path limited to `2560x1440@60` HEVC-class smoke tests until
-jitter improves or Ethernet is connected.
+Current remote state: SSH works from MacBook Air to the 2015 iMac as
+`oosu@100.84.32.31` using `~/.ssh/ibridge_imac_ed25519`. Local MacBook Air
+`iperf3` is now installed after repairing the Homebrew git state. The receiver
+has `caffeinate -dimsu` and `iperf3 -s` running. Keep this Wi-Fi path limited
+to `2560x1440@60` HEVC-class smoke tests until jitter improves or Ethernet is
+connected.
 
 ## Ordered Test Matrix
 
@@ -74,7 +76,7 @@ Run in this exact order unless a physical cable or OS-state blocker changes:
 | 6 | MacBook Air M1 | iMac 21.5 4K 2017 | Wireless / Tailscale or local Wi-Fi | ready after receiver prep | `2560x1440@60` HEVC |
 | 7 | MacBook Air M1 | iMac 21.5 4K 2017 | Ethernet | needs cable/hub; receiver SSH and `iperf3` are ready | `2560x1440@60`; retest `3200x1800@60` only if stable |
 | 8 | MacBook Air M1 | iMac 21.5 4K 2017 | Thunderbolt Bridge | needs TB3/USB-C cable and IP setup | `2560x1440@60` |
-| 9 | MacBook Air M1 | iMac 27 5K 2015 | Wireless / Tailscale or local Wi-Fi | reachable at `192.168.31.187` / `100.84.32.31`; throughput is adequate for low-bandwidth smoke, but jitter is severe and SSH auth is blocked | `2560x1440@60` HEVC smoke only |
+| 9 | MacBook Air M1 | iMac 27 5K 2015 | Wireless / Tailscale or local Wi-Fi | reachable at `192.168.31.187` / `100.84.32.31`; SSH works as `oosu`; throughput is adequate for low-bandwidth smoke, but jitter is severe | `2560x1440@60` HEVC smoke only |
 | 10 | MacBook Air M1 | iMac 27 5K 2015 | Ethernet | needs cable/hub and `iperf3` | `2560x1440@60` |
 | 11 | MacBook Pro M1 Max | iMac 27 5K 2015 | Thunderbolt 2 / Thunderbolt Bridge | blocked until TB2 cable/adapter chain exists | `4096x2304@60`; then 2x2 tiled HEVC 5K60 |
 | 12 | MacBook Air M1 | iMac 27 5K 2015 | Thunderbolt 2 / Thunderbolt Bridge | blocked until TB2 cable/adapter chain exists | `2560x1440@60`; no Air 5K60 unless sender strategy changes |
