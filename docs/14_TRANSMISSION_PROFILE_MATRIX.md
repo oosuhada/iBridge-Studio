@@ -150,6 +150,27 @@ Practical rule:
 - Run fallback profiles first, or run tiled profiles in a separate process/session after fallbacks.
 - In the product, avoid switching from tiled 5K60 to single-stream fallback without an explicit encoder reset/restart strategy.
 
+## Encoder Service Restart Probe
+
+The next recovery check restarted the user `VTEncoderXPCService` and reran fallback probes.
+
+Result:
+
+| Probe | Avg ms | P95 ms | Read |
+|---|---:|---:|---|
+| 4096x2304 after `VTEncoderXPCService` restart | 25.928 | 46.532 | did not recover |
+| 4096x2304 after 60s wait | 25.692 | 46.544 | did not recover |
+| 4096x2304 after 60s wait, `prioritize_speed=unset` | 25.724 | 46.719 | did not recover |
+| 3200x1800 after restart, solo | 23.746 | 41.839 | did not recover |
+| 2560x1440 after restart | 7.851 | 10.808 | still safe |
+
+Interpretation:
+
+- The slow state is not cleared by restarting the user VideoToolbox encoder XPC service alone.
+- The effect is probably below that service boundary, such as media-engine or driver state.
+- Until a better reset is proven, a product fallback from tiled 5K60 should either restart the sender app in a clean process/session before measuring high-detail single-stream profiles, or fall all the way down to the safer `2560x1440@60` profile.
+- Reboot/logout-level recovery was not tested in this repo run.
+
 ## New Benchmark Entry Point
 
 Use:

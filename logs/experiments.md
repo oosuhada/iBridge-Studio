@@ -484,3 +484,32 @@ Artifacts:
 - `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `benchmarks/runs/2026-05-15_1338_transmission_profile_recheck/summary.csv`
 - `benchmarks/runs/2026-05-15_1341_post_tiled_recovery/`
+
+## 2026-05-15 13:58 — Encoder service restart recovery probe
+
+Prompt: continue MBP-side work after discovering tiled-first HEVC can poison immediate single-stream fallback results.
+
+Summary:
+- Restarted the user `VTEncoderXPCService` with `pkill -x VTEncoderXPCService`.
+- Re-ran 4096x2304 fallback immediately after restart.
+- Re-ran 4096x2304 after a 60-second wait.
+- Re-ran 4096x2304 with `prioritize_speed=unset`.
+- Checked lower fallback candidates after the slow state.
+
+Results:
+
+| Probe | Avg ms | P95 ms | Max ms | Result |
+|---|---:|---:|---:|---|
+| 4096x2304 after encoder service restart | 25.928 | 46.532 | 55.227 | Still slow |
+| 4096x2304 after 60s wait | 25.692 | 46.544 | 47.904 | Still slow |
+| 4096x2304 after 60s wait, speed unset | 25.724 | 46.719 | 47.720 | Still slow |
+| 3200x1800 after restart, solo | 23.746 | 41.839 | 79.181 | Still slow |
+| 2560x1440 after restart | 7.851 | 10.808 | 42.851 | Safe |
+
+Interpretation:
+- Restarting the user VideoToolbox encoder XPC service alone does not clear the post-tiled slow state.
+- The state is likely below the user XPC process boundary, such as media-engine or driver state.
+- Until a stronger reset is proven, product fallback from tiled 5K60 should either restart in a truly clean sender/session context or drop to `2560x1440@60` as the conservative emergency fallback.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
