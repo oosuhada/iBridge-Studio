@@ -45,6 +45,11 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Clean-session fallback gate now has a dedicated script. Current uptime was 2936 minutes, so the valid clean-session run was skipped; dirty current-session controls were mixed, with one pass followed by a repeat failure. This keeps high-detail fallback switching unsafe for product defaults.
 - The current four-device lab inventory is documented: M1 Max MacBook Pro 32 GB, M1 MacBook Air 8 GB, 2017 21.5-inch Retina 4K iMac 8 GB / Radeon Pro 555 / macOS, and 2015 27-inch Retina 5K iMac 8 GB / Radeon R9 M380 / macOS + Windows boot.
 - The next physical test order is documented in `docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md`: start with MacBook Pro -> 2017 4K iMac over wireless, Ethernet, then Thunderbolt; then MacBook Pro -> 2015 5K iMac wireless/Ethernet; then repeat the same practical paths with MacBook Air; leave 2015 iMac Thunderbolt 2 cases blocked until the TB2 cable/adapter chain is available.
+- Current OS state changed: MacBook Pro and MacBook Air are on macOS Tahoe 26; both iMacs are on macOS Sequoia through OCLP.
+- AirPlay Receiver is not visible from the MacBook Pro to the iMacs. Keep AirPlay as a comparison-only path and continue iBridge over local network transport.
+- MacBook Pro -> 2017 iMac direct Ethernet is now physically connected and measured: MBP `en9` `169.254.6.144` to iMac `169.254.63.68`, `1000baseT <full-duplex>`, 100-packet ping min/avg/max/stddev `0.425/0.810/1.379/0.235 ms`.
+- The same 2017 iMac over 5GHz Wi-Fi local IP `192.168.31.249` is reachable but jittery: 100-packet ping min/avg/max/stddev `3.706/53.842/409.182/70.703 ms`.
+- 2017 iMac SSH port `22` and iperf3 port `5201` are refused on both Ethernet and Wi-Fi IPs. Next blocker is enabling Remote Login and starting `iperf3 -s` on the 2017 iMac.
 
 ## Key Results
 
@@ -108,6 +113,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1344_mbp_current_path_probe/ping_20_imac_tailscale.txt`
 - `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/ping_100.txt`
+- `benchmarks/runs/2026-05-16_2350_mbp_to_2017_imac_lan_wifi/summary.md`
 - `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
 - `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
@@ -161,6 +167,13 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `scripts/mac_power_probe.sh`
 - `git pull --rebase --autostash`
 - `git submodule add -f -b opensource https://github.com/waydabber/BetterDisplay.git reference/BetterDisplay`
+- `ping -c 100 -i 0.2 169.254.63.68`
+- `ping -c 100 -i 0.2 192.168.31.249`
+- `nc -vz -G 2 169.254.63.68 22`
+- `nc -vz -G 2 192.168.31.249 22`
+- `nc -vz -G 2 169.254.63.68 5201`
+- `nc -vz -G 2 192.168.31.249 5201`
+- `brew install iperf3`
 
 ## Known Issues
 
@@ -181,6 +194,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Power cable/drain-rate tests require physical cable changes.
 - LAN/Thunderbolt Bridge throughput tests require physical cable changes and `iperf3` on both machines.
 - MBP currently needs `iperf3` installed before throughput matrix runs; the current MBP shell also did not expose `tailscale` CLI for direct/relay status capture.
+- MBP now has `iperf3`, but the 2017 iMac does not have an active `iperf3` server yet.
+- 2017 iMac Remote Login is not enabled yet, so Codex cannot remotely install tools or run receiver commands on that iMac.
+- Current 5GHz Wi-Fi to the 2017 iMac has severe jitter and should not be used to select high-detail display profiles.
 - Windows compressed file decode/render code needs MSVC build/run validation on the iMac.
 - MacBook Pro SSH auth to Windows iMac is blocked; port 22 is open but the MBP key is not accepted.
 - Forced encoder ID plus low-latency rate-control currently fails `VTCompressionSessionCreate` with `-12902`; forced `ave.hevc` works when low-latency rate-control is disabled.
@@ -189,12 +205,13 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 ## Next Steps
 
 1. Use M1 Air `2560x1440 @ 60` HEVC as the realistic default candidate; only retest `3200x1800 @ 60` after profile tuning or thermal isolation.
-2. Follow `docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md` for the physical receiver order. Start with MacBook Pro -> 2017 4K iMac wireless/Ethernet/Thunderbolt before spending more time on the 2015 5K iMac Thunderbolt 2 path.
-3. Install or expose `iperf3` on the MBP and iMac, then run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput. Current Tailscale/Wi-Fi path is not stable enough for display-profile decisions.
-4. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
-5. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
-6. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
-7. After macOS is installed on the iMac, test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
-8. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
-9. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.
-10. Capture screenshots and text-quality scoring after compressed decode/render works.
+2. On the 2017 iMac, enable Remote Login and start an `iperf3` server, then run the 1GbE network matrix against `169.254.63.68`.
+3. Follow `docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md` for the physical receiver order. Continue MacBook Pro -> 2017 4K iMac Ethernet first; treat current 5GHz Wi-Fi as a degraded comparison path.
+4. Install or expose `iperf3` on each iMac, then run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput.
+5. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
+6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
+7. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
+8. Test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
+9. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
+10. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.
+11. Capture screenshots and text-quality scoring after compressed decode/render works.
