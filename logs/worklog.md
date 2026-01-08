@@ -873,3 +873,31 @@ Result:
 Next:
 - Use `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31` for receiver-side commands.
 - Run only a conservative MacBook Air `2560x1440@60` HEVC smoke on this Wi-Fi path.
+
+## 2026-05-17 02:35 — MBA to 2015 iMac macOS receiver visual smoke
+
+Prompt: user asked to continue after SSH access to the 2015 iMac was fixed.
+Changed files:
+- apps/receiver-macos/Sources/iBridgeReceiverMac/main.swift
+- benchmarks/runs/2026-05-17_0230_mba_to_2015_imac_1440p60_hevc_wifi_smoke/*
+- benchmarks/runs/2026-05-17_0232_mba_to_2015_imac_1440p60_hevc_wifi_receiver_smoke/*
+- benchmarks/runs/2026-05-17_0235_mba_to_2015_imac_1440p60_hevc_wifi_30s_visual/*
+- docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] `swift build --package-path apps/receiver-macos -c release`
+- [x] Remote clone/pull/build on `oosu@100.84.32.31`
+- [x] Remote receiver listened on TCP `48320`
+- [x] 10s sender smoke: `600/600` encoded, `0` send failures, receiver `600` frames
+- [x] 30s visual smoke: `1800/1800` encoded, `0` send failures, receiver `1798` frames
+Result:
+- Added flushed receiver diagnostics so remote logs capture listen, handshake, received frames, missing frames, and total frames.
+- The 2015 iMac macOS receiver accepted the 1440p60 HEVC Annex-B protocol v0 stream over Wi-Fi.
+- The user reported visible change on the iMac panel.
+- The 30s run had 2 sender queue drops and matching receiver missing frames, so this is a functional smoke but not a smooth-display pass.
+Next:
+- For Wi-Fi-only follow-up, test lower bitrate or deeper sender queue to see whether the two drops disappear.
+- Keep 5K/high-detail/tiled tests blocked on Ethernet or Thunderbolt.

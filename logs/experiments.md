@@ -753,3 +753,43 @@ Artifacts:
 - `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/iperf3_udp_30mbps.json`
 - `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/iperf3_udp_60mbps.json`
 - `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/iperf3_udp_120mbps.json`
+
+## 2026-05-17 02:35 — MacBook Air to 2015 iMac 1440p60 HEVC visual smoke
+
+Prompt: user asked to continue after MacBook Air SSH access to the 2015 iMac was fixed.
+
+Plan:
+- Build `apps/primary-macos` locally and `apps/receiver-macos` on the 2015 iMac.
+- Run the macOS receiver on `oosu@100.84.32.31` listening on TCP `48320`.
+- Send the conservative MacBook Air profile: `2560x1440 @ 60`, HEVC, Annex-B, 25Mbps, over local Wi-Fi to `192.168.31.187`.
+
+Commands:
+
+```bash
+swift build --package-path apps/primary-macos -c release
+swift build --package-path apps/receiver-macos -c release
+ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'cd ~/development/iBridge && swift build --package-path apps/receiver-macos -c release'
+ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'nohup ~/development/iBridge/apps/receiver-macos/.build/release/ibridge-receiver-macos --port 48320 --fullscreen ... &'
+apps/primary-macos/.build/release/ibridge-primary --synthetic --source synthetic-nv12 --resolution 2560x1440 --fps 60 --duration 30 --codec hevc --bitrate-mbps 25 --data-rate-limit-mbps 25 --disable-low-latency-rate-control --encoder-id com.apple.videotoolbox.videoencoder.ave.hevc --disable-frame-reordering --disable-open-gop --payload-format annex-b --send-host 192.168.31.187 --send-port 48320
+```
+
+Results:
+- Receiver handshake succeeded with `selected_codec=hevc`, `width=2560`, `height=1440`, `fps=60`, `frame_transport=tcp`.
+- Sender requested/submitted/encoded `1800/1800/1800` frames.
+- Sender send failures: `0`.
+- Sender queue drops: `2`.
+- Sender p95 encode latency: `9.730 ms`; max encode latency: `34.592 ms`.
+- Sender p95 send time: `0.096 ms`; max send time: `95.444 ms`.
+- Receiver total frames: `1798`.
+- Receiver missing-frame events: two 1-frame gaps before frames `1407` and `1437`.
+- User reported visible change on the iMac panel during the smoke.
+
+Interpretation:
+- This proves the MacBook Air -> 2015 iMac macOS receiver path can encode, send, receive, and visibly affect the iMac display at conservative 1440p60 HEVC over Wi-Fi.
+- This is not a smooth-display pass because the Wi-Fi path still has latency spikes and the smoke had 2 dropped/missing frames over 30 seconds.
+- Keep 5K, tiled 5K, and high-detail fallback blocked on wired transport.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_0235_mba_to_2015_imac_1440p60_hevc_wifi_30s_visual/summary.md`
+- `benchmarks/runs/2026-05-17_0235_mba_to_2015_imac_1440p60_hevc_wifi_30s_visual/primary_stats.csv`
+- `benchmarks/runs/2026-05-17_0235_mba_to_2015_imac_1440p60_hevc_wifi_30s_visual/receiver_console.txt`
