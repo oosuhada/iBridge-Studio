@@ -1,0 +1,11 @@
+timestamp=2026-05-15_1309
+duration_seconds=5
+repeats=3
+cooldown_seconds=3
+bitrate_mbps=120
+prioritize_speed=on
+encoder_id=com.apple.videotoolbox.videoencoder.ave.hevc
+hostname=Gabriels-MacBook-Pro.local
+hw_model=MacBookPro18,4
+cpu=Apple M1 Max
+Now drawing from 'AC Power'  -InternalBattery-0 (id=20578403)	100%; charged; 0:00 remaining present: true
