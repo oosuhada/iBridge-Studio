@@ -2,6 +2,29 @@
 
 Codex must append entries here after every meaningful change.
 
+## 2026-05-17 02:30 — Continue 2017 iMac live 4K receiver and BetterDisplay check
+
+Prompt: user request to continue toward MacBook extended display on the 2017 4K iMac and verify whether BetterDisplay solves it
+Changed files:
+- apps/receiver-macos/Sources/iBridgeReceiverMac/main.swift
+- docs/17_BETTERDISPLAY_AND_2017_4K_RECEIVER.md
+- docs/current-work.md
+- logs/worklog.md
+- logs/experiments.md
+Verification:
+- [x] `swift build --package-path apps/receiver-macos -c release`
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] Remote Intel iMac `swift build --package-path apps/receiver-macos -c release`
+- [x] Live `1920x1080@60` HEVC send to 2017 iMac over direct 1GbE: 300/300 encoded, 0 sender drops, 0 send failures, receiver logged 300 frames.
+- [x] Live `3840x2160@60` HEVC send to 2017 iMac over direct 1GbE: 720/720 encoded, 0 sender drops, 0 send failures, receiver logged frame receipt and the user observed the iMac screen changing.
+- [x] Checked current BetterDisplay public README and local `reference/BetterDisplay` source branch.
+Result:
+- Live macOS receiver plumbing to the 2017 4K iMac works, but the 4K synthetic run had high encode callback latency and still needs sender backpressure/frame dropping before calling it smooth 4K60.
+- BetterDisplay is useful for source-side virtual display / HiDPI setup, but does not replace iBridge's transport and receiver.
+Next:
+- Add bounded live 4K backpressure/drop policy.
+- Connect BetterDisplay-created or clean-room virtual display capture into `ibridge-primary`.
+
 ## 2026-05-15 10:06 — Add local encoder reference clone workspace
 
 Prompt: user request to clone and study open-source encoding/decoding references

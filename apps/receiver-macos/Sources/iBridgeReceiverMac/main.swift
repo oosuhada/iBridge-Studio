@@ -17,11 +17,6 @@ struct RuntimeError: Error, CustomStringConvertible {
     }
 }
 
-func logLine(_ message: String) {
-    print(message)
-    fflush(stdout)
-}
-
 func logError(_ message: String) {
     fputs("\(message)\n", stderr)
     fflush(stderr)
@@ -29,6 +24,38 @@ func logError(_ message: String) {
 
 struct SendableSampleBuffer: @unchecked Sendable {
     let value: CMSampleBuffer
+}
+
+final class RuntimeLog: @unchecked Sendable {
+    static let shared = RuntimeLog()
+    private let lock = NSLock()
+    private let fileHandle: FileHandle?
+
+    private init() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let directory = home.appendingPathComponent("ibridge-remote", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("receiver-macos-runtime.log")
+        if !FileManager.default.fileExists(atPath: url.path) {
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+        }
+        fileHandle = try? FileHandle(forWritingTo: url)
+        _ = try? fileHandle?.seekToEnd()
+    }
+
+    func write(_ message: String) {
+        let line = "\(Date()) \(message)\n"
+        lock.lock()
+        if let data = line.data(using: .utf8) {
+            try? fileHandle?.write(contentsOf: data)
+        }
+        lock.unlock()
+        fputs(line, stderr)
+    }
+}
+
+func logLine(_ message: String) {
+    RuntimeLog.shared.write(message)
 }
 
 func usage() {
@@ -404,6 +431,7 @@ final class ReceiverViewController: NSViewController {
         let sendableSampleBuffer = SendableSampleBuffer(value: sampleBuffer)
         DispatchQueue.main.async {
             if self.displayLayer.status == .failed {
+                logLine("display_layer_failed error=\(String(describing: self.displayLayer.error))")
                 self.displayLayer.flush()
             }
             self.displayLayer.enqueue(sendableSampleBuffer.value)
@@ -434,21 +462,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_: Notification) {
         let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1280, height: 720)
-        let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
+        let style: NSWindow.StyleMask = options.fullscreen ? [.borderless] : [.titled, .closable, .miniaturizable, .resizable]
+        let contentRect = options.fullscreen
+            ? screenFrame
+            : NSRect(x: 80, y: 80, width: min(1280, screenFrame.width), height: min(720, screenFrame.height))
         let window = NSWindow(
-            contentRect: NSRect(x: 80, y: 80, width: min(1280, screenFrame.width), height: min(720, screenFrame.height)),
+            contentRect: contentRect,
             styleMask: style,
             backing: .buffered,
             defer: false
         )
         window.title = options.title
         window.contentViewController = receiver
-        window.makeKeyAndOrderFront(nil)
-        self.window = window
-
         if options.fullscreen {
-            window.toggleFullScreen(nil)
+            window.level = .mainMenu
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+            window.isMovable = false
         }
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        self.window = window
 
         let server = TCPReceiver(port: options.port, viewController: receiver)
         self.server = server
@@ -563,7 +596,7 @@ final class TCPReceiver: @unchecked Sendable {
                 viewController?.enqueue(sampleBuffer, header: header)
             }
         } catch {
-            logLine("client disconnected or failed: \(error)")
+            logLine("client disconnected_or_failed frames=\(receivedFrames) error=\(error)")
             logLine("receiver_frames_total=\(receivedFrames)")
             viewController?.setStatus("Disconnected: \(receivedFrames) frames")
         }
@@ -610,6 +643,8 @@ func readExact(fd: Int32, byteCount: Int) throws -> Data {
 }
 
 do {
+    setbuf(stdout, nil)
+    setbuf(stderr, nil)
     let options = try parseOptions(CommandLine.arguments)
     let app = NSApplication.shared
     let delegate = AppDelegate(options: options)
