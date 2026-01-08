@@ -50,6 +50,10 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Pro -> 2017 iMac direct Ethernet is now physically connected and measured: MBP `en9` `169.254.6.144` to iMac `169.254.63.68`, `1000baseT <full-duplex>`, 100-packet ping min/avg/max/stddev `0.425/0.810/1.379/0.235 ms`.
 - The same 2017 iMac over 5GHz Wi-Fi local IP `192.168.31.249` is reachable but jittery: 100-packet ping min/avg/max/stddev `3.706/53.842/409.182/70.703 ms`.
 - 2017 iMac SSH port `22` and iperf3 port `5201` are refused on both Ethernet and Wi-Fi IPs. Next blocker is enabling Remote Login and starting `iperf3 -s` on the 2017 iMac.
+- 2017 iMac `iperf3 -s` is now running after manual Homebrew permission repair. Current direct Ethernet IP is `169.254.70.114`.
+- MacBook Pro -> 2017 iMac 1GbE matrix passed: ping `0.826/1.518/2.372/0.231 ms`, TCP to iMac `939.14 Mbps`, TCP reverse `937.50 Mbps`, UDP 30/60/120 Mbps all 0% loss.
+- MacBook Pro -> 2017 iMac 5GHz Wi-Fi matrix is much weaker: ping `3.663/56.773/261.386/70.416 ms`, TCP to iMac `86.54 Mbps`, TCP reverse `68.66 Mbps`, UDP 120 Mbps received `103.72 Mbps` with `8.202%` loss.
+- SSH is still blocked because the iMac reports `sshd: no hostkeys available -- exiting`; run `sudo ssh-keygen -A` on the iMac before trying Remote Login again.
 
 ## Key Results
 
@@ -114,6 +118,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `benchmarks/runs/2026-05-15_1344_mbp_current_path_probe/ping_20_imac_tailscale.txt`
 - `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/ping_100.txt`
 - `benchmarks/runs/2026-05-16_2350_mbp_to_2017_imac_lan_wifi/summary.md`
+- `benchmarks/runs/2026-05-17_0025_mbp_to_2017_imac_iperf/summary.md`
 - `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
 - `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
@@ -174,6 +179,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `nc -vz -G 2 169.254.63.68 5201`
 - `nc -vz -G 2 192.168.31.249 5201`
 - `brew install iperf3`
+- `RUN_ROOT=benchmarks/runs/2026-05-17_0025_mbp_to_2017_imac_iperf DURATION=20 scripts/mac_network_matrix.sh --case 1gbe-2017-imac-retry --receiver-ip 169.254.70.114`
+- `RUN_ROOT=benchmarks/runs/2026-05-17_0025_mbp_to_2017_imac_iperf DURATION=10 scripts/mac_network_matrix.sh --case wifi5-2017-imac --receiver-ip 192.168.31.249`
 
 ## Known Issues
 
@@ -194,8 +201,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Power cable/drain-rate tests require physical cable changes.
 - LAN/Thunderbolt Bridge throughput tests require physical cable changes and `iperf3` on both machines.
 - MBP currently needs `iperf3` installed before throughput matrix runs; the current MBP shell also did not expose `tailscale` CLI for direct/relay status capture.
-- MBP now has `iperf3`, but the 2017 iMac does not have an active `iperf3` server yet.
+- MBP and the 2017 iMac now have `iperf3`; iMac server was started manually.
 - 2017 iMac Remote Login is not enabled yet, so Codex cannot remotely install tools or run receiver commands on that iMac.
+- 2017 iMac OpenSSH host keys are missing; `sshd` exits until `sudo ssh-keygen -A` creates host keys.
 - Current 5GHz Wi-Fi to the 2017 iMac has severe jitter and should not be used to select high-detail display profiles.
 - Windows compressed file decode/render code needs MSVC build/run validation on the iMac.
 - MacBook Pro SSH auth to Windows iMac is blocked; port 22 is open but the MBP key is not accepted.
@@ -205,9 +213,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 ## Next Steps
 
 1. Use M1 Air `2560x1440 @ 60` HEVC as the realistic default candidate; only retest `3200x1800 @ 60` after profile tuning or thermal isolation.
-2. On the 2017 iMac, enable Remote Login and start an `iperf3` server, then run the 1GbE network matrix against `169.254.63.68`.
-3. Follow `docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md` for the physical receiver order. Continue MacBook Pro -> 2017 4K iMac Ethernet first; treat current 5GHz Wi-Fi as a degraded comparison path.
-4. Install or expose `iperf3` on each iMac, then run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput.
+2. Fix SSH on the 2017 iMac by generating OpenSSH host keys, then verify remote shell from the MacBook Pro.
+3. Continue MacBook Pro -> 2017 4K iMac over 1GbE as the primary receiver path; treat current 5GHz Wi-Fi as a degraded comparison path.
+4. Use the 1GbE result to choose the first live receiver display profile: start with single-stream `3840x2160@60` or `4096x2304@60`, then only later try tiled 5K-style paths.
 5. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
 6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
 7. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.

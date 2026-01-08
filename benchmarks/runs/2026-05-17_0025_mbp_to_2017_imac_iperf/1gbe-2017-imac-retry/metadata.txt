@@ -1,0 +1,7 @@
+case=1gbe-2017-imac-retry
+receiver_ip=169.254.70.114
+duration_seconds=20
+timestamp=2026-05-17_0128
+hostname=Gabriels-MacBook-Pro.local
+whoami=gabriel
+pwd=/Users/gabriel/Development/iBridge
