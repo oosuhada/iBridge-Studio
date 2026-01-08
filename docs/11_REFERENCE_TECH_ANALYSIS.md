@@ -4,8 +4,10 @@ Date: 2026-05-15
 
 Branch: `feat/plan-a-5k60-benchmark`
 
-This document turns the ignored `reference/` clone set into concrete iBridge
-engineering direction. It does not copy code from third-party projects.
+This document turns the `reference/` clone set into concrete iBridge
+engineering direction. Most references are ignored local clones; BetterDisplay
+is intentionally tracked as a Git submodule so virtual-display/HiDPI behavior is
+available across machines. It does not copy code from third-party projects.
 
 ## Executive Read
 
@@ -182,7 +184,10 @@ iBridge implication:
 
 ## Recommended Immediate Work
 
-1. Keep the reference clones Git-disconnected and ignored.
+1. Keep most reference clones Git-disconnected and ignored. Treat
+   `reference/BetterDisplay` as the current submodule exception for shared
+   HiDPI/virtual-display research across MacBook Pro, MacBook Air, and Codex
+   Cloud.
 2. Run the Windows iMac inventory script from RDP or an existing remote shell.
 3. Extend the Primary benchmark into a VT property matrix rather than only
    comparing machines.

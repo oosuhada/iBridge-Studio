@@ -5,6 +5,7 @@ This file stores plain-text source URLs in the user-requested format. Every tech
 | ID | Status | Claim | Source |
 |---|---|---|---|
 | apple_imac_2015_spec_en | confirmed | iMac Retina 5K 27-inch Late 2015 has a 5120-by-2880 display, four USB 3 ports, two Thunderbolt 2 ports with Mini DisplayPort output support, and 10/100/1000BASE-T Gigabit Ethernet. | [내용 출처 : https://support.apple.com/en-us/112035] |
+| apple_imac_2017_21_4k_spec | confirmed | iMac Retina 4K 21.5-inch 2017 has Radeon Pro 555, two Thunderbolt 3 USB-C ports, and Gigabit Ethernet. | [내용 출처 : https://support.apple.com/en-tm/112026] |
 | apple_imac_2015_spec_ko | reference | See related docs. | [내용 출처 : https://support.apple.com/ko-kr/112035] |
 | apple_imac_model_compat | confirmed | Apple's iMac model identification page lists the newest compatible operating system as macOS Monterey for iMac Retina 5K 27-inch Late 2015, macOS Monterey for iMac Retina 4K 21.5-inch Late 2015, macOS Monterey for iMac 21.5-inch Late 2015, and macOS Big Sur for iMac Retina 5K 27-inch Mid 2015. | [내용 출처 : https://support.apple.com/en-ng/108054] |
 | apple_tb3_tb2_adapter | confirmed | Apple's TB3-to-TB2 adapter supports Thunderbolt/Thunderbolt 2 data transfer up to 20Gbps for Thunderbolt 2 devices, is not Mini DisplayPort-compatible, and does not let a Mac charge from a Thunderbolt power-delivering device through the adapter. | [내용 출처 : https://support.apple.com/en-us/111753] |
@@ -72,6 +73,7 @@ This file stores plain-text source URLs in the user-requested format. Every tech
 | simpledisplay_repo | reference | SimpleDisplay is an open-source macOS display manager that creates virtual monitors using CGVirtualDisplay private API. | [내용 출처 : https://github.com/SamuelRioTz/SimpleDisplay] |
 | node_mac_virtual_display_repo | reference | node-mac-virtual-display is an open-source native bridge for creating macOS virtual displays from Node/Electron contexts. | [내용 출처 : https://github.com/enfp-dev-studio/node-mac-virtual-display] |
 | betterdisplay_repo | reference | BetterDisplay is an open-source macOS display/HiDPI/virtual-screen reference. | [내용 출처 : https://github.com/waydabber/BetterDisplay] |
+| betterdisplay_opensource_branch | reference | BetterDisplay's open-source code is available from the `opensource` branch and is tracked in this repo as `reference/BetterDisplay` for HiDPI/virtual-display study. | [내용 출처 : https://github.com/waydabber/BetterDisplay/tree/opensource] |
 | rustdesk_repo | reference | RustDesk is an open-source remote desktop application with macOS capture and hardware codec paths worth studying for Mac-Mac and cross-platform routes. | [내용 출처 : https://github.com/rustdesk/rustdesk] |
 | deskreen_repo | reference | Deskreen is an open-source project that turns devices with a browser into secondary screens over WebRTC. | [내용 출처 : https://github.com/pavlobu/deskreen] |
 | screencat_repo | reference | ScreenCat is an open-source screen sharing and remote collaboration project using WebRTC. | [내용 출처 : https://github.com/max-mapper/screencat] |

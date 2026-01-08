@@ -1,6 +1,6 @@
 # Current Work
 
-Date: 2026-05-15
+Date: 2026-05-16
 
 Branch: `feat/plan-a-5k60-benchmark`
 
@@ -25,8 +25,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Pro `MacBookPro18,4` / M1 Max has now been tested as a Primary candidate on branch `feat/plan-a-5k60-benchmark`.
 - On the MacBook Pro, forcing `com.apple.videotoolbox.videoencoder.ave.hevc` and disabling low-latency rate-control produced the best Plan C encode results so far.
 - A local ignored `reference/` workspace has been created for clean-room study of mature capture, encode, transport, decode, and frame-pacing implementations.
+- `reference/BetterDisplay` is now an explicit Git submodule on BetterDisplay's `opensource` branch so MacBook Pro, MacBook Air, and Codex Cloud sessions can fetch the same HiDPI/virtual-display reference from GitHub.
 - The reference scope has been widened beyond macOS-to-Windows. Mac-to-Mac routes are now explicitly in scope if an older macOS install on the iMac creates a stronger technical path.
-- Nested `.git` directories have been removed from the ignored `reference/` clones so VS Code only sees the outer iBridge repository.
+- Nested `.git` directories have been removed from the ignored `reference/` clones so VS Code only sees the outer iBridge repository. BetterDisplay is the exception and is intentionally represented as a top-level submodule.
 - Reference analysis now points to concrete next spikes: VT property matrix, Annex-B fixture path, bounded receiver pacing, GPU-native decode/render, and a local Mac virtual-display smoke.
 - iMac setup prep is documented with a Windows inventory script and a conservative remote-vs-physical-access boundary for Boot Camp/macOS work.
 - Primary VideoToolbox encoding has been rechecked with reference-informed controls. Plan B 5K60 still fails before any receiver dependency; 3200x1800 and 3840x2160 are the current strongest encode-only candidates.
@@ -42,6 +43,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Encoder reset/session strategy now has reference-backed probe controls. `--tile-segment-hints` applies VideoToolbox concatenate/source-frame-count hints to per-tile reset segments, and `--tile-reset-stagger-frames` can stagger per-tile resets for comparison.
 - Initial M1 Max reset strategy probes favor `2x2 tiled HEVC 5K60 + reset180 + inflight1 + tile segment hints + simultaneous reset`: segment hints reduced logical frames over 16.67 ms in short probes, while staggered reset lowered max spike but spread reset misses across more frames.
 - Clean-session fallback gate now has a dedicated script. Current uptime was 2936 minutes, so the valid clean-session run was skipped; dirty current-session controls were mixed, with one pass followed by a repeat failure. This keeps high-detail fallback switching unsafe for product defaults.
+- The current four-device lab inventory is documented: M1 Max MacBook Pro 32 GB, M1 MacBook Air 8 GB, 2017 21.5-inch Retina 4K iMac 8 GB / Radeon Pro 555 / macOS, and 2015 27-inch Retina 5K iMac 8 GB / Radeon R9 M380 / macOS + Windows boot.
+- The next physical test order is documented in `docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md`: start with MacBook Pro -> 2017 4K iMac over wireless, Ethernet, then Thunderbolt; then MacBook Pro -> 2015 5K iMac wireless/Ethernet; then repeat the same practical paths with MacBook Air; leave 2015 iMac Thunderbolt 2 cases blocked until the TB2 cable/adapter chain is available.
 
 ## Key Results
 
@@ -128,6 +131,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `reference/README.md`
 - `docs/11_REFERENCE_TECH_ANALYSIS.md`
 - `docs/12_IMAC_SETUP_PREP.md`
+- `docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md`
+- `.gitmodules`
+- `reference/BetterDisplay`
 - `scripts/windows_imac_setup_inventory.ps1`
 
 ## Commands Run
@@ -153,6 +159,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Windows MSVC `cl` build for `ibridge-receiver.exe`
 - Windows iMac Task Scheduler D3D11 fullscreen benchmark runs
 - `scripts/mac_power_probe.sh`
+- `git pull --rebase --autostash`
+- `git submodule add -f -b opensource https://github.com/waydabber/BetterDisplay.git reference/BetterDisplay`
 
 ## Known Issues
 
@@ -164,6 +172,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Dirty current-session clean-gate controls are mixed: one high-detail fallback pass followed by a repeat failure. Do not promote 4096x2304/3200x1800 fallback switching until a fresh-boot run and repeat both pass.
 - M1 Air should not default above `2560x1440 @ 60` based on current encode-only evidence.
 - M1 Air tiled 5K60 is substantially below target in the current probe; do not spend receiver implementation time on Air-specific tiled 5K60 unless a new sender strategy changes this signal.
+- The 2017 21.5-inch iMac should be used before the 2015 27-inch iMac for wired Mac-to-Mac receiver prep because it already boots macOS and has Thunderbolt 3; the 2015 iMac Thunderbolt 2 cases remain blocked until a real Thunderbolt 2 data cable/adapter chain is available.
+- BetterDisplay is a submodule, so clones on the MacBook Air must run `git submodule update --init --recursive reference/BetterDisplay`.
 - Compressed decode/render on Windows is not implemented.
 - UDP frame transport is specified but not implemented.
 - ScreenCaptureKit capture is implemented as a benchmark source, but not yet connected to live receiver transport/decode/render.
@@ -179,11 +189,12 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 ## Next Steps
 
 1. Use M1 Air `2560x1440 @ 60` HEVC as the realistic default candidate; only retest `3200x1800 @ 60` after profile tuning or thermal isolation.
-2. Install or expose `iperf3` on the MBP and iMac, then run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput. Current Tailscale/Wi-Fi path is not stable enough for display-profile decisions.
-3. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
-4. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
-5. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
-6. After macOS is installed on the iMac, test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
-7. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
-8. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.
-9. Capture screenshots and text-quality scoring after compressed decode/render works.
+2. Follow `docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md` for the physical receiver order. Start with MacBook Pro -> 2017 4K iMac wireless/Ethernet/Thunderbolt before spending more time on the 2015 5K iMac Thunderbolt 2 path.
+3. Install or expose `iperf3` on the MBP and iMac, then run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput. Current Tailscale/Wi-Fi path is not stable enough for display-profile decisions.
+4. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
+5. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
+6. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
+7. After macOS is installed on the iMac, test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
+8. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
+9. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.
+10. Capture screenshots and text-quality scoring after compressed decode/render works.

@@ -1,0 +1,4 @@
+[submodule "reference/BetterDisplay"]
+	path = reference/BetterDisplay
+	url = https://github.com/waydabber/BetterDisplay.git
+	branch = opensource

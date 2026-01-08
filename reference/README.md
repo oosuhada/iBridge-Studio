@@ -1,15 +1,22 @@
 # iBridge Reference Clones
 
-This directory is for local, ignored third-party source clones used to study
-capture, encode, transport, decode, and render techniques relevant to iBridge.
+This directory is for third-party source references used to study capture,
+encode, transport, decode, render, virtual-display, and HiDPI techniques
+relevant to iBridge.
 
 Do not vendor or copy implementation code from these projects into iBridge
 without a separate license and clean-room review. Use them as design references
 and record any technical conclusions in project docs with source URLs.
 
+Most reference bodies remain ignored local clones. `reference/BetterDisplay` is
+the current exception: it is a Git submodule on BetterDisplay's `opensource`
+branch so both MacBooks can fetch the same virtual-display/HiDPI reference from
+GitHub.
+
 ## Clone Set
 
-The ignored local clone set currently has 39 repositories.
+The reference set currently has 39 repositories, with BetterDisplay tracked as a
+submodule and the others treated as ignored local clones.
 
 | Category | Directory | Repository | Commit | Why it is relevant |
 |---|---|---|---|---|
@@ -48,7 +55,7 @@ The ignored local clone set currently has 39 repositories.
 | macOS virtual display | `FreeDisplay` | `https://github.com/huberdf/FreeDisplay.git` | `07ba072` | Virtual-display management app with lessons around WindowServer blocking, HiDPI modes, and stale display cleanup. |
 | macOS virtual display | `SimpleDisplay` | `https://github.com/SamuelRioTz/SimpleDisplay.git` | `fcfcdce` | Lightweight virtual monitor/display management app using a small Objective-C bridge. |
 | macOS virtual display | `node-mac-virtual-display` | `https://github.com/enfp-dev-studio/node-mac-virtual-display.git` | `83bf871` | Node/native bridge for `CGVirtualDisplay`, display settings, HiDPI, and mirroring behavior. |
-| macOS display tool | `BetterDisplay` | `https://github.com/waydabber/BetterDisplay.git` | `d5bc059` | Display/HiDPI/virtual-screen reference and historical context for macOS display manipulation. |
+| macOS display tool | `BetterDisplay` | `https://github.com/waydabber/BetterDisplay.git` (`opensource` branch submodule) | `0aa8394` | Display/HiDPI/virtual-screen reference and historical context for macOS display manipulation. |
 | Remote desktop | `rustdesk` | `https://github.com/rustdesk/rustdesk.git` | `0d40cf2` | Cross-platform remote desktop app with macOS capture, hwcodec/VRAM encode-decode selection, and adaptive video paths. |
 | WebRTC second screen | `deskreen` | `https://github.com/pavlobu/deskreen.git` | `7449628` | Turns browsers/devices into secondary screens via Electron/WebRTC; useful as a product/reference comparison. |
 | WebRTC screen sharing | `screencat` | `https://github.com/max-mapper/screencat.git` | `5f5c2a9` | Electron/WebRTC screen sharing and remote-control reference. |
@@ -58,6 +65,8 @@ The ignored local clone set currently has 39 repositories.
 Run selected commands from the repository root. The clone bodies are intentionally
 ignored by Git. After cloning, strip nested `.git` directories so VS Code and
 the outer iBridge Git repository do not treat references as active repos.
+BetterDisplay should be fetched through the submodule command instead of this
+manual clone flow.
 
 ```bash
 mkdir -p reference
@@ -69,6 +78,7 @@ git clone --depth 1 https://github.com/Fidetro/CapturingScreenContentInMacOS.git
 git clone --depth 1 https://github.com/zf3/VideoToolboxH265Encoder.git reference/VideoToolboxH265Encoder
 git clone --depth 1 https://github.com/FFmpeg/FFmpeg.git reference/FFmpeg
 find reference -name .git -type d -prune -exec rm -rf {} +
+git submodule update --init --recursive reference/BetterDisplay
 ```
 
 ## First Analysis Targets
