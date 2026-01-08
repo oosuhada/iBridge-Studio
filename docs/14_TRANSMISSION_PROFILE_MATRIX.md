@@ -171,6 +171,41 @@ Interpretation:
 - Until a better reset is proven, a product fallback from tiled 5K60 should either restart the sender app in a clean process/session before measuring high-detail single-stream profiles, or fall all the way down to the safer `2560x1440@60` profile.
 - Reboot/logout-level recovery was not tested in this repo run.
 
+## M1 Air Sender Matrix
+
+Command:
+
+```bash
+DEVICE_PROFILE=m1air PROFILE_SET=air DURATION=30 scripts/mac_transmission_profile_matrix.sh
+```
+
+Machine:
+
+```text
+Model Identifier: MacBookAir10,1
+Chip: Apple M1
+CPU: 8 cores, 4 performance and 4 efficiency
+GPU: 7 cores
+Memory: 8 GB
+```
+
+Result:
+
+| Profile | Avg ms | P95 ms | Max ms | 16.67ms p95 budget | Read |
+|---|---:|---:|---:|---|---|
+| single HEVC 2560x1440@60, 25Mbps | 8.145 | 9.296 | 20.146 | pass | Realistic M1 Air default candidate |
+| single HEVC 3200x1800@60, 35Mbps | 18.873 | 38.897 | 325.872 | fail | Not stable enough for Air default |
+| single HEVC 3840x2160@60, 45Mbps | 18.727 | 54.584 | 233.527 | fail | Wired-only experiment at best, not default |
+| 2x2 tiled HEVC 5120x2880@60, 25Mbps/tile | 23.626 | 23.718 | 72.096 | fail | Effective 41.599fps; not worth receiver work on M1 Air yet |
+
+Deadline analysis for the M1 Air tiled probe shows `1800/1800` logical frames over 16.67ms. That is materially different from the M1 Max tiled result, where the misses were mostly startup/reset frames.
+
+Interpretation:
+
+- M1 Air should default to `2560x1440 @ 60` HEVC for now.
+- `3200x1800 @ 60` can remain a retest/tuning target, but current p95 and max spikes make it unsuitable as the first Air profile.
+- 2x2 tiled 5K60 should continue only as an M1 Max + best-wired path unless a new Air-side strategy changes the encode-only ceiling.
+
 ## New Benchmark Entry Point
 
 Use:

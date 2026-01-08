@@ -677,3 +677,30 @@ Result:
 Next:
 - Treat high-detail fallback switching after tiled 5K60 as unsafe until a stronger reset/session strategy is proven.
 - Keep waiting for M1 Air results and physical cable tests for Thunderbolt Bridge / Ethernet.
+
+## 2026-05-15 13:18 — M1 Air sender profile matrix
+
+Prompt: user asked to pull latest branch and run the M1 Air encode-only sender profile matrix
+Changed files:
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/*
+- docs/14_TRANSMISSION_PROFILE_MATRIX.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `git status -sb`
+- [x] `git pull --rebase`
+- [x] `hostname && whoami && pwd && sysctl -n hw.model`
+- [x] `DEVICE_PROFILE=m1air PROFILE_SET=air DURATION=30 scripts/mac_transmission_profile_matrix.sh`
+- [x] `bash -n scripts/mac_transmission_profile_matrix.sh`
+- [x] `swift build --package-path apps/primary-macos -c release`
+Result:
+- The latest branch fast-forwarded cleanly before local work.
+- Added `@preconcurrency import ScreenCaptureKit` so Swift 6 can build the benchmark on the M1 Air without treating `SCStream` Sendable warnings as errors.
+- M1 Air `2560x1440 @ 60` HEVC passed the sender p95 budget: avg 8.145 ms, p95 9.296 ms, max 20.146 ms.
+- M1 Air `3200x1800 @ 60`, `3840x2160 @ 60`, and 2x2 tiled `5120x2880 @ 60` failed the 16.67 ms p95 encode budget.
+- The tiled Air probe reached only 41.599 effective logical fps and had 1800/1800 logical frames over 16.67 ms.
+Next:
+- Treat `2560x1440 @ 60` HEVC as the realistic M1 Air default.
+- Keep tiled 5K60 focused on M1 Max/best-wired paths; do not implement an Air-specific tiled receiver path from this result.

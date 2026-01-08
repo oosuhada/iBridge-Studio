@@ -513,3 +513,40 @@ Interpretation:
 
 Artifacts:
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
+
+## 2026-05-15 13:18 — M1 Air sender profile matrix
+
+Prompt: user asked to pull latest branch and run the sender-only Air profile matrix before receiver work
+
+Command:
+
+```bash
+DEVICE_PROFILE=m1air PROFILE_SET=air DURATION=30 scripts/mac_transmission_profile_matrix.sh
+```
+
+Machine:
+- `MacBookAir10,1`
+- Apple M1, 8 CPU cores, 7 GPU cores, 8 GB memory
+
+Results:
+
+| Profile | Avg ms | P95 ms | Max ms | 16.67ms p95 budget | Result |
+|---|---:|---:|---:|---|---|
+| HEVC 2560x1440@60, 25Mbps | 8.145 | 9.296 | 20.146 | pass | Best M1 Air default |
+| HEVC 3200x1800@60, 35Mbps | 18.873 | 38.897 | 325.872 | fail | Too spiky for default |
+| HEVC 3840x2160@60, 45Mbps | 18.727 | 54.584 | 233.527 | fail | Too spiky for default |
+| 2x2 tiled HEVC 5120x2880@60, 25Mbps/tile | 23.626 | 23.718 | 72.096 | fail | Effective 41.599 fps |
+
+Tiled deadline note:
+- `1800/1800` logical frames exceeded 16.67 ms.
+- `10/1800` logical frames exceeded 33.33 ms, matching the reset cadence.
+
+Interpretation:
+- M1 Air should use `2560x1440 @ 60` HEVC as the realistic initial sender profile.
+- `3200x1800 @ 60` is a retest/tuning target, not the default.
+- 2x2 tiled 5K60 is not worth carrying into M1 Air receiver work based on this sender-only result; keep tiled 5K60 focused on M1 Max/best-wired unless a new encoder strategy appears.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/summary.csv`
+- `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/m1air_wired_full_5k60_tiled_probe_hevc_synthetic_nv12_tiled_5120x2880_60fps_25mbps_deadline.md`
+- `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/system_profile_sanitized.txt`
