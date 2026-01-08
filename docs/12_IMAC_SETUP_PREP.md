@@ -28,6 +28,22 @@ Known from today's probes:
 - iBridge receiver port `48320` is not listening yet.
 - Live MBP -> iMac send/decode has not run because no receiver is active.
 
+## 2017 iMac macOS Remote State
+
+Updated 2026-05-17:
+
+- 2017 iMac Tailscale address: `100.89.104.119`.
+- 2017 iMac Wi-Fi address: `192.168.31.249`.
+- 2017 iMac direct Ethernet link-local address: `169.254.70.114`.
+- SSH is open and authenticated from the MacBook Pro after generating OpenSSH
+  host keys with `sudo ssh-keygen -A` and adding the MacBook Pro public key to
+  `~/.ssh/authorized_keys`.
+- Homebrew is installed at `/usr/local` on this Intel iMac. Remote non-login
+  shells should use `/usr/local/bin/iperf3` instead of relying on `PATH`.
+- `caffeinate -dimsu` is running as a user process to prevent sleep during
+  active benchmark work.
+- `/usr/local/bin/iperf3 -s` is listening on TCP `5201`.
+
 ## What Can Be Done Remotely Now
 
 These are safe preparatory steps if an RDP session or any existing authorized
