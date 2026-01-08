@@ -59,6 +59,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Air has started the parallel 2015 27-inch Retina 5K iMac Wi-Fi path while MacBook Pro continues 2017 iMac work. Tailscale shows the 2015 iMac as `gabriels-imac27-2015` at `100.84.32.31` with local-direct endpoint `192.168.31.187:41641`.
 - MacBook Air -> 2015 iMac 5GHz/local Wi-Fi reachability is confirmed, but the path is jittery: 100-packet ping to `192.168.31.187` had 0% loss with min/avg/max/stddev `3.819/51.446/420.666/88.334 ms`. TCP ports `22` and `5201` are open; `48320` is refused.
 - MacBook Air could not complete iperf throughput from this machine yet because local `iperf3` is missing and Homebrew failed on macOS 26.5 / dirty `/opt/homebrew`. SSH to the 2015 iMac is also blocked by missing MacBook Air key authorization, despite the port being open.
+- MacBook Air Homebrew was repaired enough to install `iperf3`, and the MacBook Air -> 2015 iMac Wi-Fi throughput matrix now exists. Ping remains jittery at min/avg/max/stddev `3.690/30.495/258.942/44.687 ms`, but throughput is usable for low-bandwidth smoke testing: TCP to receiver `154.09 Mbps`, TCP reverse `129.43 Mbps`, UDP 30Mbps `0%` loss, UDP 60Mbps `0.333%` loss, UDP 120Mbps `0.003%` loss.
 
 ## Key Results
 
@@ -98,6 +99,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Pro to iMac Tailscale recheck remains jittery: 20-packet ICMP min/avg/max/stddev `9.451/73.839/507.671/107.944 ms`.
 - MacBook Pro to iMac formal Tailscale network matrix: 100-packet ICMP `98/100` received, 2.0% loss, min/avg/max/stddev `8.198/61.867/485.532/58.935 ms`; not suitable for display transport decisions.
 - MacBook Air to 2015 iMac local Wi-Fi/Tailscale-direct spot check: `tailscale ping` reached `gabriels-imac27-2015` via `192.168.31.187:41641`; 100-packet local ping min/avg/max/stddev `3.819/51.446/420.666/88.334 ms`.
+- MacBook Air to 2015 iMac Wi-Fi iperf matrix: TCP to receiver `154.09 Mbps`, TCP reverse `129.43 Mbps`; UDP 30/60/120Mbps received `29.99/59.78/119.95 Mbps` with `0/0.333/0.003%` loss. ICMP latency spikes remain too high for smooth-display confidence.
 
 ## Files Likely Relevant Next
 
@@ -126,6 +128,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `benchmarks/runs/2026-05-16_2350_mbp_to_2017_imac_lan_wifi/summary.md`
 - `benchmarks/runs/2026-05-17_0025_mbp_to_2017_imac_iperf/summary.md`
 - `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/summary.md`
+- `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/summary.md`
 - `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
 - `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
@@ -198,6 +201,10 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `ping -c 20 -i 0.2 192.168.31.187`
 - `RUN_ROOT=benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5 DURATION=10 scripts/mac_network_matrix.sh --case wifi5-2015-imac --receiver-ip 192.168.31.187 --tailscale-name 100.84.32.31`
 - `brew install iperf3` (failed; local Homebrew issue)
+- `cd /opt/homebrew && git fetch --depth=1 origin master && git reset --hard origin/master`
+- `brew update`
+- `brew install iperf3`
+- `DURATION=20 RUN_ROOT=benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf scripts/mac_network_matrix.sh --case wifi5-2015-imac --receiver-ip 192.168.31.187 --tailscale-name 100.84.32.31`
 
 ## Known Issues
 
@@ -220,7 +227,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - The current MBP shell did not expose `tailscale` CLI for direct/relay status capture.
 - MBP and the 2017 iMac now have `iperf3`; remote SSH non-login shells on the iMac need `/usr/local/bin/iperf3` because Homebrew is not in `PATH`.
 - Current 5GHz Wi-Fi to the 2017 iMac has severe jitter and should not be used to select high-detail display profiles.
-- Current 5GHz/local Wi-Fi from MacBook Air to the 2015 iMac is reachable but also has severe jitter; use it only for reachability and low-bandwidth prep until throughput is measured and jitter improves.
+- Current 5GHz/local Wi-Fi from MacBook Air to the 2015 iMac has enough throughput for low-bandwidth smoke testing, but ICMP latency spikes remain severe. Use only `2560x1440@60` HEVC-class experiments on this path; do not use it to validate smooth 5K/high-detail behavior.
 - MacBook Air SSH auth to the 2015 iMac is blocked; port 22 is open, but the MacBook Air key is not accepted for tested users.
 - MacBook Air local Homebrew cannot currently install `iperf3`; do not reset `/opt/homebrew` without user approval.
 - Windows compressed file decode/render code needs MSVC build/run validation on the iMac.
@@ -236,7 +243,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 4. Use the repaired 2017 iMac SSH path to start receiver-side commands remotely instead of relying on screen sharing.
 5. Keep `3840x2160`, `3200x1800`, and `2560x1440` as the 2017 iMac receiver profiles; keep `4096x2304` as a sender-only or 2015 5K iMac candidate.
 6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate for the 2015 27-inch Retina 5K iMac only; solve/reset-hide the reset spikes before calling it display-smooth.
-7. For the MacBook Air -> 2015 iMac Wi-Fi path, authorize the MacBook Air SSH key on the 2015 iMac and either repair/install local `iperf3` on the MacBook Air or run throughput from another prepared host. Until then, keep this path at reachability/prep status.
+7. For the MacBook Air -> 2015 iMac Wi-Fi path, authorize the MacBook Air SSH key on the 2015 iMac, then run only a conservative `2560x1440@60` HEVC receiver smoke; keep 5K, tiled 5K, and high-detail fallback testing blocked on wired transport.
 8. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
 9. Test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
 10. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
