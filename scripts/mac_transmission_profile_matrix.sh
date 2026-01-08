@@ -203,11 +203,9 @@ maybe_run() {
   fi
 }
 
-# M1 Max wired candidates: chase full logical 5K first, with high-detail fallbacks.
-maybe_run "quick:wired:m1max" \
-  "m1max_wired_full_5k60_tiled_hevc" "wired" "synthetic-nv12-tiled" "5120x2880" 60 30 \
-  --tile-columns 2 --tile-rows 2 --tile-reuse-buffers --tile-reset-every-frames 180 --tile-max-inflight-logical-frames 1
-
+# M1 Max single-stream candidates run before tiled candidates. Prior tests showed
+# 2x2 tiled 5K60 can leave VideoToolbox's encoder service in a state where
+# immediate single-stream follow-up measurements are pessimistic.
 maybe_run "wired:m1max" \
   "m1max_wired_full_5k30_single_hevc" "wired" "synthetic-nv12" "5120x2880" 30 120
 
@@ -226,6 +224,12 @@ maybe_run "wireless:4k" \
 
 maybe_run "wireless:retina2x" \
   "wireless_retina2x_1440p60_hevc" "wireless" "synthetic-nv12" "2560x1440" 60 25
+
+# Full-resolution tiled candidate runs after single-stream probes to avoid
+# contaminating fallback-profile measurements.
+maybe_run "quick:wired:m1max" \
+  "m1max_wired_full_5k60_tiled_hevc" "wired" "synthetic-nv12-tiled" "5120x2880" 60 30 \
+  --tile-columns 2 --tile-rows 2 --tile-reuse-buffers --tile-reset-every-frames 180 --tile-max-inflight-logical-frames 1
 
 # M1 Air candidates: do not assume tiled 5K60; establish lower-resolution ceilings first.
 maybe_run "quick:air:baseline" \

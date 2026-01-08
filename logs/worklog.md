@@ -628,3 +628,32 @@ Next:
 - Run the Air profile set on the M1 Air.
 - Run wired M1 Max tests after Thunderbolt Bridge or 1GbE is physically connected.
 - Defer receiver decode/recomposition work until sender profiles and iMac OS-specific decode targets are clearer.
+
+## 2026-05-15 13:40 — Single-stream fallback stability isolation
+
+Prompt: user asked MBP Codex to continue with M1 Max single-stream, wired/wireless profile, and later decode planning work while waiting for cables and M1 Air results.
+Changed files:
+- scripts/mac_single_stream_stability_matrix.sh
+- scripts/mac_transmission_profile_matrix.sh
+- docs/14_TRANSMISSION_PROFILE_MATRIX.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/*
+- benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/*
+- benchmarks/runs/2026-05-15_1338_transmission_profile_recheck/*
+- benchmarks/runs/2026-05-15_1341_post_tiled_recovery/*
+Verification:
+- [x] `bash -n scripts/mac_single_stream_stability_matrix.sh`
+- [x] 3-repeat isolated single-stream matrix with `PRIORITIZE_SPEED=unset`
+- [x] 3-repeat isolated single-stream matrix with `PRIORITIZE_SPEED=on`
+- [x] Re-ran transmission quick matrix to reproduce slow single-stream after tiled-first order.
+Result:
+- Added a single-stream stability matrix for 4096x2304, 3840x2160, 3200x1800, and 2560x1440.
+- Isolated single-stream HEVC profiles passed p95 <=16.67 ms across all tested repeats.
+- Tiled-first mixed-order tests still made immediate single-stream fallback results slow, and 4096x2304 remained slow after a 60-second wait.
+- Updated transmission matrix ordering so single-stream probes run before tiled probes.
+Next:
+- Do not benchmark fallback profiles immediately after tiled 5K60.
+- Investigate safe VideoToolbox encoder-service reset/restart before product-mode fallback switching.
+- Run network matrices after Thunderbolt Bridge and Ethernet cables arrive.

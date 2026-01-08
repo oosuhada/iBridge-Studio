@@ -34,6 +34,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Tiled 5K60 has a stronger encode-only path after deeper investigation: per-tile PTS was corrected, and `2x2 30Mbps/tile reset180 inflight1` sustained 30 seconds at 60.009 effective fps with p95 12.690 ms. Reset-frame max spikes around 100-136 ms remain unresolved, but deadline analysis shows only 18/1800 logical frames exceeded 16.67 ms.
 - Direction corrected: before building Windows tiled receiver composition, iBridge should finish sender-side transmission profiles for M1 Max/M1 Air and wired/wireless paths. Windows/macOS receiver decode should be tested later after the iMac has both OS environments available.
 - Added a transmission profile matrix and encode-first script. Latest M1 Max quick retest keeps the 2x2 tiled HEVC 5K60 path promising, while current single-stream 4096x2304/3200x1800 retests missed the 60Hz encode budget and need repeat isolation/profile tuning.
+- Re-isolated M1 Max single-stream profiles. When run without tiled 5K60 first, 4096x2304, 3840x2160, 3200x1800, and 2560x1440 all passed p95 <=16.67ms across 3/3 repeats. The slow quick-matrix fallback results are now attributed to tiled 5K60 contaminating immediate follow-up single-stream VideoToolbox state.
 
 ## Key Results
 
@@ -58,6 +59,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Pro transmission profile quick retest, 2x2 tiled HEVC 5120x2880 @ 60, 30Mbps/tile, reset180, inflight1: 5s avg 12.501 ms, p95 13.222 ms, effective 60.040 fps, max 123.935 ms; only 2/300 logical frames exceeded 16.67 ms.
 - Same quick retest, single HEVC 4096x2304 @ 60, 120Mbps: avg 25.717 ms, p95 46.742 ms; current session missed the 60Hz encode budget despite earlier stronger runs.
 - Same quick retest, single HEVC 3200x1800 @ 60, 60Mbps: avg 23.614 ms, p95 41.764 ms; lower-bandwidth wireless-style profile did not reduce encode latency in this run.
+- Re-isolated single-stream stability, `PRIORITIZE_SPEED=unset`, 3 repeats: 4096x2304 median p95 13.050 ms, 3840x2160 11.669 ms, 3200x1800 11.250 ms, 2560x1440 10.636 ms.
+- Re-isolated single-stream stability, `PRIORITIZE_SPEED=on`, 3 repeats: 4096x2304 median p95 13.087 ms, 3840x2160 11.668 ms, 3200x1800 11.218 ms, 2560x1440 6.455 ms.
 - MacBook Pro display-sized synthetic sources for built-in XDR, external portrait display, Sidecar iPad, and HDMI FHD display all encoded successfully with forced `ave.hevc`.
 - MacBook Pro to iMac Tailscale path is reachable, but ping is jittery: 20-packet ICMP min/avg/max/stddev 14.484/108.629/423.525/96.505 ms.
 
@@ -77,7 +80,10 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `docs/13_TILED_5K60_STRATEGY.md`
 - `docs/14_TRANSMISSION_PROFILE_MATRIX.md`
 - `scripts/mac_transmission_profile_matrix.sh`
+- `scripts/mac_single_stream_stability_matrix.sh`
 - `benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/summary.csv`
+- `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
+- `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `scripts/analyze_tiled_deadline.py`
 - `benchmarks/runs/2026-05-15_1056_vt_property_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1058_vt_targeted_sustain/summary.md`
@@ -102,6 +108,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `bash -n scripts/mac_encode_strategy_matrix.sh`
 - `DURATION=3 scripts/mac_encode_strategy_matrix.sh`
 - `DEVICE_PROFILE=m1max PROFILE_SET=quick DURATION=5 RUN_ROOT=benchmarks/runs/2026-05-15_1258_transmission_profile_matrix scripts/mac_transmission_profile_matrix.sh`
+- `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=unset RUN_ROOT=benchmarks/runs/2026-05-15_1330_single_stream_stability_unset scripts/mac_single_stream_stability_matrix.sh`
+- `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=on RUN_ROOT=benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on scripts/mac_single_stream_stability_matrix.sh`
 - Windows MSVC `cl` build for `ibridge-receiver.exe`
 - Windows iMac Task Scheduler D3D11 fullscreen benchmark runs
 - `scripts/mac_power_probe.sh`
@@ -110,7 +118,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 - Plan B 5K60 compressed encode is still not viable on the current MBP Primary path.
 - Tiled 5K60 encode-only p95 is now promising, but reset-frame spikes around 100-133 ms would likely be visible unless the receiver hides, drops, or staggers them.
-- Current single-stream fallback results are not stable across reruns; profile and thermal/state isolation are required before treating 4096x2304/3200x1800 as reliable sender defaults.
+- Single-stream fallback results are stable when isolated, but become pessimistic when run immediately after tiled 5K60. Benchmark and product profile switching should not run tiled first and then immediately judge single-stream fallback performance.
 - Compressed decode/render on Windows is not implemented.
 - UDP frame transport is specified but not implemented.
 - ScreenCaptureKit capture is implemented as a benchmark source, but not yet connected to live receiver transport/decode/render.
@@ -126,9 +134,10 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 1. Run `scripts/mac_transmission_profile_matrix.sh` on the M1 Air with `DEVICE_PROFILE=m1air PROFILE_SET=air DURATION=30` before assuming Air can do tiled 5K60.
 2. Run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput.
-3. Re-isolate single-stream `4096x2304`, `3840x2160`, `3200x1800`, and `2560x1440` HEVC profiles because the latest quick retest regressed relative to earlier results.
+3. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
 4. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but solve/reset-hide the reset spikes before calling it display-smooth.
-5. After macOS is installed on the iMac, test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
-6. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
-7. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.
-8. Capture screenshots and text-quality scoring after compressed decode/render works.
+5. Investigate a safe encoder reset/restart strategy before allowing product-mode switching from tiled 5K60 down to single-stream fallback.
+6. After macOS is installed on the iMac, test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
+7. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
+8. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.
+9. Capture screenshots and text-quality scoring after compressed decode/render works.
