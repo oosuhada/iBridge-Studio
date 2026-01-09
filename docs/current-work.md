@@ -126,6 +126,10 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Screen capture now has `--capture-max-in-flight-frames`, and wired profiles set it to `1` to prefer newer frames over a stale encode backlog when high-detail capture falls behind.
 - Packaged LAN high-quality live virtual capture now works again after ScreenCaptureKit exposed `capture_display_count=2`; auto-selected `display_index=1` and sent `2560x1440@30 35Mbps` for a 3s smoke with `46/46` encoded, 0 send failures, 0 sender drops, p95 encode `17.101 ms`, and p95 send `0.877 ms`.
 - 4K60 is now the wired high-detail target: `PROFILE=lan-4k` maps to `3840x2160@60`, HEVC, 80Mbps. A direct 1GbE virtual-display motion comparison showed backpressure `1` reduced p95 encode latency from `52.175 ms` to `19.090 ms` versus no capture backpressure, with 0 send failures in both runs.
+- Latest 2017 iMac receiver is deployed outside the dirty remote repo via `scripts/start_2017_imac_receiver_macos.sh`, which builds the macOS receiver for `x86_64`, copies it to `~/ibridge-remote/latest`, starts it fullscreen with `--hide-status`, and verifies TCP `48320`.
+- Current one-command MBP -> 2017 iMac 4K60 path is `scripts/start_mbp_to_2017_imac_4k60.sh`.
+- Alpha package now builds `iBridge Receiver.app` as a universal macOS binary (`x86_64` + `arm64`) so it can run on Intel iMac receivers.
+- Current immediate 4K60 probe confirms the 2017 iMac receiver is connectable now. BetterDisplay `Virtual 16:9` is physical `3840x2160@60` with HiDPI UI `1920x1080`; ScreenCaptureKit lists it as `1920x1080`, and iBridge requests `3840x2160@60` encode for the stream.
 
 ## Files Likely Relevant Next
 

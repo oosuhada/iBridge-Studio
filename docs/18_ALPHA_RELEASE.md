@@ -97,6 +97,17 @@ Run a short smoke:
 DURATION=3 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ 4K60.command
 ```
 
+From the repository checkout, the current one-command MacBook Pro -> 2017 iMac
+wired path is:
+
+```bash
+scripts/start_mbp_to_2017_imac_4k60.sh
+```
+
+This first deploys the latest Intel receiver binary to the 2017 iMac over SSH,
+starts it fullscreen with the status overlay hidden, then starts the local 4K60
+sender.
+
 If the sender prints `capture_display_count=0`, macOS is not exposing a
 ScreenCaptureKit-capturable display to the sender. Reconnect the BetterDisplay
 virtual screen, confirm it is an extended display instead of AirPlay mirroring,

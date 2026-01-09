@@ -6,18 +6,24 @@ DIST_ROOT="${DIST_ROOT:-dist}"
 PACKAGE_ROOT="$DIST_ROOT/iBridge-$VERSION"
 RECEIVER_APP="$PACKAGE_ROOT/iBridge Receiver.app"
 PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
-RECEIVER_BIN="apps/receiver-macos/.build/release/ibridge-receiver-macos"
+RECEIVER_ARM64_BIN="apps/receiver-macos/.build/arm64-apple-macosx/release/ibridge-receiver-macos"
+RECEIVER_X86_64_BIN="apps/receiver-macos/.build/x86_64-apple-macosx/release/ibridge-receiver-macos"
+RECEIVER_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/ibridge-receiver-macos-universal"
 
 rm -rf "$PACKAGE_ROOT"
 mkdir -p "$RECEIVER_APP/Contents/MacOS" "$RECEIVER_APP/Contents/Resources"
 mkdir -p "$PACKAGE_ROOT/bin" "$PACKAGE_ROOT/scripts" "$PACKAGE_ROOT/docs"
 
 swift build --package-path apps/primary-macos -c release
-swift build --package-path apps/receiver-macos -c release
+swift build --package-path apps/receiver-macos -c release --arch arm64
+swift build --package-path apps/receiver-macos -c release --arch x86_64
 
-cp "$RECEIVER_BIN" "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver"
+lipo -create "$RECEIVER_ARM64_BIN" "$RECEIVER_X86_64_BIN" -output "$RECEIVER_UNIVERSAL_BIN"
+cp "$RECEIVER_UNIVERSAL_BIN" "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver"
 cp "$PRIMARY_BIN" "$PACKAGE_ROOT/bin/ibridge-primary"
 cp scripts/start_ibridge_virtual_capture.sh "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh"
+cp scripts/start_2017_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2017_imac_receiver_macos.sh"
+cp scripts/start_mbp_to_2017_imac_4k60.sh "$PACKAGE_ROOT/scripts/start_mbp_to_2017_imac_4k60.sh"
 cp scripts/start_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2015_imac_receiver_macos.sh"
 cp scripts/stop_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh"
 cp docs/18_ALPHA_RELEASE.md "$PACKAGE_ROOT/docs/18_ALPHA_RELEASE.md"
@@ -95,7 +101,8 @@ This is an internal alpha package for local testing.
 
 Open `iBridge Receiver.app` on the receiver iMac. It listens on TCP `48320`,
 opens a fullscreen borderless receiver window, and hides the debug status
-overlay by default.
+overlay by default. The receiver app is a universal macOS binary for Apple
+Silicon and Intel iMac receivers.
 
 ## Source Mac
 
@@ -135,6 +142,12 @@ RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ LAN\ High\ Quality.command
 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ 4K60.command
 ```
 
+From a repo checkout, the current MacBook Pro -> 2017 iMac wired test path is:
+
+```bash
+scripts/start_mbp_to_2017_imac_4k60.sh
+```
+
 For a lighter smoke:
 
 ```bash
@@ -157,6 +170,8 @@ chmod +x \
   "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver.command" \
   "$PACKAGE_ROOT/bin/ibridge-primary" \
   "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh" \
+  "$PACKAGE_ROOT/scripts/start_2017_imac_receiver_macos.sh" \
+  "$PACKAGE_ROOT/scripts/start_mbp_to_2017_imac_4k60.sh" \
   "$PACKAGE_ROOT/scripts/start_2015_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/Start iBridge Virtual Capture.command" \
