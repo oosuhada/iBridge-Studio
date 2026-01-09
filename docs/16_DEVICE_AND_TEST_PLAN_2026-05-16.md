@@ -76,6 +76,13 @@ frames. This proves a mirror-style live display path. It is not yet a true
 macOS extended desktop because iBridge still needs a virtual display source on
 the MacBook Air.
 
+Current virtual-display state: the user configured macOS `Virtual 16:9` as an
+extended display at `1920x1080`. The MacBook Air live-capture helper now
+defaults to capture display index `1`, `1920x1080@30`, HEVC 8Mbps, and receiver
+`100.84.32.31`, so it targets that virtual extended display. Static virtual
+desktops may emit few ScreenCaptureKit frames; move a cursor/window on the
+virtual display to force visible updates.
+
 Current helper scripts:
 
 ```bash

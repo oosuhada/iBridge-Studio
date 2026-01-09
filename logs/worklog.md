@@ -949,3 +949,25 @@ Result:
 - Direct 10s live-capture smoke had 1 sender drop; 3s script validation had 0 drops.
 Next:
 - For true extended-desktop behavior, implement or integrate a MacBook Air virtual display source and point `--capture-display-index` at that virtual display.
+
+## 2026-05-17 03:36 — Target Virtual 16:9 extended display
+
+Prompt: user configured macOS `Virtual 16:9` as an extended display at `1920x1080`.
+Changed files:
+- scripts/start_mba_to_2015_imac_live_capture.sh
+- benchmarks/runs/2026-05-17_0329_mba_virtual_1080p30_to_2015_imac_wifi/*
+- benchmarks/runs/2026-05-17_0333_mba_virtual_1080p30_to_2015_imac_tailscale/*
+- benchmarks/runs/2026-05-17_0336_virtual_16_9_script_default_smoke/*
+- docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md
+- docs/current-work.md
+- logs/worklog.md
+Verification:
+- [x] Receiver restarted and listened on TCP `48320`.
+- [x] Local Wi-Fi `192.168.31.187` was temporarily unreachable, so sender used Tailscale `100.84.32.31`.
+- [x] `capture-display-index 1`, `1920x1080@30`, HEVC 8Mbps sent to receiver.
+- [x] `DURATION=3 scripts/start_mba_to_2015_imac_live_capture.sh`
+Result:
+- The helper script now defaults to the user's `Virtual 16:9` extended display: display index `1`, `1920x1080@30`, HEVC 8Mbps, receiver `100.84.32.31`.
+- The virtual display smoke sent 28 frames over a mostly static 3s run with 0 failures and 0 sender drops.
+Next:
+- For actual use, move windows onto `Virtual 16:9`; static screens may produce few frames until something changes on that display.
