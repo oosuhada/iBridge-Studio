@@ -891,3 +891,33 @@ Interpretation:
 Artifacts:
 - `benchmarks/runs/2026-05-17_0333_mba_virtual_1080p30_to_2015_imac_tailscale/`
 - `benchmarks/runs/2026-05-17_0336_virtual_16_9_script_default_smoke/`
+
+## 2026-05-17 04:35 — macOS alpha package verification
+
+Prompt: user asked to proceed through app distribution.
+
+Commands:
+
+```bash
+bash -n scripts/start_ibridge_virtual_capture.sh
+bash -n scripts/package_macos_alpha.sh
+scripts/package_macos_alpha.sh
+codesign --verify --deep --strict --verbose=2 "dist/iBridge-0.1.0-alpha/iBridge Receiver.app"
+dist/iBridge-0.1.0-alpha/bin/ibridge-primary --list-displays
+DURATION=1 RECEIVER_IP=169.254.70.114 ./dist/iBridge-0.1.0-alpha/Start\ iBridge\ Virtual\ Capture.command
+system_profiler SPDisplaysDataType
+```
+
+Results:
+- Package output created: `dist/iBridge-0.1.0-alpha/`.
+- Zip output created: `dist/iBridge-0.1.0-alpha.zip`.
+- Zip size at verification time: `184K`.
+- App signature verification: valid on disk and satisfies its Designated Requirement.
+- Packaged sender binary is byte-identical to the release sender build.
+- Current sender display list returned `capture_display_count=0`.
+- Packaged sender guard exited with code 2 and printed the BetterDisplay/extended-display/Screen Recording checklist instead of continuing with an invalid capture index.
+- `system_profiler` showed `Gabriel의 iMac` as an AirPlay 1080p virtual device; the BetterDisplay `Virtual 16:9` extended display was not present in this verification state.
+
+Interpretation:
+- Internal alpha packaging is working.
+- Live virtual-display sender smoke is blocked until the BetterDisplay virtual screen is reconnected as an extended display and visible to ScreenCaptureKit.
