@@ -37,7 +37,8 @@ The package includes:
 ## Receiver iMac
 
 Open `iBridge Receiver.app` on the iMac. The receiver listens on TCP `48320`,
-opens fullscreen, and hides the debug status overlay.
+opens as a standard macOS fullscreen window, and hides the debug status overlay.
+Use `Command-F` to toggle fullscreen and `Esc` to leave fullscreen.
 
 If macOS blocks the app because this alpha is ad-hoc signed, open it with
 right-click > Open or remove quarantine for local lab testing:
@@ -81,6 +82,11 @@ Profiles:
 All profiles use HEVC Annex-B protocol v0. Auto-selection chooses the largest
 non-origin extended display unless `CAPTURE_DISPLAY_INDEX` is provided.
 
+Input relay is enabled by default. The receiver captures mouse and keyboard
+events over the video surface, sends them back over the existing TCP connection,
+and the source sender injects them into the captured display with `CGEvent`.
+The source Mac may require Accessibility permission for the sender process.
+
 The wired profiles also enable capture-side backpressure with
 `CAPTURE_MAX_IN_FLIGHT_FRAMES=1`, so the sender prefers newer frames over
 building a stale encode backlog when the encoder falls behind.
@@ -116,6 +122,7 @@ and recheck Screen Recording permission.
 ## Current Limits
 
 - Source Mac requires Screen Recording permission.
+- Source Mac requires Accessibility permission for input relay.
 - 4K virtual capture has been proven, but the current default is 1080p60
   because it is a safer alpha profile.
 - 4K60 smoothness is not yet product-grade.
