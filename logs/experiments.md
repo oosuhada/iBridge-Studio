@@ -2,6 +2,36 @@
 
 Summaries of benchmark runs.
 
+## 2026-05-17 03:40 — BetterDisplay virtual screen live capture
+
+Prompt: user configured BetterDisplay virtual screen and asked to test it
+
+Summary:
+- Confirmed macOS sees `Virtual 16:9` as an extended display with `3840x2160`
+  backing pixels and UI looking like `1920x1080 @ 60Hz`.
+- Confirmed `screencapture -D 2` captures the virtual screen at `3840x2160`.
+- Confirmed iBridge ScreenCaptureKit path can capture the virtual screen and
+  send it to the 2017 iMac macOS receiver over direct 1GbE.
+
+Measured results:
+
+| Capture/output mode | Frames submitted | Frames encoded | Sender drops | Send failures | Avg encode ms | P95 encode ms | Receiver result |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `3840x2160@60` | 299/600 | 299 | 0 | 0 | 32.346 | 64.015 | receiver logged 299 frames |
+| `1920x1080@60` downscale | 255/600 | 255 | 0 | 0 | 13.793 | 22.332 | receiver logged 255 frames |
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_virtual_screen_capture_probe/`
+- `benchmarks/runs/2026-05-17_virtual_screen_live_4k/summary.md`
+- `benchmarks/runs/2026-05-17_virtual_screen_live_4k/virtual_4k_capture_send.csv`
+- `benchmarks/runs/2026-05-17_virtual_screen_live_4k/virtual_downscale_1080p_capture_send.csv`
+
+Decision:
+- BetterDisplay virtual screen is a viable source display for iBridge.
+- The current 4K capture path is still too latent for final smooth use.
+- Next implementation should add explicit display-name selection and
+  newest-frame-wins sender backpressure before more subjective testing.
+
 ## 2026-05-17 02:30 — MacBook Pro to 2017 iMac live macOS receiver smoke
 
 Prompt: user request to continue until the MacBook screen can be extended to the 2017 4K iMac

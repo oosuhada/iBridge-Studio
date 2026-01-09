@@ -2,6 +2,24 @@
 
 Codex must append entries here after every meaningful change.
 
+## 2026-05-17 03:40 — Test BetterDisplay virtual screen capture
+
+Prompt: user configured a BetterDisplay virtual screen and asked to test it
+Changed files:
+- benchmarks/runs/2026-05-17_virtual_screen_live_4k/summary.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `system_profiler SPDisplaysDataType` confirmed `Virtual 16:9` as extended `3840x2160`, UI looks like `1920x1080 @ 60Hz`.
+- [x] `screencapture -x -D 2` captured the virtual screen at `3840x2160`.
+- [x] iBridge `--screen-capture --capture-display-index 0 --resolution 3840x2160` captured and sent the virtual screen to the 2017 iMac receiver with 0 send failures.
+- [x] iBridge `--screen-capture --capture-display-index 0 --resolution 1920x1080` downscaled and sent the virtual screen to the 2017 iMac receiver with 0 send failures.
+Result:
+- BetterDisplay virtual screen is now proven as a usable iBridge capture source.
+Next:
+- Add stable display-name/ID selection and live backpressure/frame dropping.
+
 ## 2026-05-17 02:30 — Continue 2017 iMac live 4K receiver and BetterDisplay check
 
 Prompt: user request to continue toward MacBook extended display on the 2017 4K iMac and verify whether BetterDisplay solves it
