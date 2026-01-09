@@ -121,6 +121,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - macOS internal alpha packaging now exists. `scripts/package_macos_alpha.sh` builds the sender and receiver, creates an ad-hoc signed `iBridge Receiver.app`, includes a package-local virtual-display sender launcher, and emits `dist/iBridge-0.1.0-alpha.zip`.
 - Current package verification passed script syntax, Swift release builds, zip generation, byte-identical sender copy, and app signature verification.
 - Current live sender smoke from this MacBook Pro is blocked because the active external display state changed to AirPlay `Gabriel의 iMac` 1080p and `ibridge-primary --list-displays` returned `capture_display_count=0`; reconnect BetterDisplay `Virtual 16:9` as an extended display before retrying the packaged sender.
+- Wired high-quality alpha profile now exists as `PROFILE=lan-readable` and `Start iBridge LAN High Quality.command`: `2560x1440@30`, HEVC, 35Mbps, sender queue 12, capture queue 6. This is the current readability-first LAN default.
+- Direct 1GbE synthetic receiver smoke confirms transport stability for higher-detail profiles: `2560x1440@30 35Mbps` encoded `150/150`, sender drops `0`, send failures `0`, avg send `0.060 ms`, p95 send `0.098 ms`; p95 encode was `25.772 ms`.
 
 ## Files Likely Relevant Next
 
