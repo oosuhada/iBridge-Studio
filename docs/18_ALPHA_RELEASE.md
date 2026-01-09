@@ -75,6 +75,10 @@ Profiles:
 All profiles use HEVC Annex-B protocol v0 and auto-select the first non-origin
 extended display unless `CAPTURE_DISPLAY_INDEX` is provided.
 
+The wired profiles also enable capture-side backpressure with
+`CAPTURE_MAX_IN_FLIGHT_FRAMES=1`, so the sender prefers newer frames over
+building a stale encode backlog when the encoder falls behind.
+
 Override display selection when needed:
 
 ```bash

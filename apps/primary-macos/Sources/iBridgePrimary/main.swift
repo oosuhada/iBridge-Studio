@@ -37,6 +37,7 @@ struct Options {
     var staticChangeEvery = 1
     var captureDisplayIndex = 0
     var captureQueueDepth = 8
+    var captureMaxInFlightFrames = 0
     var tileColumns = 2
     var tileRows = 2
     var tileReuseBuffers = false
@@ -192,6 +193,13 @@ final class EncoderState {
         let output = framesByID.values.sorted { $0.frameID < $1.frameID }
         lock.unlock()
         return output
+    }
+
+    func inFlightFrameCount() -> Int {
+        lock.lock()
+        let count = timings.count
+        lock.unlock()
+        return count
     }
 }
 
@@ -600,7 +608,7 @@ func usage() {
       --source synthetic-nv12
       --source synthetic-static-skip --static-change-every 60
       --source synthetic-nv12-tiled --tile-columns 2 --tile-rows 2 [--tile-reuse-buffers] [--tile-max-inflight-logical-frames 1] [--tile-reset-every-frames 150]
-      --source screen-capture --capture-display-index 0 --capture-queue-depth 8
+      --source screen-capture --capture-display-index 0 --capture-queue-depth 8 [--capture-max-in-flight-frames 1]
       --warmup-frames 20
 
     Reference-informed VideoToolbox options:
@@ -772,6 +780,10 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.captureQueueDepth = try Int(value()) ?? options.captureQueueDepth
         } else if arg.hasPrefix("--capture-queue-depth=") {
             options.captureQueueDepth = Int(arg.dropFirst("--capture-queue-depth=".count)) ?? options.captureQueueDepth
+        } else if arg == "--capture-max-in-flight-frames" {
+            options.captureMaxInFlightFrames = try Int(value()) ?? options.captureMaxInFlightFrames
+        } else if arg.hasPrefix("--capture-max-in-flight-frames=") {
+            options.captureMaxInFlightFrames = Int(arg.dropFirst("--capture-max-in-flight-frames=".count)) ?? options.captureMaxInFlightFrames
         } else if arg == "--tile-columns" {
             options.tileColumns = try Int(value()) ?? options.tileColumns
         } else if arg.hasPrefix("--tile-columns=") {
@@ -863,6 +875,9 @@ func parseOptions(_ args: [String]) throws -> Options {
     }
     guard options.captureDisplayIndex >= 0, options.captureQueueDepth > 0 else {
         throw RuntimeError("--capture-display-index must be non-negative and --capture-queue-depth must be positive")
+    }
+    guard options.captureMaxInFlightFrames >= 0 else {
+        throw RuntimeError("--capture-max-in-flight-frames must be non-negative")
     }
     guard options.warmupFrames >= 0 else {
         throw RuntimeError("--warmup-frames must be non-negative")
@@ -1281,6 +1296,8 @@ func printRunSummary(options: Options, state: EncoderState, frameCount: Int, sub
     print("max_keyframe_interval=\(options.maxKeyFrameInterval)")
     print(String(format: "max_keyframe_interval_duration=%.3f", options.maxKeyFrameIntervalDuration))
     print("sender_queue_depth=\(options.senderQueueDepth)")
+    print("capture_queue_depth=\(options.captureQueueDepth)")
+    print("capture_max_in_flight_frames=\(options.captureMaxInFlightFrames)")
     print("frames_requested=\(frameCount)")
     print("frames_submitted=\(submittedFrames)")
     print("frames_skipped=\(skippedFrames)")
@@ -1757,6 +1774,7 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
     private var stream: SCStream?
     private var frameID = 0
     private var submittedFrames = 0
+    private var backpressureSkippedFrames = 0
     private var startError: Error?
     private var stopped = false
 
@@ -1851,17 +1869,30 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
             return
         }
 
-        let nextFrame = stateQueue.sync { () -> (frameID: Int, shouldStop: Bool)? in
+        let inFlightFrames = state.inFlightFrameCount()
+        let nextFrame = stateQueue.sync { () -> (frameID: Int, shouldSubmit: Bool, shouldStop: Bool)? in
             if stopped || frameID >= frameCount {
                 return nil
             }
             let currentFrameID = frameID
             frameID += 1
-            submittedFrames += 1
             let shouldStop = frameID >= frameCount
-            return (currentFrameID, shouldStop)
+            if options.captureMaxInFlightFrames > 0,
+               inFlightFrames >= options.captureMaxInFlightFrames {
+                backpressureSkippedFrames += 1
+                return (currentFrameID, false, shouldStop)
+            }
+            submittedFrames += 1
+            return (currentFrameID, true, shouldStop)
         }
         guard let nextFrame else {
+            return
+        }
+
+        guard nextFrame.shouldSubmit else {
+            if nextFrame.shouldStop {
+                requestStop(stream)
+            }
             return
         }
 
@@ -1881,7 +1912,7 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
 
     func counts() -> (submitted: Int, skipped: Int) {
         stateQueue.sync {
-            (submittedFrames, max(0, frameCount - submittedFrames))
+            (submittedFrames, max(backpressureSkippedFrames, frameCount - submittedFrames))
         }
     }
 }

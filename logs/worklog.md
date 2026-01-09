@@ -1036,3 +1036,37 @@ Result:
 - Current wired readability default is `2560x1440@30`, HEVC, 35Mbps. This improves detail over 1080p while keeping the current encoder state inside a 30fps budget.
 Current blocker:
 - Live package capture is still blocked in this MacBook Pro state because BetterDisplay `Virtual 16:9` is not currently exposed to ScreenCaptureKit; the packaged command correctly exits with the setup guard.
+
+## 2026-05-17 04:47 — capture backpressure for high-detail profiles
+
+Prompt: user asked for current status, remaining work, and to continue toward better commercial-quality wired image quality.
+Changed files:
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- scripts/start_ibridge_virtual_capture.sh
+- docs/18_ALPHA_RELEASE.md
+- docs/current-work.md
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] `bash -n scripts/start_ibridge_virtual_capture.sh`
+- [x] `bash -n scripts/package_macos_alpha.sh`
+- [x] `python3 apps/shared-protocol/test_protocol_v0.py`
+- [x] `scripts/package_macos_alpha.sh`
+- [x] `codesign --verify --deep --strict --verbose=1 dist/iBridge-0.1.0-alpha/iBridge Receiver.app`
+- [x] `DURATION=1 PROFILE=lan-readable RECEIVER_IP=169.254.70.114 ./dist/iBridge-0.1.0-alpha/Start\ iBridge\ LAN\ High\ Quality.command` exits with the expected setup guard in the current AirPlay-only state.
+Result:
+- Added `--capture-max-in-flight-frames` to the macOS primary sender.
+- Wired profiles now default to `CAPTURE_MAX_IN_FLIGHT_FRAMES=1`, so screen capture drops stale frames instead of building a long encode backlog when high-detail capture falls behind.
+- The run summary now prints `capture_queue_depth` and `capture_max_in_flight_frames` for reproducible profile logging.
+Current blocker:
+- Live effect still needs BetterDisplay `Virtual 16:9` reconnected as an extended display so ScreenCaptureKit exposes at least one capture display.
+
+Follow-up verification:
+- [x] Fixed the packaged sender auto-select awk check after macOS awk rejected the prior regex.
+- [x] `DURATION=3 PROFILE=lan-readable RECEIVER_IP=169.254.70.114 ./dist/iBridge-0.1.0-alpha/Start\ iBridge\ LAN\ High\ Quality.command`
+Follow-up result:
+- ScreenCaptureKit exposed `capture_display_count=2`, and the sender auto-selected `display_index=1`.
+- Packaged LAN high-quality live capture sent `2560x1440@30` HEVC 35Mbps to the 2017 iMac over direct LAN.
+- Sender requested/submitted/encoded `90/46/46`, with `0` failed frames, `0` sender drops, `0` send failures, p95 encode `17.101 ms`, and p95 send `0.877 ms`.
+- Receiver logged the `2560x1440@30` handshake and `46` frames before disconnect.
+Next:
+- Run a longer active-motion/readability smoke with real windows moved onto the virtual display.

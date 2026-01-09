@@ -953,3 +953,52 @@ Interpretation:
 
 Artifacts:
 - `benchmarks/runs/2026-05-17_lan_high_quality_synthetic_smoke/summary.md`
+
+## 2026-05-17 04:47 — capture backpressure option
+
+Prompt: user asked for current status, remaining work, and to continue toward better commercial-quality wired image quality.
+
+Commands:
+
+```bash
+swift build --package-path apps/primary-macos -c release
+bash -n scripts/start_ibridge_virtual_capture.sh
+bash -n scripts/package_macos_alpha.sh
+python3 apps/shared-protocol/test_protocol_v0.py
+scripts/package_macos_alpha.sh
+codesign --verify --deep --strict --verbose=1 "dist/iBridge-0.1.0-alpha/iBridge Receiver.app"
+DURATION=1 PROFILE=lan-readable RECEIVER_IP=169.254.70.114 ./dist/iBridge-0.1.0-alpha/Start\ iBridge\ LAN\ High\ Quality.command
+```
+
+Results:
+- `ibridge-primary --help` now lists `--capture-max-in-flight-frames`.
+- `start_ibridge_virtual_capture.sh` wires `CAPTURE_MAX_IN_FLIGHT_FRAMES` into the sender invocation.
+- Wired profiles default to max in-flight capture frames `1`; balanced defaults to `2`.
+- Swift release build and protocol tests passed.
+- The alpha package rebuilt, app signature verification passed, and the package-local LAN high-quality command still exits with the expected `capture_display_count=0` setup guard in the current AirPlay-only state.
+
+Interpretation:
+- This is a latency-control change, not a bandwidth change. It should reduce stale-frame backlog during high-detail live capture once the BetterDisplay virtual screen is visible again.
+- Live quality still needs a BetterDisplay `Virtual 16:9` recapture run because ScreenCaptureKit currently sees no capture displays on this MacBook Pro state.
+
+Follow-up live smoke:
+
+```bash
+DURATION=3 PROFILE=lan-readable RECEIVER_IP=169.254.70.114 ./dist/iBridge-0.1.0-alpha/Start\ iBridge\ LAN\ High\ Quality.command
+```
+
+Results:
+- ScreenCaptureKit later exposed `capture_display_count=2`.
+- Auto-selection chose `display_index=1`, the non-origin extended display.
+- Sender profile: `2560x1440@30`, HEVC, 35Mbps, capture max in-flight frames `1`.
+- Sender requested/submitted/encoded `90/46/46`.
+- Sender failed frames `0`, sender dropped frames `0`, send failed frames `0`.
+- p95 encode `17.101 ms`; p95 send `0.877 ms`.
+- Receiver logged the `2560x1440@30` handshake and `46` frames.
+
+Interpretation:
+- The packaged LAN high-quality command now works end-to-end for a short live ScreenCaptureKit virtual-display smoke over wired LAN.
+- Skipped frames are expected with capture backpressure and a mostly static display; the useful product behavior is that the stream does not build a stale backlog.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_0929_ibridge_virtual_capture/summary.md`
