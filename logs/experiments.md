@@ -821,3 +821,24 @@ Artifacts:
 - `benchmarks/runs/2026-05-17_0235_mba_to_2015_imac_1440p60_hevc_wifi_30s_visual/summary.md`
 - `benchmarks/runs/2026-05-17_0235_mba_to_2015_imac_1440p60_hevc_wifi_30s_visual/primary_stats.csv`
 - `benchmarks/runs/2026-05-17_0235_mba_to_2015_imac_1440p60_hevc_wifi_30s_visual/receiver_console.txt`
+
+## 2026-05-17 02:53 — MacBook Air to 2015 iMac live capture script
+
+Prompt: user asked whether any-quality external monitor use is possible and asked to complete the app path.
+
+Results:
+- Live screen capture over Wi-Fi works as a mirror-style display path.
+- 10s direct live-capture smoke at `2560x1440@30` HEVC 15Mbps: sender `300/300` encoded, 0 send failures, 1 sender queue drop; receiver `299` frames.
+- 3s helper-script validation at the same profile: sender `90/90` encoded, 0 send failures, 0 sender queue drops.
+- Added helper scripts to start the 2015 iMac receiver, start a long-running MacBook Air live capture session, and stop the receiver.
+
+Interpretation:
+- MacBook Air can now connect to the 2015 iMac as a practical mirror/live-capture display over Wi-Fi.
+- This is not yet a true macOS extended desktop. The next product milestone is adding or integrating a virtual display source on the MacBook Air, then capturing that display with the existing ScreenCaptureKit path.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_0248_mba_to_2015_imac_live_capture_1440p30_wifi/`
+- `benchmarks/runs/2026-05-17_0253_script_live_capture_smoke/`
+- `scripts/start_2015_imac_receiver_macos.sh`
+- `scripts/start_mba_to_2015_imac_live_capture.sh`
+- `scripts/stop_2015_imac_receiver_macos.sh`

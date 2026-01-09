@@ -69,6 +69,21 @@ queue. Receiver logged `1798` frames and two 1-frame missing events. The user
 reported visible change on the iMac panel. Treat this as a functional smoke,
 not a smooth-display pass.
 
+First live-capture result: MacBook Air sent its captured display to the 2015
+iMac at `2560x1440@30` HEVC 15Mbps for 10 seconds. Sender encoded `300/300`
+frames with 0 send failures and 1 sender queue drop; receiver logged `299`
+frames. This proves a mirror-style live display path. It is not yet a true
+macOS extended desktop because iBridge still needs a virtual display source on
+the MacBook Air.
+
+Current helper scripts:
+
+```bash
+scripts/start_2015_imac_receiver_macos.sh
+scripts/start_mba_to_2015_imac_live_capture.sh
+scripts/stop_2015_imac_receiver_macos.sh
+```
+
 ## Ordered Test Matrix
 
 Run in this exact order unless a physical cable or OS-state blocker changes:
