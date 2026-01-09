@@ -1002,3 +1002,36 @@ Interpretation:
 
 Artifacts:
 - `benchmarks/runs/2026-05-17_0929_ibridge_virtual_capture/summary.md`
+
+## 2026-05-17 09:41 — 4K60 virtual-display latency comparison
+
+Prompt: user corrected the quality target to BetterDisplay `Virtual 16:9` at `3840x2160@60` and asked to focus on reducing latency.
+
+Reference/context used:
+- Apple ScreenCaptureKit and local OBS references point to careful stream queue sizing and display pixel sizing.
+- Apple VideoToolbox and local Transcoding/OBS/FFmpeg references point to realtime encoding, max-frame-delay controls, encoder ID observability, and optional platform-dependent VT property handling.
+- Sunshine/Moonlight/Pion/libdatachannel references point toward bounded queues, frame dropping, and RTP-like transport rather than unbounded TCP live display queues.
+
+Commands:
+
+```bash
+DURATION=10 PROFILE=lan-4k RESOLUTION=3840x2160 FPS=60 BITRATE_MBPS=80 CAPTURE_MAX_IN_FLIGHT_FRAMES=1 RECEIVER_IP=169.254.70.114 ./dist/iBridge-0.1.0-alpha/Start\ iBridge\ LAN\ High\ Quality.command
+DURATION=8 PROFILE=lan-4k CAPTURE_MAX_IN_FLIGHT_FRAMES=1 RECEIVER_IP=169.254.70.114 RUN_ROOT=... scripts/start_ibridge_virtual_capture.sh
+DURATION=8 PROFILE=lan-4k CAPTURE_MAX_IN_FLIGHT_FRAMES=0 RECEIVER_IP=169.254.70.114 RUN_ROOT=... scripts/start_ibridge_virtual_capture.sh
+```
+
+Results:
+- `lan-4k` now maps to `3840x2160@60`, HEVC, 80Mbps.
+- Auto display selection chose the largest non-origin extended display: `display_index=0`, `3840x2160`.
+- Static/mostly-static 10s package run: requested/submitted/encoded `600/25/25`, send failures `0`, p95 encode `22.979 ms`, p95 send `0.678 ms`.
+- Motion comparison, capture backpressure `1`: requested/submitted/encoded `480/74/74`, send failures `0`, p95 encode `19.090 ms`, p95 send `1.801 ms`.
+- Motion comparison, no capture backpressure: requested/submitted/encoded `480/48/48`, send failures `0`, p95 encode `52.175 ms`, p95 send `1.866 ms`.
+
+Interpretation:
+- 4K60 is the correct target profile for the user's BetterDisplay setup.
+- The current direct LAN path is not the bottleneck; encode/capture pacing is.
+- Capture backpressure materially improves tail latency and should stay enabled for 4K60.
+- This is not yet a full smooth 60fps result because ScreenCaptureKit did not submit all requested frames in the short motion tests.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_4k60_virtual_motion_comparison.md`

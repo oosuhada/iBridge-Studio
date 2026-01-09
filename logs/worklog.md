@@ -1070,3 +1070,29 @@ Follow-up result:
 - Receiver logged the `2560x1440@30` handshake and `46` frames before disconnect.
 Next:
 - Run a longer active-motion/readability smoke with real windows moved onto the virtual display.
+
+## 2026-05-17 09:41 — 4K60 wired target and latency comparison
+
+Prompt: user corrected the quality target to BetterDisplay `Virtual 16:9` at `3840x2160@60` and asked to focus on reducing latency.
+Changed files:
+- scripts/start_ibridge_virtual_capture.sh
+- scripts/package_macos_alpha.sh
+- docs/18_ALPHA_RELEASE.md
+- docs/current-work.md
+- logs/worklog.md
+- logs/experiments.md
+- benchmarks/runs/2026-05-17_4k60_virtual_motion_backpressure1/*
+- benchmarks/runs/2026-05-17_4k60_virtual_motion_no_backpressure/*
+- benchmarks/runs/2026-05-17_4k60_virtual_motion_comparison.md
+Verification:
+- [x] `PROFILE=lan-4k RESOLUTION=3840x2160 FPS=60 BITRATE_MBPS=80 DURATION=10 ... Start iBridge LAN High Quality.command`
+- [x] `DURATION=8 PROFILE=lan-4k CAPTURE_MAX_IN_FLIGHT_FRAMES=1 scripts/start_ibridge_virtual_capture.sh`
+- [x] `DURATION=8 PROFILE=lan-4k CAPTURE_MAX_IN_FLIGHT_FRAMES=0 scripts/start_ibridge_virtual_capture.sh`
+Result:
+- Changed `lan-4k` from `3840x2160@30 60Mbps` to `3840x2160@60 80Mbps`.
+- Added package command `Start iBridge 4K60.command`.
+- Changed display auto-selection to choose the largest non-origin extended display, so BetterDisplay 4K virtual screen is favored over smaller external/AirPlay surfaces.
+- 4K60 virtual-display motion comparison over direct 1GbE showed 0 send failures in both cases.
+- With capture backpressure `1`, p95 encode was `19.090 ms`; with no capture backpressure, p95 encode was `52.175 ms`.
+Next:
+- Treat 4K60 as the target profile, but do not claim full smooth 60fps yet. The next product work is an in-app motion/readability test scene and a transport move from TCP correctness mode toward bounded UDP/RTP-style delivery.

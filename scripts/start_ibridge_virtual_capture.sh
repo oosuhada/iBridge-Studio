@@ -44,8 +44,8 @@ case "$PROFILE" in
     ;;
   lan-4k)
     DEFAULT_RESOLUTION="3840x2160"
-    DEFAULT_FPS="30"
-    DEFAULT_BITRATE_MBPS="60"
+    DEFAULT_FPS="60"
+    DEFAULT_BITRATE_MBPS="80"
     DEFAULT_SENDER_QUEUE_DEPTH="12"
     DEFAULT_CAPTURE_QUEUE_DEPTH="6"
     DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES="1"
@@ -102,18 +102,32 @@ if [[ "$CAPTURE_DISPLAY_INDEX" == "auto" ]]; then
   CAPTURE_DISPLAY_INDEX="$(
     awk '
       /display_index=/ {
-        idx = ""; frame = "";
+        idx = ""; frame = ""; width = 0; height = 0;
         for (i = 1; i <= NF; i++) {
           if ($i ~ /^display_index=/) {
             split($i, a, "="); idx = a[2]
+          }
+          if ($i ~ /^width=/) {
+            split($i, w, "="); width = w[2]
+          }
+          if ($i ~ /^height=/) {
+            split($i, h, "="); height = h[2]
           }
           if ($i ~ /^frame=/) {
             frame = substr($0, index($0, "frame="))
           }
         }
         if (idx != "" && index(frame, "frame=(0.0, 0.0,") != 1) {
-          print idx
-          exit
+          area = width * height
+          if (area > best_area) {
+            best_area = area
+            best_idx = idx
+          }
+        }
+      }
+      END {
+        if (best_idx != "") {
+          print best_idx
         }
       }
     ' "$display_list"

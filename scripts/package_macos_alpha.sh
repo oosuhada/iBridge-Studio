@@ -77,6 +77,15 @@ export PROFILE="${PROFILE:-lan-readable}"
 exec scripts/start_ibridge_virtual_capture.sh
 SCRIPT
 
+cat > "$PACKAGE_ROOT/Start iBridge 4K60.command" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+export PROFILE="${PROFILE:-lan-4k}"
+exec scripts/start_ibridge_virtual_capture.sh
+SCRIPT
+
 cat > "$PACKAGE_ROOT/README.md" <<'README'
 # iBridge Alpha
 
@@ -92,8 +101,10 @@ overlay by default.
 
 1. Keep BetterDisplay `Virtual 16:9` connected as an extended display.
 2. Set `RECEIVER_IP` if needed.
-3. Run `Start iBridge LAN High Quality.command` for wired use, or
-   `Start iBridge Virtual Capture.command` for the balanced default.
+3. Run `Start iBridge 4K60.command` when BetterDisplay `Virtual 16:9` is set
+   to 4K60, `Start iBridge LAN High Quality.command` for the safer wired
+   readability profile, or `Start iBridge Virtual Capture.command` for the
+   balanced default.
 
 Default sender profile:
 
@@ -109,11 +120,19 @@ Wired high-quality profile:
 - 35Mbps
 - `PROFILE=lan-readable`
 
+4K60 wired profile:
+
+- `3840x2160 @ 60fps`
+- HEVC
+- 80Mbps
+- `PROFILE=lan-4k`
+
 Example:
 
 ```bash
 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Virtual\ Capture.command
 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ LAN\ High\ Quality.command
+RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ 4K60.command
 ```
 
 For a lighter smoke:
@@ -141,7 +160,8 @@ chmod +x \
   "$PACKAGE_ROOT/scripts/start_2015_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/Start iBridge Virtual Capture.command" \
-  "$PACKAGE_ROOT/Start iBridge LAN High Quality.command"
+  "$PACKAGE_ROOT/Start iBridge LAN High Quality.command" \
+  "$PACKAGE_ROOT/Start iBridge 4K60.command"
 
 codesign --force --deep --sign - "$RECEIVER_APP" >/dev/null 2>&1 || true
 
