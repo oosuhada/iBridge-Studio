@@ -17,10 +17,8 @@ struct SenderTab: View {
                 Spacer()
 
                 Menu {
-                    ForEach(presets) { preset in
-                        Button(preset.name) {
-                            model.addSession(preset: preset)
-                        }
+                    PresetMenuItems { preset in
+                        model.addSession(preset: preset, focus: .sender)
                     }
                 } label: {
                     Label("Add Sender", systemImage: "plus")
@@ -75,10 +73,8 @@ struct SenderSessionCard: View {
             )
 
             Menu {
-                ForEach(presets) { preset in
-                    Button(preset.name) {
-                        session.apply(preset)
-                    }
+                PresetMenuItems { preset in
+                    session.apply(preset)
                 }
             } label: {
                 Label("Preset", systemImage: "slider.horizontal.3")
@@ -267,6 +263,22 @@ struct SenderSessionCard: View {
                 model.restoreWindowsToMacBook()
             } label: {
                 Label("Restore Windows", systemImage: "rectangle.on.rectangle")
+            }
+        }
+    }
+}
+
+struct PresetMenuItems: View {
+    let action: (ReceiverPreset) -> Void
+
+    var body: some View {
+        ForEach(presetCategoryOrder, id: \.self) { category in
+            Menu(category) {
+                ForEach(presets(in: category)) { preset in
+                    Button(preset.name) {
+                        action(preset)
+                    }
+                }
             }
         }
     }

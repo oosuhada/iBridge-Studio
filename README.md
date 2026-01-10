@@ -1,152 +1,283 @@
-# iBridge
+# iBridge Studio
 
-**iBridge**는 `M1/M시리즈 MacBook`의 화면을 `2015 27-inch iMac Retina 5K`에 하드웨어 개조 없이 보조 디스플레이처럼 표시하기 위한 오픈소스 소프트웨어 프로젝트입니다.
+iBridge Studio는 Target Display Mode가 지원되지 않는 iMac을 MacBook의 소프트웨어 Retina 모니터처럼 다시 쓰기 위한 macOS 앱입니다.
 
-이 레포지토리의 목적은 “하네스 문서 세트”를 보관하는 것이 아니라, **실제로 iMac을 외부 디스플레이처럼 활용하는 소프트웨어를 구현**하는 것입니다. 다만 구현을 Codex에게 위임할 때 작업 품질을 높이기 위해, 프로젝트 안에 하네스 엔지니어링 방식의 작업 규칙, 검증 루프, 실험 로그, 출처 ledger, 프롬프트를 함께 포함합니다.
-
----
-
-## 1. 프로젝트 목표
-
-### 최종 목표
-
-MacBook에서 생성한 가상 보조 디스플레이를 네트워크/Thunderbolt Bridge로 전송하고, Windows로 부팅된 2015 iMac 5K에서 전체 화면으로 저지연 표시합니다.
+한 앱인 `iBridge Studio.app`를 MacBook과 iMac 모두에 설치합니다. MacBook에서는 Sender 세션을 실행하고, iMac에서는 Receiver를 전체 화면으로 실행합니다.
 
 ```text
-M1/M-series MacBook macOS Primary
-→ virtual display / capture / encode
-→ LAN or Thunderbolt Bridge
-→ iMac Late 2015 Windows Receiver
-→ decode / render / fullscreen / diagnostics HUD
+MacBook Pro / MacBook Air
+  BetterDisplay virtual display
+  iBridge Studio Sender: capture -> HEVC encode -> network send
+
+Ethernet / Thunderbolt Bridge / LAN
+
+iMac
+  iBridge Studio Receiver: receive -> decode -> fullscreen display
+  local mouse / keyboard surface
 ```
 
-### 현재 사용자의 실제 상태
+## 현재 목표
 
-- iMac: 27-inch Retina 5K Late 2015, Radeon R9 M380 계열로 추정
-- iMac 현재 OS: **Windows 부팅 상태**
-- Primary: M1/M시리즈 MacBook Air/Pro
-- 제약: MacBook Air는 USB-C 포트가 적고, 충전/허브/LAN/TB 연결이 동시에 필요할 수 있음
+iBridge Studio의 목표는 오래된 iMac을 단순 원격 데스크톱처럼 쓰는 것이 아니라, MacBook의 확장 디스플레이에 가깝게 쓰는 것입니다.
 
-Apple 공식 스펙 기준으로 iMac Retina 5K 27-inch Late 2015는 5120×2880 Retina 5K 디스플레이, USB 3 포트 4개, Thunderbolt 2 포트 2개, Gigabit Ethernet을 제공한다. [내용 출처 : https://support.apple.com/en-us/112035]
+- MacBook 하나에서 iMac 1대 또는 2대를 확장 화면처럼 사용
+- 2015 27-inch 5K iMac, 2017 21.5-inch 4K iMac 같은 Retina iMac 재활용
+- 1GbE, Thunderbolt Bridge, 직접 연결 LAN 환경 우선
+- BetterDisplay 가상 디스플레이와 iBridge Studio Sender/Receiver 조합
+- 마우스/키보드 릴레이, 창 복구, 프리셋 기반 연결 관리
 
----
+## 브랜치 구조
 
-## 2. 화질 목표: 높은 목표부터 시도하고 단계적으로 낮춘다
+- `deploy`: 기본 브랜치. 앱을 내려받고 빌드/패키징하는 사용자를 위한 배포 표면입니다.
+- `dev`: 개발 브랜치. benchmark, prompts, logs, handoff docs, AGENTS 지침처럼 개발 과정에 필요한 기록을 유지합니다.
+- `main`: 초기 bootstrap용 legacy branch입니다. 새 배포 기준은 `deploy`입니다.
 
-사용자의 요구는 “처음부터 MVP 핑계로 낮은 목표를 잡지 말고, 5K60부터 정면으로 시도한 뒤 한계가 검증되면 단계적으로 낮추는 것”입니다. iBridge는 이 방식을 따릅니다.
+## 지원 방향
 
-| Plan | 목표 | 구현 전략 | 성공/하향 조건 |
-|---|---|---|---|
-| **Plan A** | 5K 60Hz 무압축/저지연 | 원본 대역폭, TB Bridge, capture/encode bypass 가능성 벤치마크 | 무압축이 불가능하다는 수치/실험 근거를 남기고 Plan B로 하향 |
-| **Plan B** | 5K 60Hz 실사용급 | HEVC/H.264 하드웨어 인코딩, TB Bridge 우선, Windows 하드웨어 디코딩 | 5K60 지연/프레임/화질이 기준 미달이면 Plan C로 하향 |
-| **Plan C** | 60Hz 유지 + 5K 패널에 유리한 스케일링 | 2560×1440 integer 2x, 3840×2160, 3200×1800 등 비교 | 가장 자연스러운 60Hz 실사용 모드 채택 |
+Target Display Mode를 지원하지 않는 Retina iMac과 Apple Silicon iMac을 소프트웨어 receiver 대상으로 봅니다.
 
-Luna Display도 공개적으로 Mac-to-Mac 5K는 45Hz, 4K는 60Hz로 제한된다고 설명한 바 있으므로, iBridge는 이 한계를 기준점으로 삼되 무조건 복제하지 않는다. [내용 출처 : https://astropad.com/blog/luna-display-5-1/]
+앱 프리셋에는 다음 계열이 포함됩니다.
 
----
+- iMac 27-inch 5K Late 2014
+- iMac 21.5-inch 4K Late 2015
+- iMac 27-inch 5K Late 2015
+- iMac 21.5-inch 4K 2017
+- iMac 27-inch 5K 2017
+- iMac Pro 27-inch 5K 2017
+- iMac 21.5-inch 4K 2019
+- iMac 27-inch 5K 2019
+- iMac 27-inch 5K 2020
+- iMac 24-inch 4.5K M1 / M3 / M4
 
-## 3. 우선 구현 경로
+프리셋은 해상도와 bitrate의 시작점입니다. 실제 최적값은 네트워크, MacBook 인코더 성능, BetterDisplay 설정에 따라 조정해야 합니다.
 
-### 우선순위 1 — macOS Primary + Windows Receiver
+## 현재 추천 프로필
 
-현재 iMac이 Windows 상태이므로, iMac을 다시 macOS/OCLP로 되돌리는 비용을 피하기 위해 Windows Receiver를 우선 구현합니다.
+### 2015 27-inch 5K iMac
 
-- macOS Primary
-  - 가상 디스플레이 생성 후보 검증
-  - ScreenCaptureKit / CGDisplayStream 캡처
-  - VideoToolbox H.264/HEVC 인코딩
-  - LAN / Thunderbolt Bridge 전송
-- Windows Receiver
-  - Media Foundation 또는 FFmpeg 기반 H.264/HEVC 디코딩
-  - D3D11/SDL2/DirectComposition 렌더링
-  - 전체 화면 표시
-  - 진단 HUD: fps, bitrate, latency, dropped frames, power state
+- BetterDisplay virtual display: `iMac 27inch 2015`
+- iBridge Studio signal: `5120x2880`
+- Bitrate: `280 Mbps`
+- Profile: `lan-60hz`
+- 현재 직접 Ethernet IP 예시: `169.254.99.112`
 
-Microsoft의 H.264 decoder는 Media Foundation Transform으로 제공되며, Windows 쪽 수신 앱의 하드웨어 디코딩 경로 검토 기준이다. [내용 출처 : https://learn.microsoft.com/en-us/windows/win32/medfound/h-264-video-decoder]
+### 2017 21.5-inch 4K iMac
 
-### 우선순위 2 — macOS Receiver
+- BetterDisplay virtual display: `iMac 21.5inch 2017`
+- BetterDisplay UI sweet spot: `2048x1152 HiDPI`
+- iBridge Studio signal: `4096x2304`
+- Bitrate: `220 Mbps`
+- Profile: `imac4k-quality`
 
-Windows Receiver가 색/프레임 타이밍/디코딩에서 병목이면 macOS Receiver를 병행합니다. 단, 이는 iMac에 macOS 설치/OCLP가 필요하므로 보조 경로입니다.
+## 설치 패키지 만들기
 
----
+MacBook의 repo checkout에서:
 
-## 4. 연결 옵션
-
-### Option A: USB-C 허브 + LAN
-
-```text
-MacBook USB-C → PD/LAN 허브 → Ethernet → iMac Ethernet
+```bash
+cd /Users/gabriel/Development/iBridge-Studio
+scripts/package_macos_alpha.sh
 ```
 
-장점: 충전과 LAN을 동시에 해결하기 쉬움. MacBook Air에서 현실적입니다. 1GbE는 Plan C의 1440p60/4K60 실험에 적합합니다.
-
-### Option B: iMac TB2 ↔ MacBook USB-C / Thunderbolt Bridge
+생성물:
 
 ```text
-MacBook USB-C/TB → Apple TB3-to-TB2 adapter → TB2 cable → iMac TB2
+dist/iBridge-Studio-0.1.0-alpha/
+dist/iBridge-Studio-0.1.0-alpha.zip
 ```
 
-Apple은 두 Mac을 Thunderbolt 케이블로 연결해 IP 통신할 수 있다고 설명한다. [내용 출처 : https://support.apple.com/guide/mac-help/ip-thunderbolt-connect-mac-computers-mchld53dd2f5/mac]
+패키지 안에는 다음이 들어갑니다.
 
-장점: Plan B 5K60 실사용급 실험에 가장 유리합니다. 단, 이것은 iMac 패널 입력이 아니라 데이터 경로입니다.
+- `iBridge Studio.app`
+- `iBridge Studio Receiver.app`
+- `bin/ibridge-primary`
+- receiver/sender helper scripts
+- 배포용 README
 
----
+현재는 내부 alpha 패키지이며 Developer ID notarization은 아직 적용하지 않았습니다.
 
-## 5. 전원 공급에 대한 현실적인 목표
+## iMac으로 앱 보내기
 
-이 프로젝트는 iMac USB-A/TB2가 MacBook에 어느 정도 전원을 제공할 수 있는지 **실험하고 진단**합니다. 단, USB-C PD 충전 대체를 약속하지 않습니다.
+패키지 zip을 각 iMac에 보냅니다.
 
-- iMac USB-A → MacBook USB-C 연결 시 “전원 연결됨”으로 인식될 수 있음
-- USB 3 기본 전력은 보통 5V 900mA, 약 4.5W 수준이라 실제 작업 유지 충전은 제한적일 가능성이 큼 [내용 출처 : https://tripplite.eaton.com/products/usb-charging]
-- Thunderbolt 1/2 버스파워는 최대 10W급 자료가 있으나, 이것이 MacBook USB-C PD 충전으로 이어진다고 단정할 수 없음 [내용 출처 : https://global-sei.com/ewp/E/thunderbolt/]
+2015 iMac Ethernet 예시:
 
-따라서 iBridge는 `Power Probe`를 포함해 실제 환경에서 전원 인식/방전율/작업 부하별 차이를 측정합니다.
+```bash
+scp dist/iBridge-Studio-0.1.0-alpha.zip oosu@169.254.99.112:~/Desktop/
+```
 
----
+2017 iMac Tailscale/SSH 예시:
 
-## 6. Codex 작업 방식
+```bash
+scp dist/iBridge-Studio-0.1.0-alpha.zip gabrieljang@100.89.104.119:~/Desktop/
+```
 
-이 프로젝트에는 `AGENTS.md` 하나만 둡니다. `CODEX.md`, `CLAUDE.md`는 만들지 않습니다. Codex는 항상 `AGENTS.md`와 `prompts/`를 우선 읽고 작업합니다.
+iMac에서:
 
-핵심 원칙:
+```bash
+cd ~/Desktop
+unzip -o iBridge-Studio-0.1.0-alpha.zip
+xattr -dr com.apple.quarantine iBridge-Studio-0.1.0-alpha
+open "iBridge-Studio-0.1.0-alpha/iBridge Studio.app"
+```
 
-1. **Think Before Coding** — 추정과 사실을 분리하고, 막히면 로그에 남긴다.
-2. **Simplicity First** — 기능 구현에 직접 필요한 코드만 작성한다.
-3. **Surgical Changes** — 요청 범위 외의 코드/문서를 건드리지 않는다.
-4. **Goal-Driven Execution** — 모든 작업은 성공 기준과 검증 명령을 가진다.
+Receiver 전용으로만 쓸 때도 같은 `iBridge Studio.app`를 실행하면 됩니다. 앱 안의 `Receiver` 탭에서 `Start Receiver on This Mac`을 누릅니다.
 
-이 원칙은 Karpathy-style coding agent guidelines를 참고해 iBridge에 맞게 재구성했다. [내용 출처 : https://github.com/forrestchang/andrej-karpathy-skills]
+## 권한
 
----
+MacBook Sender 쪽:
 
-## 7. 시작 순서
+- Screen Recording: 화면 캡처 필요
+- Accessibility: 키보드/마우스 입력 주입, 창 복구 필요
 
-Codex에게 다음 순서로 맡기세요.
+iMac Receiver 쪽:
 
-1. `prompts/00_MASTER_PROMPT.md`
-2. `prompts/01_SOURCE_AND_ENV_VALIDATION.md`
-3. `prompts/02_PLAN_A_5K60_FIRST_SPIKE.md`
-4. Plan A 결과에 따라 `03_PLAN_B_5K60_PRACTICAL.md` 또는 `04_PLAN_C_60HZ_SCALED_MODES.md`
-5. 실제 구현은 `05_PRIMARY_MACOS_IMPLEMENTATION.md` + `06_WINDOWS_RECEIVER_IMPLEMENTATION.md`
-6. 각 단계 후 `09_REVIEW_GATE.md`
+- Accessibility: receiver 표면의 pointer/key event capture 안정화에 필요할 수 있음
+- Local Network: macOS가 네트워크 접근 권한을 묻는 경우 허용
 
----
+권한을 바꾼 뒤에는 앱과 sender/receiver 프로세스를 다시 시작하는 것이 안전합니다.
 
-## 8. 레포 구조
+## 기본 사용 흐름
+
+### 1. BetterDisplay에서 virtual display 생성
+
+MacBook에서 BetterDisplay virtual screen을 만들고 이름을 iMac과 맞춥니다.
+
+예시:
+
+- `iMac 27inch 2015`
+- `iMac 21.5inch 2017`
+
+macOS Displays에서 MacBook 내장 화면 옆에 extended display로 배치합니다.
+
+### 2. iMac에서 Receiver 실행
+
+iMac에서 `iBridge Studio.app` 실행:
+
+1. `Receiver` 탭 선택
+2. Port가 `48320`인지 확인
+3. `Start Receiver on This Mac`
+4. Receiver window가 전체 화면으로 떠 있는지 확인
+
+### 3. MacBook에서 Sender 실행
+
+MacBook에서 `iBridge Studio.app` 실행:
+
+1. `Sender` 탭 선택
+2. `Add Sender`에서 iMac 모델 선택
+3. Receiver IP 입력
+4. Display 이름이 BetterDisplay virtual display 이름과 같은지 확인
+5. Signal / Bitrate / Duration 프리셋 확인
+6. `Start Sender`
+
+앱은 마지막 탭, receiver 설정, sender session 목록과 세션별 값을 저장합니다. 다음에 앱을 다시 열면 마지막 구성이 복원되므로 매번 모델을 다시 고를 필요가 없습니다.
+
+## 두 iMac 동시 연결 권장 구성
+
+추가 LAN 허브를 사기 전에는 다음 구성이 가장 현실적입니다.
 
 ```text
-.
-├── AGENTS.md
-├── README.md
-├── docs/
-├── prompts/
-├── specs/
-├── apps/
-│   ├── primary-macos/
-│   ├── receiver-windows/
-│   └── shared-protocol/
-├── scripts/
-├── experiments/
-├── logs/
-└── templates/
+MacBook Pro Ethernet -> 2015 27-inch iMac Ethernet
+MacBook Pro Thunderbolt / USB-C -> 2017 21.5-inch iMac Thunderbolt Bridge
+```
+
+권장 수동 IP:
+
+```text
+MacBook Ethernet:          10.10.15.1
+2015 iMac Ethernet:        10.10.15.2
+
+MacBook Thunderbolt Bridge: 10.10.17.1
+2017 iMac Thunderbolt:      10.10.17.2
+
+Subnet mask: 255.255.255.0
+Router/DNS: blank
+```
+
+테스트 순서:
+
+1. 2015 iMac 단독 Receiver/Sender 확인
+2. 2017 iMac Thunderbolt Bridge 단독 Receiver/Sender 확인
+3. MacBook에서 Sender session 두 개 추가
+4. 각 iMac에서 Receiver 실행
+5. MacBook에서 두 Sender를 순서대로 시작
+6. 마우스 전환, 키보드 입력, copy/paste, 프레임 안정성 확인
+
+## 입력 릴레이
+
+iBridge Studio Receiver는 receiver window 위의 pointer/key 이벤트를 Sender로 보내고, Sender는 MacBook의 captured virtual display 좌표에 `CGEvent`로 재주입합니다.
+
+현재 지원:
+
+- mouse move / drag / click
+- key down / key up
+- modifier flags: Command, Shift, Option, Control, Caps Lock
+- `Cmd+Shift+4` 같은 modifier shortcut 전달
+- Caps Lock 기반 입력 소스 전환 이벤트 전달
+
+주의할 점:
+
+- iBridge Studio의 입력 릴레이는 MacBook source OS에 이벤트를 주입합니다. 즉 screenshot, 한영 전환, 단축키는 MacBook 쪽 설정과 권한의 영향을 받습니다.
+- Apple Universal Control / Link Keyboard and Mouse가 iMac으로 키보드 포커스를 넘겨도, 일부 시스템 전역 키는 iMac 로컬 macOS가 먼저 처리할 수 있습니다.
+- Caps Lock 한영 전환은 MacBook의 Keyboard 입력 소스 설정에서 Caps Lock 전환이 활성화되어 있어야 의도대로 동작합니다.
+
+## 창 복구
+
+virtual display에 Terminal/브라우저 창이 넘어가 있고 receiver를 닫아버리면, 창이 MacBook 내장 화면에 보이지 않을 수 있습니다.
+
+`iBridge Studio`의 `Restore Windows`를 누르면 일반 앱 창을 MacBook 화면 좌표로 다시 이동시킵니다. 이 기능은 Accessibility 권한이 필요합니다.
+
+## 깨끗한 재설치 테스트
+
+GitHub에 최신 branch를 push한 뒤 MacBook에서 앱/빌드 산출물을 지우고 깨끗하게 다시 받을 수 있습니다.
+
+```bash
+cd /Users/gabriel/Development
+rm -rf iBridge-Studio
+git clone https://github.com/oosuhada/iBridge-Studio.git
+cd iBridge-Studio
+git checkout deploy
+scripts/package_macos_alpha.sh
+open "dist/iBridge-Studio-0.1.0-alpha/iBridge Studio.app"
+```
+
+iMac은 zip을 받아서 같은 앱을 실행하고 Receiver 탭만 쓰면 됩니다.
+
+## 개발 검증 명령
+
+```bash
+swift build --package-path apps/primary-macos -c release
+swift build --package-path apps/receiver-macos -c release
+swift build --package-path apps/controller-macos -c release
+python3 apps/shared-protocol/test_protocol_v0.py
+scripts/package_macos_alpha.sh
+codesign --verify --deep --strict "dist/iBridge-Studio-0.1.0-alpha/iBridge Studio.app"
+codesign --verify --deep --strict "dist/iBridge-Studio-0.1.0-alpha/iBridge Studio Receiver.app"
+```
+
+## 현재 한계
+
+- 아직 notarized 상용 배포판은 아닙니다.
+- 5K60 완전 네이티브 품질은 아직 목표치이며, 실제 사용은 모델별 sweet spot을 찾아야 합니다.
+- 1GbE에서는 4K/5K 고 bitrate가 가능해도 모든 장면에서 완전한 60Hz를 보장하지 않습니다.
+- 키보드/마우스 공유는 macOS 권한, Universal Control 포커스, 입력 소스 설정의 영향을 받습니다.
+- 두 iMac 동시 연결은 Ethernet + Thunderbolt Bridge 또는 USB Ethernet 2개/switch 구성이 필요합니다.
+
+## 레포 구조
+
+```text
+apps/
+  controller-macos/   iBridge Studio SwiftUI app
+  primary-macos/      MacBook sender / capture / encode / input injection
+  receiver-macos/     macOS receiver / decode / fullscreen / input capture
+  receiver-windows/   Windows receiver scaffold
+  shared-protocol/    protocol tests
+scripts/
+  package_macos_alpha.sh
+  start_ibridge_virtual_capture.sh
+  start_2015_imac_receiver_macos.sh
+  start_2017_imac_receiver_macos.sh
+docs/
+  development-only implementation notes, benchmark reports, release notes
+benchmarks/
+  development-only measurement outputs
 ```

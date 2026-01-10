@@ -2,9 +2,17 @@
 
 Date: 2026-05-16
 
-Branch: `feat/plan-a-5k60-benchmark`
+Branch: `dev`
 
-Draft PR: https://github.com/oosuhada/iBridge/pull/1
+Repository: https://github.com/oosuhada/iBridge-Studio
+
+## Branch Strategy
+
+- `dev`: development branch for implementation, benchmark notes, prompts, AGENTS instructions, logs, and handoff docs.
+- `deploy`: default public-facing branch for clean app checkout and packaging. This branch should keep the product surface focused on `apps/`, `scripts/`, `specs/`, and `README.md`.
+- `main`: legacy/bootstrap branch. Do not use it as the active distribution surface.
+
+The product/repository name is now `iBridge Studio`; GitHub uses the URL-safe repository slug `iBridge-Studio`.
 
 ## Current Goal
 
@@ -118,21 +126,21 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Air to 2015 iMac macOS receiver smoke, `2560x1440@60` HEVC 25Mbps TCP over Wi-Fi for 30s: sender `1800/1800` encoded, 0 send failures, 2 sender queue drops, p95 encode `9.730 ms`, receiver `1798` frames with two 1-frame missing events. User visually confirmed the iMac panel changed during the smoke.
 - MacBook Air to 2015 iMac live capture smoke, `2560x1440@30` HEVC 15Mbps TCP over Wi-Fi for 10s: sender `300/300` encoded, 0 send failures, 1 sender queue drop, receiver `299` frames. A 3s script validation run then passed with `90/90` encoded and 0 drops.
 - MacBook Air virtual extended display smoke, `Virtual 16:9` at `1920x1080@30` HEVC 8Mbps over Tailscale: sender `90/28/28` over 3s, 0 failed frames, 0 send failures, 0 queue drops. Low submitted-frame count is expected for a mostly static extended display.
-- macOS internal alpha packaging now exists. `scripts/package_macos_alpha.sh` builds the sender and receiver, creates an ad-hoc signed `iBridge Receiver.app`, includes a package-local virtual-display sender launcher, and emits `dist/iBridge-0.1.0-alpha.zip`.
+- macOS internal alpha packaging now exists. `scripts/package_macos_alpha.sh` builds the sender and receiver, creates an ad-hoc signed `iBridge Studio Receiver.app`, includes a package-local virtual-display sender launcher, and emits `dist/iBridge-Studio-0.1.0-alpha.zip`.
 - Current package verification passed script syntax, Swift release builds, zip generation, byte-identical sender copy, and app signature verification.
 - Current live sender smoke from this MacBook Pro is blocked because the active external display state changed to AirPlay `Gabriel의 iMac` 1080p and `ibridge-primary --list-displays` returned `capture_display_count=0`; reconnect BetterDisplay `Virtual 16:9` as an extended display before retrying the packaged sender.
-- Wired high-quality alpha profile now exists as `PROFILE=lan-readable` and `Start iBridge LAN High Quality.command`: `2560x1440@30`, HEVC, 35Mbps, sender queue 12, capture queue 6. This is the current readability-first LAN default.
+- Wired high-quality alpha profile now exists as `PROFILE=lan-readable` and `Start iBridge Studio LAN High Quality.command`: `2560x1440@30`, HEVC, 35Mbps, sender queue 12, capture queue 6. This is the current readability-first LAN default.
 - Direct 1GbE synthetic receiver smoke confirms transport stability for higher-detail profiles: `2560x1440@30 35Mbps` encoded `150/150`, sender drops `0`, send failures `0`, avg send `0.060 ms`, p95 send `0.098 ms`; p95 encode was `25.772 ms`.
 - Screen capture now has `--capture-max-in-flight-frames`, and wired profiles set it to `1` to prefer newer frames over a stale encode backlog when high-detail capture falls behind.
 - Packaged LAN high-quality live virtual capture now works again after ScreenCaptureKit exposed `capture_display_count=2`; auto-selected `display_index=1` and sent `2560x1440@30 35Mbps` for a 3s smoke with `46/46` encoded, 0 send failures, 0 sender drops, p95 encode `17.101 ms`, and p95 send `0.877 ms`.
 - 4K60 is now the wired high-detail target: `PROFILE=lan-4k` maps to `3840x2160@60`, HEVC, 80Mbps. A direct 1GbE virtual-display motion comparison showed backpressure `1` reduced p95 encode latency from `52.175 ms` to `19.090 ms` versus no capture backpressure, with 0 send failures in both runs.
 - Latest 2017 iMac receiver is deployed outside the dirty remote repo via `scripts/start_2017_imac_receiver_macos.sh`, which builds the macOS receiver for `x86_64`, copies it to `~/ibridge-remote/latest`, starts it fullscreen with `--hide-status`, and verifies TCP `48320`.
 - Current one-command MBP -> 2017 iMac 4K60 path is `scripts/start_mbp_to_2017_imac_4k60.sh`.
-- Alpha package now builds `iBridge Receiver.app` as a universal macOS binary (`x86_64` + `arm64`) so it can run on Intel iMac receivers.
+- Alpha package now builds `iBridge Studio Receiver.app` as a universal macOS binary (`x86_64` + `arm64`) so it can run on Intel iMac receivers.
 - Current immediate 4K60 probe confirms the 2017 iMac receiver is connectable now. BetterDisplay `Virtual 16:9` is physical `3840x2160@60` with HiDPI UI `1920x1080`; ScreenCaptureKit lists it as `1920x1080`, and iBridge requests `3840x2160@60` encode for the stream.
 - Receiver UI/input MVP is now implemented. The macOS receiver uses a standard resizable/fullscreen window instead of a borderless-only window, supports `Command-F` fullscreen toggle and `Esc` fullscreen exit, and captures pointer/key events over the receiver surface. The primary sender listens for those events on the existing TCP connection and injects them into the captured display with `CGEvent`; source-side Accessibility permission is required for real input relay.
 - Latest 2017 iMac deployment/smoke after the input MVP passed: receiver restarted on TCP `48320`, `DURATION=3 scripts/start_mbp_to_2017_imac_4k60.sh` connected with `input_relay=on`, encoded `23/180` changed frames with 0 send failures, and receiver logged `23` frames. Physical click/key verification on the iMac is still pending.
-- Input relay debug found the first hard blocker: current source-side `ibridge-primary` prints `input_accessibility_trusted=false`, so macOS is not allowing that exact CLI binary to inject `CGEvent` input even if Codex/Terminal-looking entries appear in Accessibility settings. Finder has been opened to `/Users/gabriel/Development/iBridge/apps/primary-macos/.build/release/ibridge-primary`; add that exact binary to Privacy & Security -> Accessibility, then restart the sender. Receiver input logging and source input logging are now added to distinguish receiver event capture, TCP input send, and source input receipt.
+- Input relay debug found the first hard blocker: current source-side `ibridge-primary` prints `input_accessibility_trusted=false`, so macOS is not allowing that exact CLI binary to inject `CGEvent` input even if Codex/Terminal-looking entries appear in Accessibility settings. Finder has been opened to `/Users/gabriel/Development/iBridge-Studio/apps/primary-macos/.build/release/ibridge-primary`; add that exact binary to Privacy & Security -> Accessibility, then restart the sender. Receiver input logging and source input logging are now added to distinguish receiver event capture, TCP input send, and source input receipt.
 - After adding Accessibility permission for `ibridge-primary`, the source sender now reports `input_accessibility_trusted=true`. Latest self-test on the 2017 iMac confirms the input relay pipeline works end to end with synthesized iMac-local events: receiver logged `receiver_input_event` and `input_sent`, while the source logged `input_event_received` for both key and pointer events. The remaining manual issue is operator path/position: moving the MacBook cursor into the source Mac's left-side `Virtual 16:9` is not the same as moving the cursor onto the physical iMac receiver. Manual testing must use Universal Control / Link Keyboard and Mouse to move onto the actual 2017 iMac screen, then interact with the receiver window.
 - Current best subjective 2017 iMac profile from manual testing: BetterDisplay `Virtual 16:9` at `2048x1152 HiDPI`, iBridge stream `4096x2304@60`, `BITRATE_MBPS=220`. This is now captured as `PROFILE=imac4k-quality` in `scripts/start_ibridge_virtual_capture.sh`. It looks better than `2560x1440@60 100Mbps` and better than the earlier `3840x2160@60 200Mbps + 2560x1440 HiDPI` candidate, though still below native iMac quality because the path includes virtual display rendering, ScreenCaptureKit capture, HEVC 4:2:0 compression, and receiver scaling.
 - Mouse smoothness remains below native/AirPlay-like feel. The first fix is to stop embedding the source Mac cursor inside the captured video: `scripts/start_ibridge_virtual_capture.sh` now defaults to `CAPTURE_SHOW_CURSOR=0` and passes `--hide-captured-cursor`, so the delayed video cursor is removed and the local iMac cursor / receiver input path can feel more immediate.
@@ -211,9 +219,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `DURATION=3 scripts/mac_encode_strategy_matrix.sh`
 - `DEVICE_PROFILE=m1max PROFILE_SET=quick DURATION=5 RUN_ROOT=benchmarks/runs/2026-05-15_1258_transmission_profile_matrix scripts/mac_transmission_profile_matrix.sh`
 - `DEVICE_PROFILE=m1air PROFILE_SET=air DURATION=30 scripts/mac_transmission_profile_matrix.sh`
-- `ssh macbook-pro 'cd ~/development/iBridge && git pull --rebase'`
+- `ssh macbook-pro 'cd ~/development/iBridge-Studio && git pull --rebase'`
 - `ssh macbook-pro 'ping -c 20 100.86.52.88'`
-- `ssh macbook-pro 'cd ~/development/iBridge && DURATION=10 RUN_ROOT=benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix scripts/mac_network_matrix.sh --case tailscale --receiver-ip 100.86.52.88 --tailscale-name 100.86.52.88'`
+- `ssh macbook-pro 'cd ~/development/iBridge-Studio && DURATION=10 RUN_ROOT=benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix scripts/mac_network_matrix.sh --case tailscale --receiver-ip 100.86.52.88 --tailscale-name 100.86.52.88'`
 - `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=unset RUN_ROOT=benchmarks/runs/2026-05-15_1330_single_stream_stability_unset scripts/mac_single_stream_stability_matrix.sh`
 - `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=on RUN_ROOT=benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on scripts/mac_single_stream_stability_matrix.sh`
 - `pkill -x VTEncoderXPCService` followed by 4096x2304, 3200x1800, and 2560x1440 fallback probes.
@@ -253,8 +261,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `DURATION=20 RUN_ROOT=benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf scripts/mac_network_matrix.sh --case wifi5-2015-imac --receiver-ip 192.168.31.187 --tailscale-name 100.84.32.31`
 - `swift build --package-path apps/primary-macos -c release`
 - `swift build --package-path apps/receiver-macos -c release`
-- `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'cd ~/development && git clone https://github.com/oosuhada/iBridge.git ... && swift build --package-path apps/receiver-macos -c release'`
-- `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'nohup ~/development/iBridge/apps/receiver-macos/.build/release/ibridge-receiver-macos --port 48320 --fullscreen ... &'`
+- `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'cd ~/development && git clone https://github.com/oosuhada/iBridge-Studio.git ... && swift build --package-path apps/receiver-macos -c release'`
+- `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'nohup ~/development/iBridge-Studio/apps/receiver-macos/.build/release/ibridge-receiver-macos --port 48320 --fullscreen ... &'`
 - `apps/primary-macos/.build/release/ibridge-primary --synthetic --source synthetic-nv12 --resolution 2560x1440 --fps 60 --duration 30 --codec hevc --bitrate-mbps 25 --data-rate-limit-mbps 25 --disable-low-latency-rate-control --encoder-id com.apple.videotoolbox.videoencoder.ave.hevc --disable-frame-reordering --disable-open-gop --payload-format annex-b --send-host 192.168.31.187 --send-port 48320`
 - `apps/primary-macos/.build/release/ibridge-primary --screen-capture --source screen-capture --capture-display-index 0 --resolution 2560x1440 --fps 30 --duration 10 --codec hevc --bitrate-mbps 15 --send-host 192.168.31.187 --send-port 48320`
 - `DURATION=3 scripts/start_mba_to_2015_imac_live_capture.sh`

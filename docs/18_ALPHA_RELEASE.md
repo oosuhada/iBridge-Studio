@@ -1,14 +1,14 @@
-# iBridge macOS Alpha Release
+# iBridge Studio macOS Alpha Release
 
 Date: 2026-05-17
 
 ## Scope
 
-This alpha is an internal Mac-to-Mac release path for testing iBridge as a
-software external display:
+This alpha is an internal Mac-to-Mac release path for testing iBridge Studio as a
+software Retina display:
 
-- source Mac: BetterDisplay virtual extended display + iBridge sender
-- receiver iMac: iBridge Receiver macOS app
+- source Mac: BetterDisplay virtual extended display + iBridge Studio sender
+- receiver iMac: iBridge Studio Receiver macOS app
 - transport: local TCP, default port `48320`
 
 This is not an App Store, signed Developer ID, or notarized release yet.
@@ -23,21 +23,21 @@ scripts/package_macos_alpha.sh
 
 Outputs:
 
-- `dist/iBridge-0.1.0-alpha/`
-- `dist/iBridge-0.1.0-alpha.zip`
+- `dist/iBridge-Studio-0.1.0-alpha/`
+- `dist/iBridge-Studio-0.1.0-alpha.zip`
 
 The package includes:
 
 - `iBridge Studio.app`
-- `iBridge Receiver.app`
+- `iBridge Studio Receiver.app`
 - `bin/ibridge-primary`
-- `Start iBridge Virtual Capture.command`
+- `Start iBridge Studio Virtual Capture.command`
 - helper scripts under `scripts/`
 - package-local `README.md`
 
 ## Receiver iMac
 
-Open `iBridge Receiver.app` on the iMac. The receiver listens on TCP `48320`,
+Open `iBridge Studio Receiver.app` on the iMac. The receiver listens on TCP `48320`,
 opens as a standard macOS fullscreen window, and hides the debug status overlay.
 Use `Command-F` to toggle fullscreen and `Esc` to leave fullscreen.
 
@@ -45,7 +45,7 @@ If macOS blocks the app because this alpha is ad-hoc signed, open it with
 right-click > Open or remove quarantine for local lab testing:
 
 ```bash
-xattr -dr com.apple.quarantine "iBridge Receiver.app"
+xattr -dr com.apple.quarantine "iBridge Studio Receiver.app"
 ```
 
 ## Source Mac
@@ -78,19 +78,19 @@ runs.
 3. When BetterDisplay `Virtual 16:9` is set to 4K60, run:
 
 ```bash
-RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ 4K60.command
+RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Studio\ 4K60.command
 ```
 
 For the safer wired readability profile, run:
 
 ```bash
-RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ LAN\ High\ Quality.command
+RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Studio\ LAN\ High\ Quality.command
 ```
 
 For the safer balanced default, run:
 
 ```bash
-RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Virtual\ Capture.command
+RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Studio\ Virtual\ Capture.command
 ```
 
 Profiles:
@@ -117,7 +117,7 @@ The wired profiles also enable capture-side backpressure with
 building a stale encode backlog when the encoder falls behind.
 
 For the 2017 21.5-inch Retina 4K iMac, the current subjective best profile is
-BetterDisplay `Virtual 16:9` set to `2048x1152 HiDPI`, with iBridge
+BetterDisplay `Virtual 16:9` set to `2048x1152 HiDPI`, with iBridge Studio
 `PROFILE=imac4k-quality`. This matches the receiver panel's `4096x2304`
 pixel grid more closely than `3840x2160` and keeps the source UI at a practical
 Retina scale.
@@ -125,13 +125,13 @@ Retina scale.
 Override display selection when needed:
 
 ```bash
-CAPTURE_DISPLAY_INDEX=1 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Virtual\ Capture.command
+CAPTURE_DISPLAY_INDEX=1 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Studio\ Virtual\ Capture.command
 ```
 
 Run a short smoke:
 
 ```bash
-DURATION=3 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ 4K60.command
+DURATION=3 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Studio\ 4K60.command
 ```
 
 From the repository checkout, the current one-command MacBook Pro -> 2017 iMac

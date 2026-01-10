@@ -391,7 +391,7 @@ HWND CreateBenchmarkWindow(const Options& options) {
     window_height = rect.bottom - rect.top;
   }
 
-  HWND hwnd = CreateWindowExW(0, class_name, L"iBridge Synthetic Renderer",
+  HWND hwnd = CreateWindowExW(0, class_name, L"iBridge Studio Synthetic Renderer",
                               style, x, y, window_width, window_height, nullptr,
                               nullptr, instance, nullptr);
   if (!hwnd) {
@@ -937,7 +937,7 @@ int RunTransportSink(const Options& options) {
     throw std::runtime_error("listen failed: " + std::to_string(WSAGetLastError()));
   }
 
-  std::cout << "iBridge receiver transport sink listening on port "
+  std::cout << "iBridge Studio receiver transport sink listening on port "
             << options.port << "\n";
 
   SocketHandle client(accept(listener.get(), nullptr, nullptr));
@@ -1018,7 +1018,7 @@ int RunTransportSink(const Options& options) {
                          : 0.0;
 
   std::cout << std::fixed << std::setprecision(3)
-            << "iBridge transport sink\n"
+            << "iBridge Studio transport sink\n"
             << "frames_received=" << stats.size() << '\n'
             << "payload_bytes=" << payload_total << '\n'
             << "receive_mbps=" << mbps << '\n'
@@ -1090,7 +1090,7 @@ int RunSynthetic(const Options& options) {
           std::chrono::duration<double>(Clock::now() - run_start).count();
       const double running_fps = elapsed > 0.0 ? stats.size() / elapsed : 0.0;
       std::ostringstream hud_text;
-      hud_text << "iBridge Receiver\n"
+      hud_text << "iBridge Studio Receiver\n"
                << options.width << "x" << options.height << " @ " << options.fps
                << " -> " << options.output_width << "x" << options.output_height
                << " @ " << options.fps << " target\n"
@@ -1131,7 +1131,7 @@ int RunSynthetic(const Options& options) {
   WriteCsv(options.csv_path, stats);
 
   std::cout << std::fixed << std::setprecision(3)
-            << "iBridge Plan A synthetic renderer\n"
+            << "iBridge Studio Plan A synthetic renderer\n"
             << "source_resolution=" << options.width << 'x' << options.height << '\n'
             << "output_resolution=" << options.output_width << 'x'
             << options.output_height << '\n'
@@ -1217,7 +1217,7 @@ int RunDecodeFile(const Options& options) {
           std::chrono::duration<double>(Clock::now() - run_start).count();
       const double running_fps = elapsed > 0.0 ? stats.size() / elapsed : 0.0;
       std::ostringstream hud_text;
-      hud_text << "iBridge Receiver Decode\n"
+      hud_text << "iBridge Studio Receiver Decode\n"
                << render_options.width << "x" << render_options.height << " -> "
                << render_options.output_width << "x" << render_options.output_height
                << "\n"
@@ -1257,7 +1257,7 @@ int RunDecodeFile(const Options& options) {
   WriteDecodeCsv(options.csv_path, stats);
 
   std::cout << std::fixed << std::setprecision(3)
-            << "iBridge compressed file decode renderer\n"
+            << "iBridge Studio compressed file decode renderer\n"
             << "file=" << options.decode_file << '\n'
             << "decoded_resolution=" << render_options.width << 'x'
             << render_options.height << '\n'

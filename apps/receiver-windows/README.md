@@ -50,7 +50,7 @@ apps\receiver-windows\build\Release\ibridge-receiver.exe --synthetic --resolutio
 apps\receiver-windows\build\Release\ibridge-receiver.exe --synthetic --resolution 5120x2880 --fps 60 --duration 30 --fullscreen --gpu-pattern --no-vsync --uncapped
 ```
 
-The first acceptance run should keep vsync enabled because iBridge is display-facing software.
+The first acceptance run should keep vsync enabled because iBridge Studio is display-facing software.
 
 Plan C scaled-mode example:
 

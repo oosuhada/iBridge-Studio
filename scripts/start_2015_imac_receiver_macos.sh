@@ -3,9 +3,9 @@ set -euo pipefail
 
 RECEIVER_SSH="${RECEIVER_SSH:-oosu@100.84.32.31}"
 RECEIVER_KEY="${RECEIVER_KEY:-$HOME/.ssh/ibridge_imac_ed25519}"
-REMOTE_REPO="${REMOTE_REPO:-/Users/oosu/development/iBridge}"
+REMOTE_REPO="${REMOTE_REPO:-/Users/oosu/development/iBridge-Studio}"
 PORT="${PORT:-48320}"
-TITLE="${TITLE:-iBridge 2015 Receiver}"
+TITLE="${TITLE:-iBridge Studio 2015 Receiver}"
 FULLSCREEN="${FULLSCREEN:-1}"
 SHOW_STATUS="${SHOW_STATUS:-0}"
 

@@ -88,7 +88,7 @@ if [[ -z "$PRIMARY_BIN" ]]; then
   elif [[ -x "bin/ibridge-primary" ]]; then
     PRIMARY_BIN="bin/ibridge-primary"
   else
-    echo "Could not find iBridge primary binary. Run from the repo root or packaged iBridge folder." >&2
+    echo "Could not find iBridge Studio primary binary. Run from the repo root or packaged iBridge folder." >&2
     exit 1
   fi
 fi
@@ -101,7 +101,7 @@ display_count="$(
 )"
 if [[ "${display_count:-0}" == "0" ]]; then
   cat <<EOF >&2
-iBridge could not see a ScreenCaptureKit-capturable display.
+iBridge Studio could not see a ScreenCaptureKit-capturable display.
 
 Check these before retrying:
 - BetterDisplay virtual screen is connected.
@@ -133,7 +133,7 @@ if [[ -n "$CAPTURE_DISPLAY_NAME" ]]; then
   )"
   if [[ -z "$CAPTURE_DISPLAY_INDEX" ]]; then
     cat <<EOF >&2
-iBridge could not find CAPTURE_DISPLAY_NAME="$CAPTURE_DISPLAY_NAME".
+iBridge Studio could not find CAPTURE_DISPLAY_NAME="$CAPTURE_DISPLAY_NAME".
 
 Available displays:
 $(cat "$display_list")
@@ -180,7 +180,7 @@ elif [[ "$CAPTURE_DISPLAY_INDEX" == "auto" ]]; then
 fi
 
 cat <<EOF
-iBridge virtual display sender
+iBridge Studio virtual display sender
 - Profile: $PROFILE
 - Receiver: $RECEIVER_IP:$RECEIVER_PORT
 - Capture display name: ${CAPTURE_DISPLAY_NAME:-auto}

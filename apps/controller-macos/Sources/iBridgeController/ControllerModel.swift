@@ -1,25 +1,58 @@
+import Combine
 import Foundation
 
 @MainActor
 final class ControllerModel: ObservableObject {
-    @Published var sessions: [DisplaySession] = [
-        DisplaySession(preset: presets[0])
-    ]
-    @Published var receiverPort = "48320"
-    @Published var receiverTitle = "iBridge Receiver"
+    @Published var sessions: [DisplaySession] {
+        didSet {
+            refreshSessionObservers()
+            saveState()
+        }
+    }
+    @Published var receiverPort: String {
+        didSet { saveState() }
+    }
+    @Published var receiverTitle: String {
+        didSet { saveState() }
+    }
     @Published var log = "Ready.\n"
     @Published var runningSenderIDs = Set<UUID>()
     @Published var busyReceiverIDs = Set<UUID>()
     @Published var isListingDisplays = false
-    @Published var selectedTab: StudioTab = .sender
+    @Published var selectedTab: StudioTab {
+        didSet { saveState() }
+    }
 
     private var senderProcesses: [UUID: Process] = [:]
     private var receiverProcesses: [UUID: Process] = [:]
+    private var sessionCancellables: [UUID: AnyCancellable] = [:]
+    private var isLoadingState = false
+    private static let defaultsKey = "dev.oosu.iBridgeStudio.control.state.v1"
+    private static let legacyDefaultsKey = "dev.oosu.iBridge.control.state.v1"
+    private let defaultsKey = ControllerModel.defaultsKey
 
-    func addSession(preset: ReceiverPreset = presets[2]) {
+    init() {
+        if let state = Self.loadState() {
+            receiverPort = state.receiverPort
+            receiverTitle = state.receiverTitle
+            selectedTab = StudioTab(rawValue: state.selectedTab) ?? .sender
+            let restoredSessions = state.sessions.map { DisplaySession(stored: $0) }
+            sessions = restoredSessions.isEmpty ? [DisplaySession(preset: presets[0])] : restoredSessions
+        } else {
+            sessions = [DisplaySession(preset: presets[0])]
+            receiverPort = "48320"
+            receiverTitle = "iBridge Studio Receiver"
+            selectedTab = .sender
+        }
+        refreshSessionObservers()
+    }
+
+    func addSession(preset: ReceiverPreset = presets[2], focus tab: StudioTab? = .sender) {
         let session = DisplaySession(preset: preset)
         sessions.append(session)
-        selectedTab = .sender
+        if let tab {
+            selectedTab = tab
+        }
         append("Added sender session: \(session.name)")
     }
 
@@ -49,7 +82,7 @@ final class ControllerModel: ObservableObject {
             try
               if background only of proc is false then
                 set procName to name of proc
-                if procName is not "iBridge Studio" and procName is not "iBridge Control" and procName is not "iBridge Receiver" then
+                if procName is not "iBridge Studio" and procName is not "iBridge Control" and procName is not "iBridge Studio Receiver" then
                   repeat with win in windows of proc
                     try
                       set position of win to {120, 120}
@@ -69,6 +102,7 @@ final class ControllerModel: ObservableObject {
     }
 
     func startRemoteReceiver(_ session: DisplaySession) {
+        saveState()
         busyReceiverIDs.insert(session.id)
         let keyPrefix = session.receiverKey.isEmpty ? "" : "RECEIVER_KEY=\(session.receiverKey) "
         let command = "\(keyPrefix)\(session.receiverScript)"
@@ -83,6 +117,7 @@ final class ControllerModel: ObservableObject {
     }
 
     func startLocalReceiver() {
+        saveState()
         let command = """
         apps/receiver-macos/.build/release/ibridge-receiver-macos \
         --port '\(shellEscape(receiverPort))' \
@@ -95,6 +130,7 @@ final class ControllerModel: ObservableObject {
     }
 
     func startSender(_ session: DisplaySession) {
+        saveState()
         stopSender(session)
         let command = """
         RECEIVER_IP='\(shellEscape(session.receiverIP))' \
@@ -201,5 +237,44 @@ final class ControllerModel: ObservableObject {
 
     private func shellEscape(_ value: String) -> String {
         value.replacingOccurrences(of: "'", with: "'\\''")
+    }
+
+    private func refreshSessionObservers() {
+        let currentIDs = Set(sessions.map(\.id))
+        sessionCancellables = sessionCancellables.filter { currentIDs.contains($0.key) }
+
+        for session in sessions where sessionCancellables[session.id] == nil {
+            sessionCancellables[session.id] = session.objectWillChange.sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.saveStateSoon()
+                }
+            }
+        }
+    }
+
+    private func saveStateSoon() {
+        Task { @MainActor in
+            saveState()
+        }
+    }
+
+    private func saveState() {
+        guard !isLoadingState else { return }
+        let state = StoredControllerState(
+            selectedTab: selectedTab.rawValue,
+            receiverPort: receiverPort,
+            receiverTitle: receiverTitle,
+            sessions: sessions.map { $0.stored() }
+        )
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    private static func loadState() -> StoredControllerState? {
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: defaultsKey) ?? defaults.data(forKey: legacyDefaultsKey) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(StoredControllerState.self, from: data)
     }
 }
