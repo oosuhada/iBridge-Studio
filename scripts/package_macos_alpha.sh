@@ -6,7 +6,9 @@ DIST_ROOT="${DIST_ROOT:-dist}"
 PACKAGE_ROOT="$DIST_ROOT/iBridge-Studio-$VERSION"
 CONTROL_APP="$PACKAGE_ROOT/iBridge Studio.app"
 PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
-CONTROL_BIN="apps/controller-macos/.build/release/iBridgeController"
+CONTROL_ARM64_BIN="apps/controller-macos/.build/arm64-apple-macosx/release/iBridgeController"
+CONTROL_X86_64_BIN="apps/controller-macos/.build/x86_64-apple-macosx/release/iBridgeController"
+CONTROL_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/iBridgeController-universal"
 RECEIVER_ARM64_BIN="apps/receiver-macos/.build/arm64-apple-macosx/release/ibridge-receiver-macos"
 RECEIVER_X86_64_BIN="apps/receiver-macos/.build/x86_64-apple-macosx/release/ibridge-receiver-macos"
 RECEIVER_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/ibridge-receiver-macos-universal"
@@ -93,12 +95,14 @@ PY
 make_icon "iBridgeControl" "$CONTROL_APP/Contents/Resources"
 
 swift build --package-path apps/primary-macos -c release
-swift build --package-path apps/controller-macos -c release
+swift build --package-path apps/controller-macos -c release --arch arm64
+swift build --package-path apps/controller-macos -c release --arch x86_64
 swift build --package-path apps/receiver-macos -c release --arch arm64
 swift build --package-path apps/receiver-macos -c release --arch x86_64
 
+lipo -create "$CONTROL_ARM64_BIN" "$CONTROL_X86_64_BIN" -output "$CONTROL_UNIVERSAL_BIN"
 lipo -create "$RECEIVER_ARM64_BIN" "$RECEIVER_X86_64_BIN" -output "$RECEIVER_UNIVERSAL_BIN"
-cp "$CONTROL_BIN" "$CONTROL_APP/Contents/MacOS/iBridgeControl"
+cp "$CONTROL_UNIVERSAL_BIN" "$CONTROL_APP/Contents/MacOS/iBridgeControl"
 cp "$PRIMARY_BIN" "$PACKAGE_ROOT/bin/ibridge-primary"
 cp scripts/start_ibridge_virtual_capture.sh "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh"
 cp scripts/start_2017_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2017_imac_receiver_macos.sh"
@@ -172,6 +176,7 @@ cp README.md "$PACKAGE_ROOT/README.md"
 
 chmod +x \
   "$CONTROL_APP/Contents/MacOS/iBridgeControl" \
+  "$PACKAGE_ROOT/bin/iBridgeController-universal" \
   "$PACKAGE_ROOT/bin/ibridge-primary" \
   "$PACKAGE_ROOT/bin/ibridge-receiver-macos-universal" \
   "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh" \
