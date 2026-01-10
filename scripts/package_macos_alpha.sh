@@ -148,13 +148,6 @@ cat > "$RECEIVER_APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-cat > "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver.command" <<'SCRIPT'
-#!/usr/bin/env bash
-set -euo pipefail
-DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-exec "$DIR/iBridgeReceiver" --port "${PORT:-48320}" --fullscreen --hide-status --title "iBridge Studio Receiver"
-SCRIPT
-
 cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -219,7 +212,6 @@ cp README.md "$PACKAGE_ROOT/README.md"
 chmod +x \
   "$CONTROL_APP/Contents/MacOS/iBridgeControl" \
   "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver" \
-  "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver.command" \
   "$PACKAGE_ROOT/bin/ibridge-primary" \
   "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh" \
   "$PACKAGE_ROOT/scripts/start_2017_imac_receiver_macos.sh" \
