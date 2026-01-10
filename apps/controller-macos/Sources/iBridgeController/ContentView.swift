@@ -59,8 +59,8 @@ struct HeaderView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            LogoMark()
-                .frame(width: 46, height: 46)
+            AppIconMark()
+                .frame(width: 54, height: 54)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {

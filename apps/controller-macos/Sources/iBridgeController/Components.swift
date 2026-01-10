@@ -28,46 +28,11 @@ struct StudioBackdrop: View {
     }
 }
 
-struct LogoMark: View {
+struct AppIconMark: View {
     var body: some View {
-        GeometryReader { proxy in
-            let size = min(proxy.size.width, proxy.size.height)
-            ZStack {
-                RoundedRectangle(cornerRadius: size * 0.30)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.02, green: 0.47, blue: 0.95),
-                                Color(red: 0.03, green: 0.72, blue: 0.84)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: size * 0.30)
-                            .stroke(.white.opacity(0.35), lineWidth: 1)
-                    )
-
-                HStack(spacing: size * 0.08) {
-                    displayGlyph(size: size)
-                    Capsule()
-                        .fill(.white.opacity(0.95))
-                        .frame(width: size * 0.18, height: max(2, size * 0.06))
-                    displayGlyph(size: size)
-                }
-                .scaleEffect(0.64)
-            }
-            .frame(width: size, height: size)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .aspectRatio(1, contentMode: .fit)
-    }
-
-    private func displayGlyph(size: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: size * 0.07)
-            .stroke(.white.opacity(0.95), lineWidth: max(2, size * 0.055))
-            .frame(width: size * 0.30, height: size * 0.22)
+        Image(nsImage: NSApplication.shared.applicationIconImage)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
     }
 }
 
