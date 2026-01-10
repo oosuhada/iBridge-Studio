@@ -1,6 +1,0 @@
-mode,source,scale,receiver_fps,receiver_p95_ms,receiver_max_ms,receiver_missed,primary_avg_generate_ms,primary_avg_encode_ms,primary_p95_encode_ms,payload_bytes
-1440p_nearest,2560x1440,nearest,59.881,17.476,25.163,241,5.389,16.876,40.792,15758016
-1440p_linear,2560x1440,linear,59.994,17.459,23.271,230,5.389,16.876,40.792,15758016
-3200x1800_linear,3200x1800,linear,59.885,17.477,31.456,220,8.520,14.738,23.529,15467082
-4k_linear,3840x2160,linear,59.840,17.418,35.613,232,10.963,21.164,38.249,15521173
-4096x2304_linear,4096x2304,linear,59.777,17.473,38.184,223,12.332,27.231,48.630,15568675

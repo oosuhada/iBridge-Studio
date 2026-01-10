@@ -1,1 +1,0 @@
-iperf3 not installed; install it on both machines before cable benchmarks.

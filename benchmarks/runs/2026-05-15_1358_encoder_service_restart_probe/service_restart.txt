@@ -1,3 +1,0 @@
-before_restart=2026-05-15 13:21:40 KST
-66667 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTEncoderXPCService.xpc/Contents/MacOS/VTEncoderXPCService
-after_restart_wait=2026-05-15 13:21:43 KST

@@ -1,7 +1,0 @@
-timestamp=2026-05-15_1306
-duration_seconds=30
-profile_set=air
-device_profile_requested=m1air
-hostname=Gabrielui-MacBookAir.local
-pwd=/Users/gabrieljang/development/iBridge
-Darwin Gabrielui-MacBookAir.local 23.5.0 Darwin Kernel Version 23.5.0: Wed May  1 20:16:51 PDT 2024; root:xnu-10063.121.3~5/RELEASE_ARM64_T8103 arm64

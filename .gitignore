@@ -8,6 +8,16 @@ apps/receiver-macos/.build/
 apps/controller-macos/.build/
 dist/
 
+# Development-only workspaces are tracked on `dev` but intentionally absent
+# from the clean `deploy` branch.
+AGENTS.md
+benchmarks/
+docs/
+logs/
+prompts/
+reference/
+templates/
+
 # Local display captures can contain private screen contents.
 benchmarks/runs/**/*display_*.png
 

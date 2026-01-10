@@ -1,1 +1,0 @@
-visual_confirmation=user reported visible change on iMac panel during smoke

@@ -1,5 +1,0 @@
-args=--synthetic --resolution 5120x2880 --fps 60 --duration 15 --fullscreen --gpu-pattern --no-vsync --uncapped 
-Computer: OOSU-IMAC 
-User: ȫ�浿 
-Date: 2026-05-15  1:29:10.19 
-exit_code=0 

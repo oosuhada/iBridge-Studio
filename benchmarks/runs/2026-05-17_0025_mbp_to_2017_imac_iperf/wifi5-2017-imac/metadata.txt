@@ -1,7 +1,0 @@
-case=wifi5-2017-imac
-receiver_ip=192.168.31.249
-duration_seconds=10
-timestamp=2026-05-17_0123
-hostname=Gabriels-MacBook-Pro.local
-whoami=gabriel
-pwd=/Users/gabriel/Development/iBridge

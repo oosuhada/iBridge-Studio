@@ -1,4 +1,0 @@
-frame_id,generate_ms,encode_latency_ms,payload_extract_ms,enqueue_ms,queue_depth,dropped_before,send_ms,bytes_sent,frame_age_at_send_ms,send_failed,keyframe,sender_dropped,payload_bytes,status
-0,18.2943,98.7235,0.0347,0.0000,0,0,0.0000,0,0.0000,0,1,0,128438,0
-60,34.9404,38.5502,0.0165,0.0000,0,0,0.0000,0,0.0000,0,0,0,106130,0
-120,30.4599,29.3390,0.0424,0.0000,0,0,0.0000,0,0.0000,0,1,0,172755,0

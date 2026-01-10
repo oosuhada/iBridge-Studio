@@ -1,8 +1,0 @@
-An asterisk (*) denotes that a network service is disabled.
-Thunderbolt Bridge
-Wi-Fi
-iPhone USB
-TunnelBear
-hide.me VPN (Wireguard)
-*Betternet VPN (Hydra)
-Tailscale
