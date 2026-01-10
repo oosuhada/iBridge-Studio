@@ -409,9 +409,26 @@ func makeSampleBuffer(
 final class ReceiverView: NSView {
     var inputSink: ((String) -> Void)?
     var commandSink: ((String) -> Void)?
+    private var trackingAreaRef: NSTrackingArea?
+    private var inputEventCount = 0
 
     override var acceptsFirstResponder: Bool { true }
     override var canBecomeKeyView: Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingAreaRef {
+            removeTrackingArea(trackingAreaRef)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.activeAlways, .inVisibleRect, .mouseMoved, .mouseEnteredAndExited, .enabledDuringMouseDrag],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingAreaRef = area
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -476,6 +493,7 @@ final class ReceiverView: NSView {
         let normalizedY = min(max(1 - (local.y / bounds.height), 0), 1)
         let button = max(event.buttonNumber, 0)
         let modifiers = event.modifierFlags.rawValue
+        recordInputEvent("pointer_\(phase)")
         inputSink?(
             String(format: "IBRIDGE_INPUT pointer %@ %.6f %.6f %d %llu\n",
                    phase,
@@ -487,7 +505,15 @@ final class ReceiverView: NSView {
     }
 
     private func sendKey(_ phase: String, event: NSEvent) {
+        recordInputEvent("key_\(phase)")
         inputSink?("IBRIDGE_INPUT key \(phase) \(event.keyCode) \(event.modifierFlags.rawValue)\n")
+    }
+
+    private func recordInputEvent(_ label: String) {
+        inputEventCount += 1
+        if inputEventCount <= 10 || inputEventCount % 60 == 0 {
+            logLine("receiver_input_event=\(label) count=\(inputEventCount)")
+        }
     }
 
     private func handleLocalCommand(_ event: NSEvent) -> Bool {
@@ -701,6 +727,7 @@ final class TCPReceiver: @unchecked Sendable {
                     sent += result
                 }
             }
+            logLine("input_sent bytes=\(data.count)")
         }
     }
 

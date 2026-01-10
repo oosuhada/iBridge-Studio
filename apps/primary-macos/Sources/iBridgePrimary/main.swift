@@ -3,6 +3,7 @@ import CoreMedia
 import CoreVideo
 import Darwin
 import Foundation
+import ApplicationServices
 @preconcurrency import ScreenCaptureKit
 import VideoToolbox
 
@@ -75,17 +76,25 @@ struct EncodedFrame {
 final class InputEventInjector: @unchecked Sendable {
     private let lock = NSLock()
     private var targetFrame = CGRect(origin: .zero, size: CGSize(width: 1, height: 1))
+    private var receivedEventCount = 0
 
     func setTargetDisplay(displayID: CGDirectDisplayID) {
         lock.lock()
         targetFrame = CGDisplayBounds(displayID)
         lock.unlock()
         fputs("input_target_display_id=\(displayID) frame=\(targetFrame)\n", stderr)
+        let promptOptions = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        let trusted = AXIsProcessTrustedWithOptions(promptOptions)
+        fputs("input_accessibility_trusted=\(trusted)\n", stderr)
     }
 
     func handleLine(_ line: String) {
         let parts = line.split(separator: " ")
         guard parts.first == "IBRIDGE_INPUT", parts.count >= 3 else { return }
+        receivedEventCount += 1
+        if receivedEventCount <= 10 || receivedEventCount % 60 == 0 {
+            fputs("input_event_received count=\(receivedEventCount) kind=\(parts[1])\n", stderr)
+        }
         switch parts[1] {
         case "pointer":
             handlePointer(parts)
