@@ -78,6 +78,7 @@ Profiles:
 | `lan-60hz` | `2560x1440` | 60 | 45Mbps | experimental motion-first wired mode |
 | `lan-sharp` | `3200x1800` | 30 | 50Mbps | experimental sharper wired mode |
 | `lan-4k` | `3840x2160` | 60 | 80Mbps | 4K60 wired mode |
+| `imac4k-quality` | `4096x2304` | 60 | 220Mbps | current 2017 21.5-inch 4K iMac quality profile |
 
 All profiles use HEVC Annex-B protocol v0. Auto-selection chooses the largest
 non-origin extended display unless `CAPTURE_DISPLAY_INDEX` is provided.
@@ -90,6 +91,12 @@ The source Mac may require Accessibility permission for the sender process.
 The wired profiles also enable capture-side backpressure with
 `CAPTURE_MAX_IN_FLIGHT_FRAMES=1`, so the sender prefers newer frames over
 building a stale encode backlog when the encoder falls behind.
+
+For the 2017 21.5-inch Retina 4K iMac, the current subjective best profile is
+BetterDisplay `Virtual 16:9` set to `2048x1152 HiDPI`, with iBridge
+`PROFILE=imac4k-quality`. This matches the receiver panel's `4096x2304`
+pixel grid more closely than `3840x2160` and keeps the source UI at a practical
+Retina scale.
 
 Override display selection when needed:
 

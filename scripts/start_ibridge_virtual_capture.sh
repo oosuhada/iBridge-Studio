@@ -50,8 +50,16 @@ case "$PROFILE" in
     DEFAULT_CAPTURE_QUEUE_DEPTH="6"
     DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES="1"
     ;;
+  imac4k-quality)
+    DEFAULT_RESOLUTION="4096x2304"
+    DEFAULT_FPS="60"
+    DEFAULT_BITRATE_MBPS="220"
+    DEFAULT_SENDER_QUEUE_DEPTH="12"
+    DEFAULT_CAPTURE_QUEUE_DEPTH="6"
+    DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES="1"
+    ;;
   *)
-    echo "Unknown PROFILE=$PROFILE. Use balanced, lan-readable, lan-60hz, lan-sharp, or lan-4k." >&2
+    echo "Unknown PROFILE=$PROFILE. Use balanced, lan-readable, lan-60hz, lan-sharp, lan-4k, or imac4k-quality." >&2
     exit 64
     ;;
 esac
