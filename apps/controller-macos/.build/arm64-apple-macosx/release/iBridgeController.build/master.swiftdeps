@@ -1,0 +1,6 @@
+version: "Apple Swift version 6.0.3 (swiftlang-6.0.3.1.10 clang-1600.0.30.1)"
+options: "4c9605b058f5715f34cbac3d5a2c08e3016340edbb3c2cac8f31b55563cf16a3"
+build_start_time: [1778996556, 365404000]
+build_end_time: [1778996561, 381454000]
+inputs:
+  "/Users/gabriel/Development/iBridge/apps/controller-macos/Sources/iBridgeController/main.swift": [1778996544, 949519192]

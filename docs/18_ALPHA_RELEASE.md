@@ -28,6 +28,7 @@ Outputs:
 
 The package includes:
 
+- `iBridge Control.app`
 - `iBridge Receiver.app`
 - `bin/ibridge-primary`
 - `Start iBridge Virtual Capture.command`
@@ -48,6 +49,19 @@ xattr -dr com.apple.quarantine "iBridge Receiver.app"
 ```
 
 ## Source Mac
+
+Open `iBridge Control.app` on the source Mac for the current lab GUI. It can
+list capturable displays, start the remote receiver, start the selected sender
+profile, stop the sender, and show command output in one window.
+
+Current built-in presets:
+
+- `2015 iMac 5K Quality`: `iMac 27inch 2015`, `5120x2880`, 280Mbps.
+- `2015 iMac Smooth`: `iMac 27inch 2015`, `2560x1440`, 80Mbps.
+- `2017 iMac 4K Quality`: `iMac 21.5inch 2017`, `4096x2304`, 220Mbps.
+
+The command helpers below remain useful for debugging and repeatable benchmark
+runs.
 
 1. In BetterDisplay, keep `Virtual 16:9` connected as an extended display.
 2. In macOS Displays, keep it as `Extended display`.
