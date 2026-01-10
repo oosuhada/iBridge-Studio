@@ -21,7 +21,7 @@ struct SenderTab: View {
                         model.addSession(preset: preset, focus: .sender)
                     }
                 } label: {
-                    Label("Add Sender", systemImage: "plus")
+                    Label("Add iMac Display", systemImage: "plus")
                 }
                 .controlSize(.large)
             }
@@ -48,6 +48,7 @@ struct SenderSessionCard: View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
                 header
+                setupChecklist
                 Divider().opacity(0.65)
                 configurationFields
                 actionRow
@@ -69,8 +70,8 @@ struct SenderSessionCard: View {
             Spacer()
 
             StatusPill(
-                title: model.isSenderRunning(session) ? "Streaming" : "Idle",
-                color: model.isSenderRunning(session) ? .green : .gray
+                title: statusTitle,
+                color: statusColor
             )
 
             Menu {
@@ -123,6 +124,77 @@ struct SenderSessionCard: View {
         }
     }
 
+    private var statusTitle: String {
+        if model.isSenderRunning(session) { return "Streaming" }
+        if model.validationIssues(for: session).contains(where: \.blocksStart) { return "Not Ready" }
+        return "Ready"
+    }
+
+    private var statusColor: Color {
+        if model.isSenderRunning(session) { return .green }
+        if model.validationIssues(for: session).contains(where: \.blocksStart) { return .orange }
+        return .blue
+    }
+
+    private var setupChecklist: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Setup Checklist")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Button {
+                    model.refreshPermissions()
+                    model.testReceiverConnection(session)
+                    model.listDisplays()
+                } label: {
+                    Label("Test Connection", systemImage: "checkmark.seal")
+                }
+            }
+
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
+                GridRow {
+                    checklistItem("Receiver", ok: !session.receiverIP.isEmpty || !session.discoveryHost.isEmpty)
+                    checklistItem("Virtual display", ok: displayLooksConfigured)
+                }
+                GridRow {
+                    checklistItem("Screen Recording", ok: model.screenRecordingAllowed)
+                    checklistItem("Accessibility", ok: model.accessibilityAllowed)
+                }
+            }
+
+            if let status = model.receiverProbeStatus[session.id] {
+                Text(status)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(model.validationIssues(for: session)) { issue in
+                Text(issue.message)
+                    .font(.caption2)
+                    .foregroundStyle(issue.severity == .error ? .red : .secondary)
+            }
+        }
+        .padding(10)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func checklistItem(_ title: String, ok: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle")
+                .foregroundStyle(ok ? .green : .orange)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var displayLooksConfigured: Bool {
+        if model.availableDisplayNames.isEmpty {
+            return !session.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return model.availableDisplayNames.contains(session.displayName)
+    }
+
     private var advancedConfiguration: some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
             GridRow {
@@ -132,7 +204,7 @@ struct SenderSessionCard: View {
 
             GridRow {
                 durationSecondsField
-                EmptyView()
+                discoveryField
             }
 
             GridRow {
@@ -185,8 +257,18 @@ struct SenderSessionCard: View {
 
     private var displayField: some View {
         LabeledField("Display") {
-            TextField("Virtual display name", text: $session.displayName)
+            if model.availableDisplayNames.isEmpty {
+                TextField("Virtual display name", text: $session.displayName)
+                    .frame(minWidth: 260)
+            } else {
+                Picker("Virtual display", selection: $session.displayName) {
+                    ForEach(model.availableDisplayNames, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                }
+                .labelsHidden()
                 .frame(minWidth: 260)
+            }
         }
     }
 
@@ -198,7 +280,7 @@ struct SenderSessionCard: View {
                 }
             }
             .labelsHidden()
-            .onChange(of: session.signalOptionID) { _, newValue in
+            .onChange(of: session.signalOptionID) { newValue in
                 if let option = signalOptions.first(where: { $0.id == newValue }), option.id != "custom" {
                     session.resolution = option.value
                 }
@@ -241,7 +323,7 @@ struct SenderSessionCard: View {
             }
             .labelsHidden()
             .frame(minWidth: 220)
-            .onChange(of: session.bitrateOptionID) { _, newValue in
+            .onChange(of: session.bitrateOptionID) { newValue in
                 if let option = bitrateOptions.first(where: { $0.id == newValue }), option.id != "custom" {
                     session.bitrateMbps = option.value
                 }
@@ -266,7 +348,7 @@ struct SenderSessionCard: View {
             }
             .labelsHidden()
             .help("The sender stops automatically after this time.")
-            .onChange(of: session.durationOptionID) { _, newValue in
+            .onChange(of: session.durationOptionID) { newValue in
                 if let option = durationOptions.first(where: { $0.id == newValue }), option.id != "custom" {
                     session.duration = option.value
                 }

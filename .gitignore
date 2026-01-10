@@ -18,6 +18,11 @@ prompts/
 reference/
 templates/
 
+!docs/
+!docs/DEVELOPER.md
+!docs/NETWORK_SETUP.md
+!docs/TROUBLESHOOTING.md
+
 # Local display captures can contain private screen contents.
 benchmarks/runs/**/*display_*.png
 

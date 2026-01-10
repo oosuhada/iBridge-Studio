@@ -116,7 +116,15 @@ struct MenuBarView: View {
             NSApp.activate(ignoringOtherApps: true)
         }
 
+        Button("Open Logs") {
+            model.selectedTab = .logs
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+
         Divider()
+
+        Text("\(model.activeStreamingCount) streaming session\(model.activeStreamingCount == 1 ? "" : "s")")
 
         if model.sessions.isEmpty {
             Text("No sender sessions")
@@ -183,6 +191,9 @@ struct MenuBarView: View {
         Divider()
 
         Button("Quit iBridge Studio") {
+            if model.hasActiveProcesses {
+                model.stopEverything()
+            }
             NSApp.terminate(nil)
         }
     }

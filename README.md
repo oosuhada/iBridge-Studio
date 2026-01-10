@@ -1,276 +1,169 @@
 # iBridge Studio
 
-iBridge Studio는 Target Display Mode가 지원되지 않는 iMac을 MacBook의 소프트웨어 Retina 모니터처럼 다시 쓰기 위한 macOS 앱입니다.
+iBridge Studio는 Target Display Mode가 지원되지 않는 iMac을 MacBook의 소프트웨어 Retina display처럼 다시 쓰기 위한 macOS alpha 앱입니다.
 
-한 앱인 `iBridge Studio.app`를 MacBook과 iMac 모두에 설치합니다. MacBook에서는 Sender 세션을 실행하고, iMac에서는 Receiver를 전체 화면으로 실행합니다.
+한 앱인 `iBridge Studio.app`를 MacBook과 iMac에 모두 설치합니다. MacBook에서는 Sender가 BetterDisplay virtual display를 캡처하고, iMac에서는 Receiver가 전체 화면으로 수신 영상을 표시합니다.
+
+![iBridge Studio v0.1.1-alpha Sender](assets/screenshots/ibridge-studio-v0.1.1-alpha-sender.png)
 
 ```text
 MacBook Pro / MacBook Air
   BetterDisplay virtual display
-  iBridge Studio Sender: capture -> HEVC encode -> network send
+  iBridge Studio Sender: ScreenCaptureKit -> VideoToolbox HEVC -> TCP
 
 Ethernet / Thunderbolt Bridge / LAN
 
 iMac
-  iBridge Studio Receiver: receive -> decode -> fullscreen display
-  local mouse / keyboard surface
+  iBridge Studio Receiver: TCP -> VideoToolbox decode -> fullscreen display
 ```
 
-## 현재 목표
+## v0.1.1-alpha 상태
 
-iBridge Studio의 목표는 오래된 iMac을 단순 원격 데스크톱처럼 쓰는 것이 아니라, MacBook의 확장 디스플레이에 가깝게 쓰는 것입니다.
+이번 alpha는 내부 테스트용이지만, 이전 버전보다 제품형 흐름에 가까워졌습니다.
 
-- MacBook 하나에서 iMac 1대 또는 2대를 확장 화면처럼 사용
-- 2015 27-inch 5K iMac, 2017 21.5-inch 4K iMac 같은 Retina iMac 재활용
-- 1GbE, Thunderbolt Bridge, 직접 연결 LAN 환경 우선
-- BetterDisplay 가상 디스플레이와 iBridge Studio Sender/Receiver 조합
-- 마우스/키보드 릴레이, 창 복구, 프리셋 기반 연결 관리
+- 개인 IP, SSH user, Wake MAC이 제품 preset에서 제거되었습니다.
+- Sender card가 기본 설정과 Advanced Settings로 나뉘었습니다.
+- Receiver tab에서 This Mac receiver를 Start/Stop할 수 있고, 현재 listening port와 이 Mac의 IP 후보를 볼 수 있습니다.
+- Menu bar에서 session별 Start/Stop, Receiver Start/Stop, Open Logs, Restore Windows를 실행할 수 있습니다.
+- Logs는 2,000줄 ring buffer, level/session filter, copy, diagnostics export를 지원합니다.
+- Wake-on-LAN은 magic packet을 3회 보내고, 설정된 receiver port가 열릴 때까지 polling할 수 있습니다.
+- 패키지는 `.zip`, `.dmg`, `.pkg` 산출물을 만들 수 있습니다. Developer ID 인증서가 있으면 notarization 경로도 준비되어 있습니다.
 
-## 브랜치 구조
+## 테스트한 환경
 
-- `deploy`: 기본 브랜치. 앱을 내려받고 빌드/패키징하는 사용자를 위한 배포 표면입니다.
-- `dev`: 개발 브랜치. benchmark, prompts, logs, handoff docs, AGENTS 지침처럼 개발 과정에 필요한 기록을 유지합니다.
-- `main`: 초기 bootstrap용 legacy branch입니다. 새 배포 기준은 `deploy`입니다.
+현재 실사용 기준은 다음 조합입니다.
 
-## 지원 방향
+- Sender: MacBook Pro
+- Virtual display app: BetterDisplay 4.2.3
+- Receiver 1: 2015 27-inch 5K iMac
+- Receiver 2: 2017 21.5-inch 4K iMac
+- iMac OS strategy: OpenCore Legacy Patcher(OCLP)로 macOS Sequoia까지 올린 환경
+- 권장 receiver OS: macOS 13 Ventura 이상, 현재 alpha 실사용 권장선은 OCLP Sequoia
 
-Target Display Mode를 지원하지 않는 Retina iMac과 Apple Silicon iMac을 소프트웨어 receiver 대상으로 봅니다.
+Tahoe는 이 alpha에서 권장하지 않습니다. Tahoe 계열은 Apple Intelligence, Siri, system services, graphics/input permission surface가 더 많이 바뀌어 OCLP 기반 Intel iMac에서 변수가 늘어납니다. iBridge Studio는 낮은 지연, fullscreen receiver, input relay, Screen Recording/Accessibility 권한 안정성이 중요하므로, 현재는 Sequoia를 안정 기준으로 둡니다.
 
-앱 프리셋에는 다음 계열이 포함됩니다.
+## BetterDisplay 설정
 
-- iMac 27-inch 5K Late 2014
-- iMac 21.5-inch 4K Late 2015
-- iMac 27-inch 5K Late 2015
-- iMac 21.5-inch 4K 2017
-- iMac 27-inch 5K 2017
-- iMac Pro 27-inch 5K 2017
-- iMac 21.5-inch 4K 2019
-- iMac 27-inch 5K 2019
-- iMac 27-inch 5K 2020
-- iMac 24-inch 4.5K M1 / M3 / M4
+MacBook 쪽에서는 BetterDisplay virtual screen을 “확장 디스플레이”로 만들어야 합니다. Mirroring이나 AirPlay처럼 동작하면 iBridge Sender가 원하는 화면을 안정적으로 캡처하지 못합니다.
 
-프리셋은 해상도와 bitrate의 시작점입니다. 실제 최적값은 네트워크, MacBook 인코더 성능, BetterDisplay 설정에 따라 조정해야 합니다.
+![BetterDisplay virtual display setup](assets/screenshots/betterdisplay-virtual-display-setup.png)
 
-## 현재 추천 프로필
+권장 흐름:
 
-### 2015 27-inch 5K iMac
+1. BetterDisplay를 설치하고 실행합니다.
+2. Virtual Screen을 추가합니다.
+3. macOS Displays에서 virtual screen을 MacBook 내장 화면 옆에 배치합니다.
+4. iBridge Studio의 Sender card에서 `Display` 이름을 BetterDisplay virtual screen 이름과 맞춥니다.
+5. iMac 모델에 맞는 signal preset을 고릅니다.
 
-- BetterDisplay virtual display: `iMac 27inch 2015`
-- iBridge Studio signal: `5120x2880`
-- Bitrate: `280 Mbps`
-- Profile: `lan-60hz`
-- Receiver IP는 각 iMac의 로컬 네트워크 설정에 맞게 직접 입력합니다.
+권장 이름:
 
-### 2017 21.5-inch 4K iMac
+- 2015 27-inch 5K iMac: `iMac 27-inch 5K Late 2015`
+- 2017 21.5-inch 4K iMac: `iMac 21.5-inch 4K 2017`
 
-- BetterDisplay virtual display: `iMac 21.5inch 2017`
-- BetterDisplay UI sweet spot: `2048x1152 HiDPI`
-- iBridge Studio signal: `4096x2304`
-- Bitrate: `220 Mbps`
-- Profile: `imac4k-quality`
+권장 품질 시작점:
 
-## 설치 패키지 만들기
+| Receiver | BetterDisplay 목적 | iBridge signal | Bitrate | Profile |
+| --- | --- | --- | --- | --- |
+| 2015 27-inch 5K iMac | 5K Retina canvas | `5120x2880` | `280 Mbps` | `lan-60hz` |
+| 2017 21.5-inch 4K iMac | 4K Retina canvas | `4096x2304` | `220 Mbps` | `imac4k-quality` |
+| unstable LAN fallback | smooth test | `2560x1440` | `80 Mbps` | `lan-60hz` |
 
-MacBook의 repo checkout에서:
+처음 연결할 때는 1440p 또는 4K로 먼저 확인한 뒤 5K/고 bitrate로 올리는 편이 좋습니다.
 
-```bash
-cd /Users/gabriel/Development/iBridge-Studio
-scripts/package_macos_alpha.sh
-```
+## 설치
 
-생성물:
+GitHub Release 또는 `dist/` 산출물에서 다음 중 하나를 사용합니다.
 
-```text
-dist/iBridge-Studio-0.1.1-alpha/
-dist/iBridge-Studio-0.1.1-alpha.zip
-```
+- `iBridge-Studio-0.1.1-alpha.dmg`: 일반 테스트에 권장
+- `iBridge-Studio-0.1.1-alpha.pkg`: `/Applications` 설치 테스트용
+- `iBridge-Studio-0.1.1-alpha.zip`: 수동 전송용
 
-패키지 안에는 다음이 들어갑니다.
+iMac 두 대 모두 같은 앱을 설치합니다. iMac에서는 Receiver tab을 열고 `Start Receiver on This Mac`을 누릅니다. MacBook에서는 Sender tab에서 iMac display session을 추가하고 receiver address를 입력합니다.
 
-- `iBridge Studio.app`
-- `bin/ibridge-primary`
-- receiver/sender helper scripts
-- 배포용 README
-
-현재는 내부 alpha 패키지이며 Developer ID notarization은 아직 적용하지 않았습니다.
-
-## iMac으로 앱 보내기
-
-패키지 zip을 각 iMac에 보냅니다.
-
-예시:
-
-```bash
-scp dist/iBridge-Studio-0.1.1-alpha.zip user@receiver-host:~/Desktop/
-```
-
-iMac에서:
-
-```bash
-cd ~/Desktop
-rm -rf iBridge-Studio-0.1.0-alpha iBridge-Studio-0.1.0-alpha.zip
-unzip -o iBridge-Studio-0.1.1-alpha.zip
-xattr -dr com.apple.quarantine iBridge-Studio-0.1.1-alpha
-open "iBridge-Studio-0.1.1-alpha/iBridge Studio.app"
-```
-
-Receiver 전용으로만 쓸 때도 같은 `iBridge Studio.app`를 실행하면 됩니다. 앱 안의 `Receiver` 탭에서 `Start Receiver on This Mac`을 누릅니다.
+Gatekeeper 경고가 뜨면 아직 Developer ID notarization이 적용되지 않은 내부 alpha이기 때문입니다. Developer ID signing/notarization은 배포 인증서가 있는 머신에서 `CODE_SIGN_IDENTITY`와 `NOTARY_PROFILE`을 지정해 처리합니다. 자세한 내용은 [Developer Guide](docs/DEVELOPER.md)를 보세요.
 
 ## 권한
 
-MacBook Sender 쪽:
+MacBook Sender:
 
-- Screen Recording: 화면 캡처 필요
-- Accessibility: 키보드/마우스 입력 주입, 창 복구 필요
+- Screen Recording: BetterDisplay virtual screen 캡처에 필요합니다.
+- Accessibility: Restore Windows와 input relay 안정화에 필요합니다.
+- Local Network: receiver Mac과 TCP 연결할 때 필요할 수 있습니다.
 
-iMac Receiver 쪽:
+iMac Receiver:
 
-- Accessibility: receiver 표면의 pointer/key event capture 안정화에 필요할 수 있음
-- Local Network: macOS가 네트워크 접근 권한을 묻는 경우 허용
+- Accessibility: receiver fullscreen surface와 input relay 안정화에 필요할 수 있습니다.
+- Local Network: MacBook Sender의 TCP 연결을 받기 위해 필요합니다.
 
-권한을 바꾼 뒤에는 앱과 sender/receiver 프로세스를 다시 시작하는 것이 안전합니다.
+iBridge Studio의 Sender checklist에서 Screen Recording / Accessibility 상태를 볼 수 있습니다. 권한을 바꾼 뒤에는 앱과 sender/receiver process를 다시 시작하는 것이 안전합니다.
 
 ## 기본 사용 흐름
 
-### 1. BetterDisplay에서 virtual display 생성
+### iMac에서 Receiver 준비
 
-MacBook에서 BetterDisplay virtual screen을 만들고 이름을 iMac과 맞춥니다.
+1. `iBridge Studio.app` 실행
+2. `Receiver` tab 선택
+3. Port가 `48320`인지 확인
+4. `Start Receiver on This Mac`
+5. `Listening on :48320` 상태 확인
+6. `This Mac addresses`에서 Ethernet, Thunderbolt Bridge, Wi-Fi 중 Sender가 접근할 주소를 복사
 
-예시:
+### MacBook에서 Sender 시작
 
-- `iMac 27inch 2015`
-- `iMac 21.5inch 2017`
+1. BetterDisplay virtual screen이 켜져 있고 extended display인지 확인
+2. `iBridge Studio.app` 실행
+3. `Sender` tab 선택
+4. `Add iMac Display`에서 iMac 모델 선택
+5. Receiver IP 입력
+6. `Refresh Displays` 또는 `Test Connection`으로 checklist 확인
+7. Signal / Bitrate / Cursor 확인
+8. `Start Sender`
 
-macOS Displays에서 MacBook 내장 화면 옆에 extended display로 배치합니다.
-
-### 2. iMac에서 Receiver 실행
-
-iMac에서 `iBridge Studio.app` 실행:
-
-1. `Receiver` 탭 선택
-2. Port가 `48320`인지 확인
-3. `Start Receiver on This Mac`
-4. Receiver window가 전체 화면으로 떠 있는지 확인
-
-### 3. MacBook에서 Sender 실행
-
-MacBook에서 `iBridge Studio.app` 실행:
-
-1. `Sender` 탭 선택
-2. `Add Sender`에서 iMac 모델 선택
-3. Receiver IP 입력
-4. Display 이름이 BetterDisplay virtual display 이름과 같은지 확인
-5. Signal / Bitrate / Duration 프리셋 확인
-6. `Start Sender`
-
-앱은 마지막 탭, receiver 설정, sender session 목록과 세션별 값을 저장합니다. 다음에 앱을 다시 열면 마지막 구성이 복원되므로 매번 모델을 다시 고를 필요가 없습니다.
+Start Sender는 Wake 설정이 있으면 Wake packet을 보내고, receiver address를 확인한 뒤, virtual display capture sender를 실행합니다. 실패 원인은 Logs뿐 아니라 sender card checklist에서도 바로 확인할 수 있게 만들고 있습니다.
 
 ## 두 iMac 동시 연결 권장 구성
 
-추가 LAN 허브를 사기 전에는 다음 구성이 가장 현실적입니다.
+가장 안정적인 구성은 각 iMac에 별도 물리 경로를 주는 것입니다.
 
 ```text
 MacBook Pro Ethernet -> 2015 27-inch iMac Ethernet
 MacBook Pro Thunderbolt / USB-C -> 2017 21.5-inch iMac Thunderbolt Bridge
 ```
 
-권장 수동 IP:
+권장 수동 IP 예시는 [Network Setup](docs/NETWORK_SETUP.md)에 정리되어 있습니다. 실제 IP는 각 환경에서 직접 정하고, README나 소스에 개인 IP를 커밋하지 않습니다.
 
-```text
-MacBook Ethernet:          10.10.15.1
-2015 iMac Ethernet:        10.10.15.2
+## 입력 릴레이와 Cursor
 
-MacBook Thunderbolt Bridge: 10.10.17.1
-2017 iMac Thunderbolt:      10.10.17.2
+iBridge Studio의 cursor mode는 세 가지입니다.
 
-Subnet mask: 255.255.255.0
-Router/DNS: blank
-```
+- Universal Control Relay: Universal Control 또는 iMac 로컬 커서를 쓸 때 캡처된 MacBook 커서를 숨깁니다.
+- Show Captured Cursor: Universal Control을 쓰지 않을 때 MacBook virtual display의 cursor를 영상에 표시합니다.
+- Hide Captured Cursor: 영상만 보여주거나 cursor 중복이 생길 때 사용합니다.
 
-테스트 순서:
+최상의 입력 경험은 Universal Control, iBridge input relay, macOS 입력 소스 설정의 영향을 받습니다. Caps Lock 한영 전환은 MacBook 쪽 Keyboard 입력 소스 설정이 맞아야 합니다.
 
-1. 2015 iMac 단독 Receiver/Sender 확인
-2. 2017 iMac Thunderbolt Bridge 단독 Receiver/Sender 확인
-3. MacBook에서 Sender session 두 개 추가
-4. 각 iMac에서 Receiver 실행
-5. MacBook에서 두 Sender를 순서대로 시작
-6. 마우스 전환, 키보드 입력, copy/paste, 프레임 안정성 확인
+## 문제 해결
 
-## 입력 릴레이
+대표적인 실패 지점:
 
-Receiver 탭은 receiver window 위의 pointer/key 이벤트를 Sender로 보내고, Sender는 MacBook의 captured virtual display 좌표에 `CGEvent`로 재주입합니다.
+- Receiver offline: iMac receiver가 실행 중인지, 같은 네트워크인지 확인합니다.
+- Virtual display not found: BetterDisplay virtual screen 이름과 Sender card의 Display 이름이 같은지 확인합니다.
+- Black screen: receiver fullscreen은 떠 있지만 sender capture/display selection이 다른 화면을 잡았을 수 있습니다.
+- Permission missing: Screen Recording / Accessibility 권한을 허용하고 앱을 재시작합니다.
+- Wake failed: Wake MAC, broadcast target, iMac 전원/네트워크 adapter의 Wake 설정을 확인합니다.
 
-현재 지원:
+자세한 항목은 [Troubleshooting](docs/TROUBLESHOOTING.md)을 보세요.
 
-- mouse move / drag / click
-- key down / key up
-- modifier flags: Command, Shift, Option, Control, Caps Lock
-- `Cmd+Shift+4` 같은 modifier shortcut 전달
-- Caps Lock 기반 입력 소스 전환 이벤트 전달
+## 개발 문서
 
-주의할 점:
-
-- iBridge Studio의 입력 릴레이는 MacBook source OS에 이벤트를 주입합니다. 즉 screenshot, 한영 전환, 단축키는 MacBook 쪽 설정과 권한의 영향을 받습니다.
-- Apple Universal Control / Link Keyboard and Mouse가 iMac으로 키보드 포커스를 넘겨도, 일부 시스템 전역 키는 iMac 로컬 macOS가 먼저 처리할 수 있습니다.
-- Caps Lock 한영 전환은 MacBook의 Keyboard 입력 소스 설정에서 Caps Lock 전환이 활성화되어 있어야 의도대로 동작합니다.
-
-## 창 복구
-
-virtual display에 Terminal/브라우저 창이 넘어가 있고 receiver를 닫아버리면, 창이 MacBook 내장 화면에 보이지 않을 수 있습니다.
-
-`iBridge Studio`의 `Restore Windows`를 누르면 일반 앱 창을 MacBook 화면 좌표로 다시 이동시킵니다. 이 기능은 Accessibility 권한이 필요합니다.
-
-## 깨끗한 재설치 테스트
-
-GitHub에 최신 branch를 push한 뒤 MacBook에서 앱/빌드 산출물을 지우고 깨끗하게 다시 받을 수 있습니다.
-
-```bash
-cd /Users/gabriel/Development
-rm -rf iBridge-Studio
-git clone https://github.com/oosuhada/iBridge-Studio.git
-cd iBridge-Studio
-git checkout deploy
-scripts/package_macos_alpha.sh
-open "dist/iBridge-Studio-0.1.1-alpha/iBridge Studio.app"
-```
-
-iMac은 zip을 받아서 같은 앱을 실행하고 Receiver 탭만 쓰면 됩니다.
-
-## 개발 검증 명령
-
-```bash
-swift build --package-path apps/primary-macos -c release
-swift build --package-path apps/receiver-macos -c release
-swift build --package-path apps/controller-macos -c release
-python3 apps/shared-protocol/test_protocol_v0.py
-scripts/package_macos_alpha.sh
-codesign --verify --deep --strict "dist/iBridge-Studio-0.1.1-alpha/iBridge Studio.app"
-```
+- [Developer Guide](docs/DEVELOPER.md)
+- [Network Setup](docs/NETWORK_SETUP.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## 현재 한계
 
-- 아직 notarized 상용 배포판은 아닙니다.
-- 5K60 완전 네이티브 품질은 아직 목표치이며, 실제 사용은 모델별 sweet spot을 찾아야 합니다.
-- 1GbE에서는 4K/5K 고 bitrate가 가능해도 모든 장면에서 완전한 60Hz를 보장하지 않습니다.
-- 키보드/마우스 공유는 macOS 권한, Universal Control 포커스, 입력 소스 설정의 영향을 받습니다.
-- 두 iMac 동시 연결은 Ethernet + Thunderbolt Bridge 또는 USB Ethernet 2개/switch 구성이 필요합니다.
-
-## 레포 구조
-
-```text
-apps/
-  controller-macos/   iBridge Studio SwiftUI app
-  primary-macos/      MacBook sender / capture / encode / input injection
-  receiver-macos/     macOS receiver / decode / fullscreen / input capture
-  receiver-windows/   Windows receiver scaffold
-  shared-protocol/    protocol tests
-scripts/
-  package_macos_alpha.sh
-  start_ibridge_virtual_capture.sh
-  start_2015_imac_receiver_macos.sh
-  start_2017_imac_receiver_macos.sh
-docs/
-  development-only implementation notes, benchmark reports, release notes
-benchmarks/
-  development-only measurement outputs
-```
+- v0.1.1-alpha는 아직 내부 alpha입니다.
+- Developer ID signing과 notarization은 인증서가 있는 머신에서만 완료됩니다.
+- 5K60 완전 네이티브 품질은 네트워크, encoder, receiver decode 상태에 따라 달라집니다.
+- Bonjour/mDNS discovery, adaptive bitrate, polished onboarding, auto update는 다음 단계입니다.

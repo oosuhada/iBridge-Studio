@@ -88,6 +88,48 @@ struct ReceiverTab: View {
                     }
                 }
 
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("This Mac addresses")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Button {
+                            model.refreshLocalReceiverAddresses()
+                        } label: {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                        .labelStyle(.iconOnly)
+                    }
+
+                    if model.localReceiverAddresses.isEmpty {
+                        Text("No active non-loopback IPv4 address detected.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.localReceiverAddresses, id: \.self) { address in
+                            HStack {
+                                Text(address)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button {
+                                    let ip = address.split(separator: " ").last.map(String.init) ?? address
+                                    model.copyReceiverAddress(ip)
+                                } label: {
+                                    Label("Copy", systemImage: "doc.on.doc")
+                                }
+                                .labelStyle(.iconOnly)
+                            }
+                        }
+                    }
+                }
+                .padding(10)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+
+                Text("To launch at login, add iBridge Studio in System Settings > General > Login Items on the receiver iMac.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
                 Button {
                     model.repairLocalSystemSettings()
                 } label: {
@@ -181,13 +223,24 @@ struct ReceiverTab: View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
                 startRemoteButton(session)
+                testRemoteButton(session)
                 repairRemoteButton(session)
             }
             VStack(alignment: .leading, spacing: 8) {
                 startRemoteButton(session)
+                testRemoteButton(session)
                 repairRemoteButton(session)
             }
         }
+    }
+
+    private func testRemoteButton(_ session: DisplaySession) -> some View {
+        Button {
+            model.testReceiverConnection(session)
+        } label: {
+            Label("Test", systemImage: "network")
+        }
+        .disabled(session.receiverIP.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
     private func repairRemoteButton(_ session: DisplaySession) -> some View {
