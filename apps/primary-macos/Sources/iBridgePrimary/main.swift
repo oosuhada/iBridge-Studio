@@ -4,6 +4,7 @@ import CoreVideo
 import Darwin
 import Foundation
 import ApplicationServices
+import AppKit
 @preconcurrency import ScreenCaptureKit
 import VideoToolbox
 
@@ -1247,7 +1248,8 @@ func printCaptureDisplayList() throws {
                 onScreenWindowsOnly: true
             )
             let lines = content.displays.enumerated().map { index, display in
-                "display_index=\(index) display_id=\(display.displayID) width=\(display.width) height=\(display.height) frame=\(display.frame)"
+                let name = displayName(for: display.displayID)
+                return "display_index=\(index) display_id=\(display.displayID) name=\"\(name)\" width=\(display.width) height=\(display.height) frame=\(display.frame)"
             }
             output = .success(lines)
         } catch {
@@ -1268,6 +1270,18 @@ func printCaptureDisplayList() throws {
     case .none:
         throw RuntimeError("display listing did not return a result")
     }
+}
+
+func displayName(for displayID: CGDirectDisplayID) -> String {
+    for screen in NSScreen.screens {
+        guard let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+            continue
+        }
+        if screenNumber.uint32Value == displayID {
+            return screen.localizedName
+        }
+    }
+    return "display-\(displayID)"
 }
 
 func writeCSV(path: String, frames: [EncodedFrame]) throws {

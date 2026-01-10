@@ -6,6 +6,7 @@ RECEIVER_IP="${RECEIVER_IP:-169.254.70.114}"
 RECEIVER_PORT="${RECEIVER_PORT:-48320}"
 DURATION="${DURATION:-3600}"
 CAPTURE_DISPLAY_INDEX="${CAPTURE_DISPLAY_INDEX:-auto}"
+CAPTURE_DISPLAY_NAME="${CAPTURE_DISPLAY_NAME:-}"
 RUN_ROOT="${RUN_ROOT:-benchmarks/runs/$(date +%Y-%m-%d_%H%M)_ibridge_virtual_capture}"
 PRIMARY_BIN="${PRIMARY_BIN:-}"
 
@@ -113,7 +114,33 @@ EOF
   exit 2
 fi
 
-if [[ "$CAPTURE_DISPLAY_INDEX" == "auto" ]]; then
+if [[ -n "$CAPTURE_DISPLAY_NAME" ]]; then
+  CAPTURE_DISPLAY_INDEX="$(
+    awk -v target="$CAPTURE_DISPLAY_NAME" '
+      /display_index=/ {
+        idx = ""
+        for (i = 1; i <= NF; i++) {
+          if ($i ~ /^display_index=/) {
+            split($i, a, "="); idx = a[2]
+          }
+        }
+        if (idx != "" && index($0, "name=\"" target "\"") > 0) {
+          print idx
+          exit
+        }
+      }
+    ' "$display_list"
+  )"
+  if [[ -z "$CAPTURE_DISPLAY_INDEX" ]]; then
+    cat <<EOF >&2
+iBridge could not find CAPTURE_DISPLAY_NAME="$CAPTURE_DISPLAY_NAME".
+
+Available displays:
+$(cat "$display_list")
+EOF
+    exit 3
+  fi
+elif [[ "$CAPTURE_DISPLAY_INDEX" == "auto" ]]; then
   CAPTURE_DISPLAY_INDEX="$(
     awk '
       /display_index=/ {
@@ -156,6 +183,7 @@ cat <<EOF
 iBridge virtual display sender
 - Profile: $PROFILE
 - Receiver: $RECEIVER_IP:$RECEIVER_PORT
+- Capture display name: ${CAPTURE_DISPLAY_NAME:-auto}
 - Capture display index: $CAPTURE_DISPLAY_INDEX
 - Resolution/FPS: $RESOLUTION @ $FPS
 - Bitrate: ${BITRATE_MBPS}Mbps
