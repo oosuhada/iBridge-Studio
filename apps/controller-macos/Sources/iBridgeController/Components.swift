@@ -4,11 +4,11 @@ import SwiftUI
 struct StudioBackdrop: View {
     var body: some View {
         ZStack {
-            Color(nsColor: .windowBackgroundColor).opacity(0.78)
+            Color(nsColor: .windowBackgroundColor)
             LinearGradient(
                 colors: [
-                    Color.blue.opacity(0.16),
-                    Color.teal.opacity(0.10),
+                    Color.blue.opacity(0.08),
+                    Color.teal.opacity(0.05),
                     Color.clear
                 ],
                 startPoint: .topLeading,
@@ -17,7 +17,7 @@ struct StudioBackdrop: View {
             .ignoresSafeArea()
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.07),
+                    Color.white.opacity(0.045),
                     Color.clear
                 ],
                 startPoint: .top,
@@ -34,13 +34,6 @@ struct LogoMark: View {
             let size = min(proxy.size.width, proxy.size.height)
             ZStack {
                 RoundedRectangle(cornerRadius: size * 0.30)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: size * 0.30)
-                            .stroke(.white.opacity(0.18), lineWidth: 1)
-                    )
-
-                RoundedRectangle(cornerRadius: size * 0.22)
                     .fill(
                         LinearGradient(
                             colors: [
@@ -52,10 +45,9 @@ struct LogoMark: View {
                         )
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: size * 0.22)
+                        RoundedRectangle(cornerRadius: size * 0.30)
                             .stroke(.white.opacity(0.35), lineWidth: 1)
                     )
-                    .padding(size * 0.14)
 
                 HStack(spacing: size * 0.08) {
                     displayGlyph(size: size)
@@ -64,7 +56,7 @@ struct LogoMark: View {
                         .frame(width: size * 0.18, height: max(2, size * 0.06))
                     displayGlyph(size: size)
                 }
-                .scaleEffect(0.72)
+                .scaleEffect(0.64)
             }
             .frame(width: size, height: size)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -97,8 +89,8 @@ struct WindowChromeConfigurator: NSViewRepresentable {
     private func configure(window: NSWindow?) {
         guard let window else { return }
         window.titlebarAppearsTransparent = true
-        window.isOpaque = false
-        window.backgroundColor = .clear
+        window.isOpaque = true
+        window.backgroundColor = .windowBackgroundColor
         window.styleMask.insert(.fullSizeContentView)
     }
 }
@@ -113,7 +105,7 @@ struct GlassPanel<Content: View>: View {
     var body: some View {
         content
             .padding(14)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color.primary.opacity(0.10), lineWidth: 1)

@@ -25,7 +25,7 @@ struct ContentView: View {
             }
         }
         .background(WindowChromeConfigurator())
-        .frame(minWidth: 1120, minHeight: 720)
+        .frame(minWidth: 760, minHeight: 720)
     }
 }
 
@@ -34,6 +34,8 @@ struct StudioTabPicker: View {
 
     var body: some View {
         HStack {
+            Spacer()
+
             Picker("Mode", selection: $model.selectedTab) {
                 ForEach(StudioTab.allCases) { tab in
                     Label(tab.rawValue, systemImage: tab.systemImage)
@@ -64,7 +66,7 @@ struct HeaderView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("iBridge Studio")
                     .font(.title3.weight(.semibold))
-                Text("Turn retired iMacs into Retina monitors")
+                Text("Turn your retired iMacs into Retina monitors")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -88,12 +90,12 @@ struct HeaderView: View {
         .padding(.vertical, 16)
         .background {
             Rectangle()
-                .fill(.ultraThinMaterial)
+                .fill(Color(nsColor: .controlBackgroundColor))
                 .overlay(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.12),
-                            Color.white.opacity(0.03),
+                            Color.white.opacity(0.07),
+                            Color.white.opacity(0.02),
                             Color.clear
                         ],
                         startPoint: .topLeading,

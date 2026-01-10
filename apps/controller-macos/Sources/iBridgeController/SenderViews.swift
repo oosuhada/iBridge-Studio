@@ -50,7 +50,7 @@ struct SenderSessionCard: View {
             VStack(alignment: .leading, spacing: 14) {
                 header
                 Divider().opacity(0.65)
-                configurationGrid
+                configurationFields
                 actionRow
             }
         }
@@ -95,92 +95,154 @@ struct SenderSessionCard: View {
         }
     }
 
-    private var configurationGrid: some View {
+    private var configurationFields: some View {
+        ViewThatFits(in: .horizontal) {
+            wideConfiguration
+            compactConfiguration
+        }
+        .textFieldStyle(.roundedBorder)
+    }
+
+    private var wideConfiguration: some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
             GridRow {
-                LabeledField("Receiver") {
-                    TextField("Receiver IP", text: $session.receiverIP)
-                        .frame(minWidth: 220)
-                }
-
-                LabeledField("Display") {
-                    TextField("Virtual display name", text: $session.displayName)
-                        .frame(minWidth: 260)
-                }
+                receiverField
+                displayField
             }
 
             GridRow {
-                LabeledField("Signal preset") {
-                    Picker("Signal preset", selection: $session.signalOptionID) {
-                        ForEach(signalOptions) { option in
-                            Text(option.title).tag(option.id)
-                        }
-                    }
-                    .labelsHidden()
-                    .onChange(of: session.signalOptionID) { _, newValue in
-                        if let option = signalOptions.first(where: { $0.id == newValue }), option.id != "custom" {
-                            session.resolution = option.value
-                        }
-                    }
-                }
-
-                LabeledField("Signal") {
-                    TextField("Resolution", text: $session.resolution)
-                        .disabled(session.signalOptionID != "custom")
-                }
+                signalPresetField
+                signalField
             }
 
             GridRow {
-                LabeledField("Profile") {
-                    TextField("Profile", text: $session.profile)
-                }
-
-                HStack(alignment: .bottom, spacing: 10) {
-                    LabeledField("Bitrate preset") {
-                        Picker("Bitrate", selection: $session.bitrateOptionID) {
-                            ForEach(bitrateOptions) { option in
-                                Text(option.title).tag(option.id)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(minWidth: 220)
-                        .onChange(of: session.bitrateOptionID) { _, newValue in
-                            if let option = bitrateOptions.first(where: { $0.id == newValue }), option.id != "custom" {
-                                session.bitrateMbps = option.value
-                            }
-                        }
-                    }
-
-                    LabeledField("Custom Mbps") {
-                        TextField("Mbps", text: $session.bitrateMbps)
-                            .frame(width: 92)
-                            .disabled(session.bitrateOptionID != "custom")
-                    }
-                }
+                profileField
+                bitrateFields
             }
 
             GridRow {
-                LabeledField("Duration") {
-                    Picker("Duration", selection: $session.durationOptionID) {
-                        ForEach(durationOptions) { option in
-                            Text(option.title).tag(option.id)
-                        }
-                    }
-                    .labelsHidden()
-                    .onChange(of: session.durationOptionID) { _, newValue in
-                        if let option = durationOptions.first(where: { $0.id == newValue }), option.id != "custom" {
-                            session.duration = option.value
-                        }
-                    }
-                }
+                durationField
+                durationSecondsField
+            }
+        }
+        .frame(minWidth: 860, alignment: .leading)
+    }
 
-                LabeledField("Custom seconds") {
-                    TextField("Seconds", text: $session.duration)
-                        .disabled(session.durationOptionID != "custom")
+    private var compactConfiguration: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            receiverField
+            displayField
+            signalPresetField
+            signalField
+            profileField
+            bitrateFields
+            durationField
+            durationSecondsField
+        }
+    }
+
+    private var receiverField: some View {
+        LabeledField("Receiver") {
+            TextField("Receiver IP", text: $session.receiverIP)
+                .frame(minWidth: 220)
+        }
+    }
+
+    private var displayField: some View {
+        LabeledField("Display") {
+            TextField("Virtual display name", text: $session.displayName)
+                .frame(minWidth: 260)
+        }
+    }
+
+    private var signalPresetField: some View {
+        LabeledField("Signal preset") {
+            Picker("Signal preset", selection: $session.signalOptionID) {
+                ForEach(signalOptions) { option in
+                    Text(option.title).tag(option.id)
+                }
+            }
+            .labelsHidden()
+            .onChange(of: session.signalOptionID) { _, newValue in
+                if let option = signalOptions.first(where: { $0.id == newValue }), option.id != "custom" {
+                    session.resolution = option.value
                 }
             }
         }
-        .textFieldStyle(.roundedBorder)
+    }
+
+    private var signalField: some View {
+        LabeledField("Signal") {
+            TextField("Resolution", text: $session.resolution)
+                .disabled(session.signalOptionID != "custom")
+        }
+    }
+
+    private var profileField: some View {
+        LabeledField("Profile") {
+            TextField("Profile", text: $session.profile)
+        }
+    }
+
+    private var bitrateFields: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .bottom, spacing: 10) {
+                bitratePresetField
+                bitrateCustomField
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                bitratePresetField
+                bitrateCustomField
+            }
+        }
+    }
+
+    private var bitratePresetField: some View {
+        LabeledField("Bitrate preset") {
+            Picker("Bitrate", selection: $session.bitrateOptionID) {
+                ForEach(bitrateOptions) { option in
+                    Text(option.title).tag(option.id)
+                }
+            }
+            .labelsHidden()
+            .frame(minWidth: 220)
+            .onChange(of: session.bitrateOptionID) { _, newValue in
+                if let option = bitrateOptions.first(where: { $0.id == newValue }), option.id != "custom" {
+                    session.bitrateMbps = option.value
+                }
+            }
+        }
+    }
+
+    private var bitrateCustomField: some View {
+        LabeledField("Custom Mbps") {
+            TextField("Mbps", text: $session.bitrateMbps)
+                .frame(width: 120)
+                .disabled(session.bitrateOptionID != "custom")
+        }
+    }
+
+    private var durationField: some View {
+        LabeledField("Duration") {
+            Picker("Duration", selection: $session.durationOptionID) {
+                ForEach(durationOptions) { option in
+                    Text(option.title).tag(option.id)
+                }
+            }
+            .labelsHidden()
+            .onChange(of: session.durationOptionID) { _, newValue in
+                if let option = durationOptions.first(where: { $0.id == newValue }), option.id != "custom" {
+                    session.duration = option.value
+                }
+            }
+        }
+    }
+
+    private var durationSecondsField: some View {
+        LabeledField("Custom seconds") {
+            TextField("Seconds", text: $session.duration)
+                .disabled(session.durationOptionID != "custom")
+        }
     }
 
     private var actionRow: some View {
