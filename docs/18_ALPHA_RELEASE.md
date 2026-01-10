@@ -28,7 +28,7 @@ Outputs:
 
 The package includes:
 
-- `iBridge Control.app`
+- `iBridge Studio.app`
 - `iBridge Receiver.app`
 - `bin/ibridge-primary`
 - `Start iBridge Virtual Capture.command`
@@ -50,10 +50,11 @@ xattr -dr com.apple.quarantine "iBridge Receiver.app"
 
 ## Source Mac
 
-Open `iBridge Control.app` on the source Mac for the current lab GUI. The app
-is branded as `iBridge Studio` and is organized around display sessions rather
-than one global sender form. Each session card has receiver setup fields,
-sender signal/profile fields, and independent start/stop controls.
+Open `iBridge Studio.app` on the source Mac for the current lab GUI. The app is
+organized around display sessions rather than one global sender form. Each
+session card has receiver setup fields, sender signal/profile fields, and
+independent start/stop controls. The app also installs a menu bar extra so the
+main window can be closed while quick actions remain available.
 
 Current built-in presets:
 
@@ -63,6 +64,11 @@ Current built-in presets:
 
 Use `Add Session` to create a second iMac session before running two receivers
 at once. This is the intended GUI path for the MacBook Pro plus two-iMac lab.
+
+If a terminal, browser, or app window is stranded on a virtual display after the
+receiver window closes, use `Restore Windows` in the app or menu bar. This
+tries to move visible app windows back to the MacBook display area and requires
+macOS Accessibility permission for `iBridge Studio`.
 
 The command helpers below remain useful for debugging and repeatable benchmark
 runs.
