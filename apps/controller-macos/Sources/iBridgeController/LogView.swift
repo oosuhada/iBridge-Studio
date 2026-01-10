@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct LogTab: View {
@@ -17,13 +18,20 @@ struct LogTab: View {
                 Spacer()
 
                 Button {
-                    model.log = "Ready.\n"
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(model.logText, forType: .string)
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
+
+                Button {
+                    model.clearLog()
                 } label: {
                     Label("Clear", systemImage: "xmark.circle")
                 }
             }
 
-            TextEditor(text: $model.log)
+            TextEditor(text: .constant(model.logText))
                 .font(.system(.caption, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))

@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RECEIVER_SSH="${RECEIVER_SSH:-oosu@100.84.32.31}"
+RECEIVER_SSH="${RECEIVER_SSH:-}"
 RECEIVER_KEY="${RECEIVER_KEY:-$HOME/.ssh/ibridge_imac_ed25519}"
-REMOTE_REPO="${REMOTE_REPO:-/Users/oosu/development/iBridge-Studio}"
+REMOTE_REPO="${REMOTE_REPO:-}"
 PORT="${PORT:-48320}"
 TITLE="${TITLE:-iBridge Studio 2015 Receiver}"
 FULLSCREEN="${FULLSCREEN:-1}"
 SHOW_STATUS="${SHOW_STATUS:-0}"
+
+if [[ -z "$RECEIVER_SSH" ]]; then
+  echo "Set RECEIVER_SSH=user@host before running this helper." >&2
+  exit 64
+fi
+
+if [[ -z "$REMOTE_REPO" ]]; then
+  echo "Set REMOTE_REPO to the iBridge-Studio checkout path on the receiver Mac." >&2
+  exit 64
+fi
 
 fullscreen_arg=()
 if [[ "$FULLSCREEN" == "1" || "$FULLSCREEN" == "true" ]]; then
@@ -24,7 +34,7 @@ ssh -i "$RECEIVER_KEY" "$RECEIVER_SSH" "
   mkdir -p ~/ibridge-remote
   cd '$REMOTE_REPO'
   git fetch origin
-  git checkout feat/plan-a-5k60-benchmark
+  git checkout deploy
   git pull --ff-only
   swift build --package-path apps/receiver-macos -c release
   pkill -f ibridge-receiver-macos 2>/dev/null || true

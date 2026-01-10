@@ -118,6 +118,44 @@ struct MenuBarView: View {
 
         Divider()
 
+        if model.sessions.isEmpty {
+            Text("No sender sessions")
+        } else {
+            ForEach(model.sessions) { session in
+                if model.isSenderRunning(session) {
+                    Button {
+                        model.stopSender(session)
+                    } label: {
+                        Label("Stop \(session.name)", systemImage: "stop.fill")
+                    }
+                } else {
+                    Button {
+                        model.startSender(session)
+                    } label: {
+                        Label("Start \(session.name)", systemImage: "play.fill")
+                    }
+                }
+            }
+        }
+
+        Divider()
+
+        if model.localReceiverRunning {
+            Button {
+                model.stopLocalReceiver()
+            } label: {
+                Label("Stop Receiver :\(model.receiverPort)", systemImage: "stop.fill")
+            }
+        } else {
+            Button {
+                model.startLocalReceiver()
+            } label: {
+                Label("Start Receiver :\(model.receiverPort)", systemImage: "play.rectangle")
+            }
+        }
+
+        Divider()
+
         Button("Refresh Displays") {
             model.listDisplays()
         }

@@ -1,35 +1,68 @@
 import Combine
 import Foundation
 
+enum LogLevel: String {
+    case info = "INFO"
+    case warning = "WARN"
+    case error = "ERROR"
+}
+
+struct LogEntry: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let level: LogLevel
+    let message: String
+
+    var formattedLine: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return "[\(formatter.string(from: timestamp))] [\(level.rawValue)] \(message)"
+    }
+}
+
 @MainActor
 final class ControllerModel: ObservableObject {
     @Published var sessions: [DisplaySession] {
         didSet {
             refreshSessionObservers()
-            saveState()
+            saveStateSoon()
         }
     }
     @Published var receiverPort: String {
-        didSet { saveState() }
+        didSet { saveStateSoon() }
     }
     @Published var receiverTitle: String {
-        didSet { saveState() }
+        didSet { saveStateSoon() }
     }
-    @Published var log = "Ready.\n"
+    @Published private(set) var logEntries: [LogEntry] = [
+        LogEntry(timestamp: Date(), level: .info, message: "Ready.")
+    ]
     @Published var runningSenderIDs = Set<UUID>()
     @Published var busyReceiverIDs = Set<UUID>()
+    @Published var localReceiverRunning = false
+    @Published var remoteReceiverLastStartedAt: [UUID: Date] = [:]
     @Published var isListingDisplays = false
     @Published var selectedTab: StudioTab {
-        didSet { saveState() }
+        didSet { saveStateSoon() }
     }
 
     private var senderProcesses: [UUID: Process] = [:]
     private var receiverProcesses: [UUID: Process] = [:]
+    private var localReceiverProcess: Process?
     private var sessionCancellables: [UUID: AnyCancellable] = [:]
+    private var saveStateTask: Task<Void, Never>?
     private var isLoadingState = false
-    private static let defaultsKey = "dev.oosu.iBridgeStudio.control.state.v1"
-    private static let legacyDefaultsKey = "dev.oosu.iBridge.control.state.v1"
+    private static let defaultsKey = "dev.oosu.iBridgeStudio.control.state.v2"
+    private static let legacyDefaultsKeys = [
+        "dev.oosu.iBridgeStudio.control.state.v1",
+        "dev.oosu.iBridge.control.state.v1"
+    ]
     private let defaultsKey = ControllerModel.defaultsKey
+    private let maxLogEntries = 2_000
+
+    var logText: String {
+        logEntries.map(\.formattedLine).joined(separator: "\n") + "\n"
+    }
 
     init() {
         if let state = Self.loadState() {
@@ -107,12 +140,14 @@ final class ControllerModel: ObservableObject {
         let keyPrefix = session.receiverKey.isEmpty ? "" : "RECEIVER_KEY=\(session.receiverKey) "
         let command = "\(keyPrefix)\(session.receiverScript)"
         append("Starting remote receiver: \(session.name)")
+        remoteReceiverLastStartedAt[session.id] = Date()
         receiverProcesses[session.id] = runOneShot(
             command: command,
             label: "\(session.name) Receiver"
         ) { [weak self, weak session] in
             guard let session else { return }
             self?.busyReceiverIDs.remove(session.id)
+            self?.receiverProcesses[session.id] = nil
         }
     }
 
@@ -150,6 +185,7 @@ final class ControllerModel: ObservableObject {
 
     func startLocalReceiver() {
         saveState()
+        stopLocalReceiver()
         let command = """
         \(receiverCommand()) \
         --port '\(shellEscape(receiverPort))' \
@@ -158,7 +194,19 @@ final class ControllerModel: ObservableObject {
         --title '\(shellEscape(receiverTitle))'
         """
         append("Starting local receiver.")
-        runOneShot(command: command, label: "Local Receiver")
+        localReceiverRunning = true
+        localReceiverProcess = runOneShot(command: command, label: "Local Receiver") { [weak self] in
+            self?.localReceiverRunning = false
+            self?.localReceiverProcess = nil
+        }
+    }
+
+    func stopLocalReceiver() {
+        guard let process = localReceiverProcess else { return }
+        append("Stopping local receiver.")
+        process.terminate()
+        localReceiverProcess = nil
+        localReceiverRunning = false
     }
 
     func startSender(_ session: DisplaySession) {
@@ -249,13 +297,18 @@ final class ControllerModel: ObservableObject {
     private func makeProcess(command: String, label: String) -> Process {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", "cd '\(repoRoot.path)' && \(command)"]
+        process.currentDirectoryURL = repoRoot
+        process.arguments = ["-lc", command]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            guard !data.isEmpty else {
+                handle.readabilityHandler = nil
+                return
+            }
+            guard let text = String(data: data, encoding: .utf8) else { return }
             Task { @MainActor in
                 self?.appendOutput(text, label: label)
             }
@@ -266,12 +319,21 @@ final class ControllerModel: ObservableObject {
     private func appendOutput(_ text: String, label: String) {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
         for line in lines where !line.isEmpty {
-            log += "[\(label)] \(line)\n"
+            append("[\(label)] \(line)")
         }
     }
 
-    private func append(_ text: String) {
-        log += text.hasSuffix("\n") ? text : "\(text)\n"
+    func clearLog() {
+        logEntries = [LogEntry(timestamp: Date(), level: .info, message: "Ready.")]
+    }
+
+    private func append(_ text: String, level: LogLevel = .info) {
+        let cleanText = text.trimmingCharacters(in: .newlines)
+        guard !cleanText.isEmpty else { return }
+        logEntries.append(LogEntry(timestamp: Date(), level: level, message: cleanText))
+        if logEntries.count > maxLogEntries {
+            logEntries.removeFirst(logEntries.count - maxLogEntries)
+        }
     }
 
     private func shellEscape(_ value: String) -> String {
@@ -286,8 +348,10 @@ final class ControllerModel: ObservableObject {
         return """
         WAKE_MAC='\(shellEscape(session.wakeMAC))' \
         WAKE_BROADCAST='\(shellEscape(session.wakeBroadcast))' \
+        WAKE_WAIT_HOST='\(shellEscape(session.receiverIP))' \
+        WAKE_WAIT_PORT='\(shellEscape(receiverPort))' \
+        WAKE_WAIT_TIMEOUT='15' \
         scripts/wake_receiver.sh || true;
-        sleep 2;
         """
     }
 
@@ -326,14 +390,27 @@ final class ControllerModel: ObservableObject {
     }
 
     private func saveStateSoon() {
-        Task { @MainActor in
-            saveState()
+        guard !isLoadingState else { return }
+        saveStateTask?.cancel()
+        saveStateTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.saveState()
+            }
         }
+    }
+
+    private func saveStateNow() {
+        saveStateTask?.cancel()
+        saveStateTask = nil
+        saveState()
     }
 
     private func saveState() {
         guard !isLoadingState else { return }
         let state = StoredControllerState(
+            schemaVersion: StoredControllerState.currentSchemaVersion,
             selectedTab: selectedTab.rawValue,
             receiverPort: receiverPort,
             receiverTitle: receiverTitle,
@@ -345,9 +422,31 @@ final class ControllerModel: ObservableObject {
 
     private static func loadState() -> StoredControllerState? {
         let defaults = UserDefaults.standard
-        guard let data = defaults.data(forKey: defaultsKey) ?? defaults.data(forKey: legacyDefaultsKey) else {
-            return nil
+        let candidateKeys = [defaultsKey] + legacyDefaultsKeys
+        for key in candidateKeys {
+            guard let data = defaults.data(forKey: key),
+                  let state = try? JSONDecoder().decode(StoredControllerState.self, from: data) else {
+                continue
+            }
+            return migrate(state)
         }
-        return try? JSONDecoder().decode(StoredControllerState.self, from: data)
+        return nil
+    }
+
+    private static func migrate(_ state: StoredControllerState) -> StoredControllerState {
+        guard state.schemaVersion < StoredControllerState.currentSchemaVersion else {
+            return state
+        }
+        return StoredControllerState(
+            schemaVersion: StoredControllerState.currentSchemaVersion,
+            selectedTab: state.selectedTab,
+            receiverPort: state.receiverPort,
+            receiverTitle: state.receiverTitle,
+            sessions: state.sessions
+        )
+    }
+
+    deinit {
+        saveStateTask?.cancel()
     }
 }

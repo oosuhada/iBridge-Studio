@@ -4,6 +4,9 @@ set -euo pipefail
 WAKE_MAC="${WAKE_MAC:-}"
 WAKE_BROADCAST="${WAKE_BROADCAST:-255.255.255.255}"
 WAKE_PORT="${WAKE_PORT:-9}"
+WAKE_WAIT_HOST="${WAKE_WAIT_HOST:-}"
+WAKE_WAIT_PORT="${WAKE_WAIT_PORT:-48320}"
+WAKE_WAIT_TIMEOUT="${WAKE_WAIT_TIMEOUT:-0}"
 
 if [[ -z "$WAKE_MAC" ]]; then
   echo "No Wake MAC configured." >&2
@@ -38,3 +41,17 @@ if sent == 0:
     print("No Wake broadcast targets configured.", file=sys.stderr)
     sys.exit(2)
 PY
+
+if [[ -n "$WAKE_WAIT_HOST" && "$WAKE_WAIT_TIMEOUT" != "0" ]]; then
+  echo "waiting for $WAKE_WAIT_HOST:$WAKE_WAIT_PORT for up to ${WAKE_WAIT_TIMEOUT}s"
+  deadline=$((SECONDS + WAKE_WAIT_TIMEOUT))
+  while (( SECONDS < deadline )); do
+    if nc -G 1 -z "$WAKE_WAIT_HOST" "$WAKE_WAIT_PORT" >/dev/null 2>&1; then
+      echo "$WAKE_WAIT_HOST:$WAKE_WAIT_PORT is reachable"
+      exit 0
+    fi
+    sleep 1
+  done
+  echo "receiver port did not become reachable before timeout" >&2
+  exit 1
+fi

@@ -42,6 +42,7 @@ struct SenderTab: View {
 struct SenderSessionCard: View {
     @EnvironmentObject private var model: ControllerModel
     @ObservedObject var session: DisplaySession
+    @State private var advancedSettingsExpanded = false
 
     var body: some View {
         GlassPanel {
@@ -92,23 +93,22 @@ struct SenderSessionCard: View {
     }
 
     private var configurationFields: some View {
-        ViewThatFits(in: .horizontal) {
-            wideConfiguration
-            compactConfiguration
+        VStack(alignment: .leading, spacing: 12) {
+            basicConfiguration
+
+            DisclosureGroup("Advanced Settings", isExpanded: $advancedSettingsExpanded) {
+                advancedConfiguration
+                    .padding(.top, 10)
+            }
         }
         .textFieldStyle(.roundedBorder)
     }
 
-    private var wideConfiguration: some View {
+    private var basicConfiguration: some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
             GridRow {
-                receiverField
-                discoveryField
-            }
-
-            GridRow {
+                connectionFields
                 displayField
-                profileField
             }
 
             GridRow {
@@ -118,12 +118,21 @@ struct SenderSessionCard: View {
 
             GridRow {
                 bitrateFields
+                cursorField
+            }
+        }
+    }
+
+    private var advancedConfiguration: some View {
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
+            GridRow {
+                profileField
                 durationField
             }
 
             GridRow {
-                cursorField
                 durationSecondsField
+                EmptyView()
             }
 
             GridRow {
@@ -150,9 +159,20 @@ struct SenderSessionCard: View {
     }
 
     private var receiverField: some View {
-        LabeledField("Receiver") {
+        LabeledField("Receiver IP") {
             TextField("Receiver IP", text: $session.receiverIP)
                 .frame(minWidth: 220)
+        }
+    }
+
+    private var connectionFields: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            receiverField
+            if !session.discoveryHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Discovery host is tried first; Receiver IP is the manual fallback.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -238,13 +258,14 @@ struct SenderSessionCard: View {
     }
 
     private var durationField: some View {
-        LabeledField("Duration") {
-            Picker("Duration", selection: $session.durationOptionID) {
+        LabeledField("Session timeout") {
+            Picker("Session timeout", selection: $session.durationOptionID) {
                 ForEach(durationOptions) { option in
                     Text(option.title).tag(option.id)
                 }
             }
             .labelsHidden()
+            .help("The sender stops automatically after this time.")
             .onChange(of: session.durationOptionID) { _, newValue in
                 if let option = durationOptions.first(where: { $0.id == newValue }), option.id != "custom" {
                     session.duration = option.value

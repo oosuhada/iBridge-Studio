@@ -59,7 +59,7 @@ Target Display Mode를 지원하지 않는 Retina iMac과 Apple Silicon iMac을 
 - iBridge Studio signal: `5120x2880`
 - Bitrate: `280 Mbps`
 - Profile: `lan-60hz`
-- 현재 직접 Ethernet IP 예시: `169.254.99.112`
+- Receiver IP는 각 iMac의 로컬 네트워크 설정에 맞게 직접 입력합니다.
 
 ### 2017 21.5-inch 4K iMac
 
@@ -81,8 +81,8 @@ scripts/package_macos_alpha.sh
 생성물:
 
 ```text
-dist/iBridge-Studio-0.1.0-alpha/
-dist/iBridge-Studio-0.1.0-alpha.zip
+dist/iBridge-Studio-0.1.1-alpha/
+dist/iBridge-Studio-0.1.1-alpha.zip
 ```
 
 패키지 안에는 다음이 들어갑니다.
@@ -98,25 +98,20 @@ dist/iBridge-Studio-0.1.0-alpha.zip
 
 패키지 zip을 각 iMac에 보냅니다.
 
-2015 iMac Ethernet 예시:
+예시:
 
 ```bash
-scp dist/iBridge-Studio-0.1.0-alpha.zip oosu@169.254.99.112:~/Desktop/
-```
-
-2017 iMac Tailscale/SSH 예시:
-
-```bash
-scp dist/iBridge-Studio-0.1.0-alpha.zip gabrieljang@100.89.104.119:~/Desktop/
+scp dist/iBridge-Studio-0.1.1-alpha.zip user@receiver-host:~/Desktop/
 ```
 
 iMac에서:
 
 ```bash
 cd ~/Desktop
-unzip -o iBridge-Studio-0.1.0-alpha.zip
-xattr -dr com.apple.quarantine iBridge-Studio-0.1.0-alpha
-open "iBridge-Studio-0.1.0-alpha/iBridge Studio.app"
+rm -rf iBridge-Studio-0.1.0-alpha iBridge-Studio-0.1.0-alpha.zip
+unzip -o iBridge-Studio-0.1.1-alpha.zip
+xattr -dr com.apple.quarantine iBridge-Studio-0.1.1-alpha
+open "iBridge-Studio-0.1.1-alpha/iBridge Studio.app"
 ```
 
 Receiver 전용으로만 쓸 때도 같은 `iBridge Studio.app`를 실행하면 됩니다. 앱 안의 `Receiver` 탭에서 `Start Receiver on This Mac`을 누릅니다.
@@ -236,7 +231,7 @@ git clone https://github.com/oosuhada/iBridge-Studio.git
 cd iBridge-Studio
 git checkout deploy
 scripts/package_macos_alpha.sh
-open "dist/iBridge-Studio-0.1.0-alpha/iBridge Studio.app"
+open "dist/iBridge-Studio-0.1.1-alpha/iBridge Studio.app"
 ```
 
 iMac은 zip을 받아서 같은 앱을 실행하고 Receiver 탭만 쓰면 됩니다.
@@ -249,7 +244,7 @@ swift build --package-path apps/receiver-macos -c release
 swift build --package-path apps/controller-macos -c release
 python3 apps/shared-protocol/test_protocol_v0.py
 scripts/package_macos_alpha.sh
-codesign --verify --deep --strict "dist/iBridge-Studio-0.1.0-alpha/iBridge Studio.app"
+codesign --verify --deep --strict "dist/iBridge-Studio-0.1.1-alpha/iBridge Studio.app"
 ```
 
 ## 현재 한계

@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REMOTE_HOST="${REMOTE_HOST:-gabrieljang@100.89.104.119}"
+REMOTE_HOST="${REMOTE_HOST:-}"
 REMOTE_DIR="${REMOTE_DIR:-~/ibridge-remote/latest}"
 PORT="${PORT:-48320}"
 TITLE="${TITLE:-iBridge Studio 4K60 Receiver}"
 LOCAL_BIN="${LOCAL_BIN:-apps/receiver-macos/.build/x86_64-apple-macosx/release/ibridge-receiver-macos}"
+
+if [[ -z "$REMOTE_HOST" ]]; then
+  echo "Set REMOTE_HOST=user@host before running this helper." >&2
+  exit 64
+fi
 
 if [[ ! -x "$LOCAL_BIN" ]]; then
   swift build --package-path apps/receiver-macos -c release --arch x86_64

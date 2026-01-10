@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RECEIVER_IP="${RECEIVER_IP:-100.84.32.31}"
+RECEIVER_IP="${RECEIVER_IP:-}"
 RECEIVER_PORT="${RECEIVER_PORT:-48320}"
-RECEIVER_SSH="${RECEIVER_SSH:-oosu@100.84.32.31}"
+RECEIVER_SSH="${RECEIVER_SSH:-}"
 RECEIVER_KEY="${RECEIVER_KEY:-$HOME/.ssh/ibridge_imac_ed25519}"
 RESOLUTION="${RESOLUTION:-1920x1080}"
 FPS="${FPS:-30}"
@@ -13,6 +13,11 @@ SENDER_QUEUE_DEPTH="${SENDER_QUEUE_DEPTH:-8}"
 CAPTURE_DISPLAY_INDEX="${CAPTURE_DISPLAY_INDEX:-1}"
 CAPTURE_QUEUE_DEPTH="${CAPTURE_QUEUE_DEPTH:-4}"
 RUN_ROOT="${RUN_ROOT:-benchmarks/runs/$(date +%Y-%m-%d_%H%M)_mba_to_2015_imac_live_capture}"
+
+if [[ -z "$RECEIVER_IP" ]]; then
+  echo "Set RECEIVER_IP before running this helper." >&2
+  exit 64
+fi
 
 mkdir -p "$RUN_ROOT"
 swift build --package-path apps/primary-macos -c release
