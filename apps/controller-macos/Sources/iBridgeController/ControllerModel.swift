@@ -133,7 +133,12 @@ final class ControllerModel: ObservableObject {
         saveState()
         stopSender(session)
         let command = """
-        RECEIVER_IP='\(shellEscape(session.receiverIP))' \
+        RESOLVED_RECEIVER_IP="$(RECEIVER_IP='\(shellEscape(session.receiverIP))' \
+        RECEIVER_DISCOVERY_HOST='\(shellEscape(session.discoveryHost))' \
+        RECEIVER_KEY='\(shellEscape(expandedPath(session.receiverKey)))' \
+        RECEIVER_PORT='\(shellEscape(receiverPort))' \
+        scripts/resolve_receiver_ip.sh)" && \
+        RECEIVER_IP="$RESOLVED_RECEIVER_IP" \
         CAPTURE_DISPLAY_NAME='\(shellEscape(session.displayName))' \
         PROFILE='\(shellEscape(session.profile))' \
         RESOLUTION='\(shellEscape(session.resolution))' \
@@ -237,6 +242,13 @@ final class ControllerModel: ObservableObject {
 
     private func shellEscape(_ value: String) -> String {
         value.replacingOccurrences(of: "'", with: "'\\''")
+    }
+
+    private func expandedPath(_ value: String) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return value
+            .replacingOccurrences(of: "$HOME", with: home)
+            .replacingOccurrences(of: "~", with: home, options: [.anchored])
     }
 
     private func primaryCommand() -> String {

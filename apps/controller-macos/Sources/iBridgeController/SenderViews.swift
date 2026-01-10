@@ -103,7 +103,12 @@ struct SenderSessionCard: View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
             GridRow {
                 receiverField
+                discoveryField
+            }
+
+            GridRow {
                 displayField
+                profileField
             }
 
             GridRow {
@@ -112,12 +117,11 @@ struct SenderSessionCard: View {
             }
 
             GridRow {
-                profileField
                 bitrateFields
+                durationField
             }
 
             GridRow {
-                durationField
                 durationSecondsField
             }
         }
@@ -127,10 +131,11 @@ struct SenderSessionCard: View {
     private var compactConfiguration: some View {
         VStack(alignment: .leading, spacing: 12) {
             receiverField
+            discoveryField
             displayField
+            profileField
             signalPresetField
             signalField
-            profileField
             bitrateFields
             durationField
             durationSecondsField
@@ -140,6 +145,13 @@ struct SenderSessionCard: View {
     private var receiverField: some View {
         LabeledField("Receiver") {
             TextField("Receiver IP", text: $session.receiverIP)
+                .frame(minWidth: 220)
+        }
+    }
+
+    private var discoveryField: some View {
+        LabeledField("Discovery host") {
+            TextField("SSH host or user@host", text: $session.discoveryHost)
                 .frame(minWidth: 220)
         }
     }
