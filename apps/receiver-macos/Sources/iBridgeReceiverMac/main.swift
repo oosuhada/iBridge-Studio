@@ -690,6 +690,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var localEventMonitor: Any?
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
+    private let pointerEdgeTolerance: CGFloat = 32
 
     init(options: Options) {
         self.options = options
@@ -787,8 +788,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func routeTappedPointer(type: CGEventType, location: CGPoint, button: Int, modifiers: UInt64) {
         guard let window else { return }
-        guard let cgFrame = cgWindowFrame(for: window) else { return }
-        if !cgFrame.contains(location) {
+        guard let cgFrame = cgInputFrame(for: window) else { return }
+        let hitFrame = cgFrame.insetBy(dx: -pointerEdgeTolerance, dy: -pointerEdgeTolerance)
+        if !hitFrame.contains(location) {
             logLine("receiver_event_tap_outside type=\(type.rawValue) x=\(String(format: "%.1f", location.x)) y=\(String(format: "%.1f", location.y))")
             return
         }
@@ -805,16 +807,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         default:
             return
         }
-        let normalizedX = Double((location.x - cgFrame.minX) / max(cgFrame.width, 1))
-        let normalizedY = Double((location.y - cgFrame.minY) / max(cgFrame.height, 1))
+        let clampedX = min(max(location.x, cgFrame.minX), cgFrame.maxX)
+        let clampedY = min(max(location.y, cgFrame.minY), cgFrame.maxY)
+        let normalizedX = Double((clampedX - cgFrame.minX) / max(cgFrame.width, 1))
+        let normalizedY = Double((clampedY - cgFrame.minY) / max(cgFrame.height, 1))
         receiver.routeNormalizedPointer(phase, x: normalizedX, y: normalizedY, button: button, modifiers: modifiers)
+    }
+
+    private func cgInputFrame(for window: NSWindow) -> CGRect? {
+        if window.styleMask.contains(.fullScreen), let screen = window.screen ?? NSScreen.main {
+            return cgScreenFrame(for: screen)
+        }
+        return cgWindowFrame(for: window)
+    }
+
+    private func cgScreenFrame(for screen: NSScreen) -> CGRect {
+        let mainMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? screen.frame.maxY
+        return CGRect(
+            x: screen.frame.minX,
+            y: mainMaxY - screen.frame.maxY,
+            width: screen.frame.width,
+            height: screen.frame.height
+        )
     }
 
     private func cgWindowFrame(for window: NSWindow) -> CGRect? {
         guard let screen = window.screen ?? NSScreen.main else { return nil }
-        let screenFrame = screen.frame
+        let mainMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? screen.frame.maxY
         let windowFrame = window.frame
-        let originY = screenFrame.maxY - windowFrame.maxY
+        let originY = mainMaxY - windowFrame.maxY
         return CGRect(
             x: windowFrame.minX,
             y: originY,
