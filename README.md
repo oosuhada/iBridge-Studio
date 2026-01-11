@@ -2,13 +2,13 @@
 
 iBridge Studio는 Target Display Mode가 지원되지 않는 iMac을 MacBook의 소프트웨어 Retina display처럼 다시 쓰기 위한 macOS alpha 앱입니다.
 
-## 왜 만들었나 / Why I built it
+## Why I Built It / 만든 이유
 
-Apple의 5K 디스플레이는 새로 사려면 상당히 비싼데, 집에 있는 구형 27-inch 5K iMac은 패널 자체가 여전히 훌륭합니다. 그런데 Apple이 해당 세대에서 Target Display Mode를 지원하지 않기 때문에, 멀쩡한 5K 화면을 MacBook의 외장 모니터로 쓰지 못하는 점이 아까웠습니다.
+Developing on a MacBook created a clear need for an external display that matched its sharp 5K Retina resolution. Rather than simply purchasing an expensive Apple 5K display, I realized I could repurpose the 5K iMac I already owned — and built a software solution to bypass the discontinued Target Display Mode on older iMacs.
 
-그래서 새 모니터를 하나 더 사기보다 **이미 가진 하드웨어를 다시 활용할 방법을 직접 만들어보자**는 생각으로 시작했습니다. 단순한 비용 절감뿐 아니라, 충분히 쓸 수 있는 고해상도 디스플레이를 버리지 않고 수명을 늘린다는 점에서 지속가능성과 재활용의 의미도 있는 프로젝트라고 생각합니다.
+MacBook 환경에서 개발하면서 내장 화면만큼 선명한 5K 고화질 외장 모니터에 대한 니즈가 있었습니다. 고가의 Apple 5K 디스플레이를 구매하기보다, 집에 이미 가지고 있던 5K iMac 패널을 직접 활용할 수 있겠다는 생각이 들었습니다. 공식 지원이 끊긴 구형 iMac의 Target Display Mode 문제를 소프트웨어 방식으로 직접 해결해 외장 모니터로 재탄생시켰습니다.
 
-The project started from a simple mismatch: an older 27-inch 5K iMac still has an excellent display, but without Target Display Mode it cannot be used as a normal MacBook monitor. Rather than replace a perfectly useful panel with another expensive 5K display, I wanted to reuse the hardware I already owned and extend its useful life through software.
+### How It Works / 작동 방식
 
 한 앱인 `iBridge Studio.app`를 MacBook과 iMac에 모두 설치합니다. MacBook에서는 Sender가 BetterDisplay virtual display를 캡처하고, iMac에서는 Receiver가 전체 화면으로 수신 영상을 표시합니다.
 
