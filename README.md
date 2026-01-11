@@ -177,3 +177,7 @@ iBridge Cursor Overlay 모드는 mouse cursor를 영상 frame에 굽지 않습�
 - Developer ID signing과 notarization은 인증서가 있는 머신에서만 완료됩니다.
 - 5K60 완전 네이티브 품질은 네트워크, encoder, receiver decode 상태에 따라 달라집니다.
 - Bonjour/mDNS discovery, adaptive bitrate, polished onboarding, auto update는 다음 단계입니다.
+
+## Topics
+
+[`external-display`](https://github.com/topics/external-display) · [`hevc`](https://github.com/topics/hevc) · [`macos`](https://github.com/topics/macos) · [`screen-streaming`](https://github.com/topics/screen-streaming) · [`screencapturekit`](https://github.com/topics/screencapturekit) · [`swift`](https://github.com/topics/swift) · [`tcp`](https://github.com/topics/tcp) · [`videotoolbox`](https://github.com/topics/videotoolbox)
