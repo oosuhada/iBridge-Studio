@@ -178,6 +178,16 @@ iBridge Cursor Overlay 모드는 mouse cursor를 영상 frame에 굽지 않습�
 - 5K60 완전 네이티브 품질은 네트워크, encoder, receiver decode 상태에 따라 달라집니다.
 - Bonjour/mDNS discovery, adaptive bitrate, polished onboarding, auto update는 다음 단계입니다.
 
-## Topics
+## Architecture & Topics / 아키텍처 및 주제
 
-[`external-display`](https://github.com/topics/external-display) · [`hevc`](https://github.com/topics/hevc) · [`macos`](https://github.com/topics/macos) · [`screen-streaming`](https://github.com/topics/screen-streaming) · [`screencapturekit`](https://github.com/topics/screencapturekit) · [`swift`](https://github.com/topics/swift) · [`tcp`](https://github.com/topics/tcp) · [`videotoolbox`](https://github.com/topics/videotoolbox) · [`desktop-app`](https://github.com/topics/desktop-app) · [`screen-capture`](https://github.com/topics/screen-capture) · [`video-streaming`](https://github.com/topics/video-streaming) · [`low-latency`](https://github.com/topics/low-latency) · [`apple-silicon`](https://github.com/topics/apple-silicon) · [`network-programming`](https://github.com/topics/network-programming) · [`macos-app`](https://github.com/topics/macos-app) · [`peer-to-peer`](https://github.com/topics/peer-to-peer)
+**Architecture / 아키텍처**<br>
+[`peer-to-peer-architecture`](https://github.com/topics/peer-to-peer-architecture) · [`streaming-pipeline`](https://github.com/topics/streaming-pipeline) · [`hardware-accelerated-encoding`](https://github.com/topics/hardware-accelerated-encoding) · [`low-latency-streaming`](https://github.com/topics/low-latency-streaming) · [`backpressure`](https://github.com/topics/backpressure) · [`frame-pacing`](https://github.com/topics/frame-pacing) · [`binary-protocol`](https://github.com/topics/binary-protocol) · [`connection-lifecycle`](https://github.com/topics/connection-lifecycle) · [`producer-consumer`](https://github.com/topics/producer-consumer) · [`screen-capture-pipeline`](https://github.com/topics/screen-capture-pipeline)
+
+**Core technologies / 핵심 기술**<br>
+[`screencapturekit`](https://github.com/topics/screencapturekit) · [`videotoolbox`](https://github.com/topics/videotoolbox) · [`hevc`](https://github.com/topics/hevc)
+
+**Project context / 프로젝트 맥락**<br>
+[`apple-silicon`](https://github.com/topics/apple-silicon) · [`desktop-app`](https://github.com/topics/desktop-app) · [`external-display`](https://github.com/topics/external-display) · [`low-latency`](https://github.com/topics/low-latency) · [`macos`](https://github.com/topics/macos) · [`macos-app`](https://github.com/topics/macos-app) · [`network-programming`](https://github.com/topics/network-programming) · [`peer-to-peer`](https://github.com/topics/peer-to-peer) · [`screen-capture`](https://github.com/topics/screen-capture) · [`screen-streaming`](https://github.com/topics/screen-streaming) · [`tcp`](https://github.com/topics/tcp) · [`video-streaming`](https://github.com/topics/video-streaming)
+
+**Implementation stack / 구현 스택**<br>
+[`swift`](https://github.com/topics/swift)
