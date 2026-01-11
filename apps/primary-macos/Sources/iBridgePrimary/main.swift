@@ -150,7 +150,7 @@ final class InputEventInjector: @unchecked Sendable {
         event.post(tap: .cghidEventTap)
     }
 
-    func cursorOverlayPayload() -> Data? {
+    func cursorOverlayPayload(visibleOverlay: Bool, forceHeartbeat: Bool = false) -> Data? {
         let snapshot: (CGRect, Bool) = {
             lock.lock()
             defer { lock.unlock() }
@@ -160,9 +160,12 @@ final class InputEventInjector: @unchecked Sendable {
         let frame = snapshot.0
         guard frame.width > 0, frame.height > 0 else { return nil }
         let location = CGEvent(source: nil)?.location ?? NSEvent.mouseLocation
-        let visible = frame.contains(location)
+        let visible = visibleOverlay && frame.contains(location)
         let normalizedX = visible ? min(max((location.x - frame.minX) / frame.width, 0), 1) : 0
         let normalizedY = visible ? min(max((location.y - frame.minY) / frame.height, 0), 1) : 0
+        if !visible && !forceHeartbeat && visibleOverlay {
+            return Data("0.000000 0.000000 0\n".utf8)
+        }
         return Data(String(format: "%.6f %.6f %d\n", Double(normalizedX), Double(normalizedY), visible ? 1 : 0).utf8)
     }
 
@@ -413,7 +416,8 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
     private let onSent: (UInt64, Double, Int, Double, UInt32, Bool) -> Void
     private let onDropped: (UInt64) -> Void
     private let inputInjector: InputEventInjector?
-    private let cursorOverlayEnabled: Bool
+    private let cursorOverlayVisible: Bool
+    private let cursorHeartbeatEnabled: Bool
 
     init(
         host: String,
@@ -424,7 +428,8 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         codec: String,
         maxDepth: Int,
         inputInjector: InputEventInjector?,
-        cursorOverlayEnabled: Bool,
+        cursorOverlayVisible: Bool,
+        cursorHeartbeatEnabled: Bool,
         onSent: @escaping (UInt64, Double, Int, Double, UInt32, Bool) -> Void,
         onDropped: @escaping (UInt64) -> Void
     ) throws {
@@ -437,7 +442,8 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         self.onSent = onSent
         self.onDropped = onDropped
         self.inputInjector = inputInjector
-        self.cursorOverlayEnabled = cursorOverlayEnabled
+        self.cursorOverlayVisible = cursorOverlayVisible
+        self.cursorHeartbeatEnabled = cursorHeartbeatEnabled
 
         fd = socket(AF_INET, SOCK_STREAM, 0)
         guard fd >= 0 else {
@@ -494,7 +500,7 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
                 self?.runInputReader()
             }
         }
-        if cursorOverlayEnabled, inputInjector != nil {
+        if cursorHeartbeatEnabled, inputInjector != nil {
             DispatchQueue.global(qos: .userInteractive).async { [weak self] in
                 self?.runCursorOverlayWorker()
             }
@@ -650,11 +656,15 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
 
     private func runCursorOverlayWorker() {
         var lastPayload = Data()
+        var lastSentAt = UInt64(0)
         while !isStopping() {
-            if let payload = inputInjector?.cursorOverlayPayload(), payload != lastPayload {
+            let shouldHeartbeat = DispatchTime.now().uptimeNanoseconds - lastSentAt > 1_000_000_000
+            if let payload = inputInjector?.cursorOverlayPayload(visibleOverlay: cursorOverlayVisible, forceHeartbeat: shouldHeartbeat),
+               payload != lastPayload || shouldHeartbeat {
                 do {
                     try sendCursorOverlayPacket(payload: payload)
                     lastPayload = payload
+                    lastSentAt = DispatchTime.now().uptimeNanoseconds
                 } catch {
                     fputs("cursor overlay send failed: \(error)\n", stderr)
                     return
@@ -1457,7 +1467,8 @@ func makeState(options: Options, onFrameFinished: ((EncodedFrame) -> Void)? = ni
             codec: options.codec,
             maxDepth: options.senderQueueDepth,
             inputInjector: state.inputInjector,
-            cursorOverlayEnabled: options.screenCapture && !options.showCapturedCursor,
+            cursorOverlayVisible: options.screenCapture && !options.showCapturedCursor,
+            cursorHeartbeatEnabled: options.screenCapture,
             onSent: { [weak state] frameID, sendMS, bytesSent, frameAgeAtSendMS, droppedBefore, failed in
                 state?.recordSend(
                     frameID: frameID,

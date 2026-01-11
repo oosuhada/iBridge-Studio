@@ -164,6 +164,20 @@ struct MenuBarView: View {
 
         Divider()
 
+        Button("Previous Display") {
+            model.moveMouseToPreviousDisplay()
+        }
+
+        Button("Next Display") {
+            model.moveMouseToNextDisplay()
+        }
+
+        Button("Show Console Overlay") {
+            model.showConsoleOverlay()
+        }
+
+        Divider()
+
         Button("Refresh Displays") {
             model.listDisplays()
         }

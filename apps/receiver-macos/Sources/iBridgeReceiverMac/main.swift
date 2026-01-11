@@ -1125,6 +1125,8 @@ final class TCPReceiver: @unchecked Sendable {
     private func handleClient(_ fd: Int32) {
         viewController?.setStatus("Primary connected")
         logLine("primary connected")
+        var timeout = timeval(tv_sec: 12, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         let formatBuilder = FormatDescriptionBuilder()
         var lastFrameID: UInt64?
         var receivedFrames: UInt64 = 0

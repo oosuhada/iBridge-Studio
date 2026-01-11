@@ -3,6 +3,7 @@ import AppKit
 import ApplicationServices
 import Darwin
 import Foundation
+import SwiftUI
 
 enum LogLevel: String, CaseIterable, Identifiable {
     case info = "INFO"
@@ -59,6 +60,8 @@ final class ControllerModel: ObservableObject {
     private var senderProcesses: [UUID: Process] = [:]
     private var receiverProcesses: [UUID: Process] = [:]
     private var localReceiverProcess: Process?
+    private var consoleOverlayPanel: NSPanel?
+    private var consoleOverlayDelegate: ConsoleOverlayDelegate?
     private var sessionCancellables: [UUID: AnyCancellable] = [:]
     private var saveStateTask: Task<Void, Never>?
     private var isLoadingState = false
@@ -72,6 +75,10 @@ final class ControllerModel: ObservableObject {
 
     var logText: String {
         logEntries.map(\.formattedLine).joined(separator: "\n") + "\n"
+    }
+
+    var recentLogText: String {
+        logEntries.suffix(120).map(\.formattedLine).joined(separator: "\n") + "\n"
     }
 
     var activeStreamingCount: Int {
@@ -168,6 +175,46 @@ final class ControllerModel: ObservableObject {
         append("Restoring visible app windows to the MacBook display area.")
         append("If nothing moves, grant Accessibility permission to iBridge Studio.")
         runOneShot(command: command, label: "Restore Windows")
+    }
+
+    func moveMouseToPreviousDisplay() {
+        moveMouseToAdjacentDisplay(direction: -1)
+    }
+
+    func moveMouseToNextDisplay() {
+        moveMouseToAdjacentDisplay(direction: 1)
+    }
+
+    func showConsoleOverlay() {
+        if let panel = consoleOverlayPanel {
+            panel.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let panel = NSPanel(
+            contentRect: NSRect(x: 140, y: 140, width: 680, height: 360),
+            styleMask: [.titled, .closable, .resizable, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = "iBridge Studio Console"
+        panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.contentView = NSHostingView(rootView: ConsoleOverlayView().environmentObject(self))
+        let delegate = ConsoleOverlayDelegate { [weak self, weak panel] in
+            if self?.consoleOverlayPanel === panel {
+                self?.consoleOverlayPanel = nil
+                self?.consoleOverlayDelegate = nil
+            }
+        }
+        panel.delegate = delegate
+        consoleOverlayDelegate = delegate
+        consoleOverlayPanel = panel
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        append("Console overlay shown.")
     }
 
     func startRemoteReceiver(_ session: DisplaySession) {
@@ -395,6 +442,57 @@ final class ControllerModel: ObservableObject {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString("\(address):\(receiverPort)", forType: .string)
         append("Copied receiver address \(address):\(receiverPort)")
+    }
+
+    private func moveMouseToAdjacentDisplay(direction: Int) {
+        var count: UInt32 = 0
+        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else {
+            append("Mouse move failed: no active displays.", level: .error)
+            return
+        }
+
+        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetActiveDisplayList(count, &displays, &count) == .success else {
+            append("Mouse move failed: could not read display list.", level: .error)
+            return
+        }
+
+        let frames = displays
+            .map { CGDisplayBounds($0) }
+            .filter { !$0.isNull && !$0.isEmpty }
+            .sorted {
+                if abs($0.midX - $1.midX) > 1 {
+                    return $0.midX < $1.midX
+                }
+                return $0.midY < $1.midY
+            }
+
+        guard !frames.isEmpty else {
+            append("Mouse move failed: no display frames.", level: .error)
+            return
+        }
+
+        let location = CGEvent(source: nil)?.location ?? NSEvent.mouseLocation
+        let currentIndex = frames.firstIndex { $0.insetBy(dx: -1, dy: -1).contains(location) }
+            ?? nearestDisplayIndex(to: location, in: frames)
+        let targetIndex = min(max(currentIndex + direction, 0), frames.count - 1)
+        let targetFrame = frames[targetIndex]
+        let targetPoint = CGPoint(x: targetFrame.midX, y: targetFrame.midY)
+        CGWarpMouseCursorPosition(targetPoint)
+        CGAssociateMouseAndMouseCursorPosition(boolean_t(1))
+        append("Moved mouse to display \(targetIndex + 1)/\(frames.count) at \(Int(targetPoint.x)),\(Int(targetPoint.y)).")
+    }
+
+    private func nearestDisplayIndex(to point: CGPoint, in frames: [CGRect]) -> Int {
+        frames.enumerated().min { lhs, rhs in
+            distanceSquared(from: point, to: lhs.element) < distanceSquared(from: point, to: rhs.element)
+        }?.offset ?? 0
+    }
+
+    private func distanceSquared(from point: CGPoint, to rect: CGRect) -> CGFloat {
+        let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
+        let dy = max(rect.minY - point.y, 0, point.y - rect.maxY)
+        return dx * dx + dy * dy
     }
 
     func filteredLogText(level: LogLevel?, sessionName: String?) -> String {
