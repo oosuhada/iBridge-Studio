@@ -411,6 +411,8 @@ final class ReceiverView: NSView {
     var commandSink: ((String) -> Void)?
     private var trackingAreaRef: NSTrackingArea?
     private var inputEventCount = 0
+    private var lastPointerSignature = ""
+    private var lastPointerSentAt = DispatchTime.now().uptimeNanoseconds
 
     override var acceptsFirstResponder: Bool { true }
     override var canBecomeKeyView: Bool { true }
@@ -475,6 +477,10 @@ final class ReceiverView: NSView {
         sendPointer("up", event: event)
     }
 
+    override func scrollWheel(with event: NSEvent) {
+        sendScroll(event)
+    }
+
     override func keyDown(with event: NSEvent) {
         if handleLocalCommand(event) {
             return
@@ -501,6 +507,8 @@ final class ReceiverView: NSView {
             sendPointer("down", event: event)
         case .leftMouseUp, .rightMouseUp, .otherMouseUp:
             sendPointer("up", event: event)
+        case .scrollWheel:
+            sendScroll(event)
         case .keyDown:
             if handleLocalCommand(event) {
                 return true
@@ -535,6 +543,19 @@ final class ReceiverView: NSView {
         )
     }
 
+    func routeNormalizedScroll(x: Double, y: Double, deltaX: Int32, deltaY: Int32, modifiers: UInt64) {
+        guard deltaX != 0 || deltaY != 0 else { return }
+        recordInputEvent("scroll")
+        inputSink?(
+            String(format: "IBRIDGE_INPUT scroll %.6f %.6f %d %d %llu\n",
+                   min(max(x, 0), 1),
+                   min(max(y, 0), 1),
+                   deltaX,
+                   deltaY,
+                   modifiers)
+        )
+    }
+
     private func sendPointer(_ phase: String, event: NSEvent) {
         guard bounds.width > 0, bounds.height > 0 else { return }
         let local = convert(event.locationInWindow, from: nil)
@@ -551,6 +572,13 @@ final class ReceiverView: NSView {
         let normalizedX = min(max(localPoint.x / bounds.width, 0), 1)
         let normalizedY = min(max(1 - (localPoint.y / bounds.height), 0), 1)
         let modifierRaw = modifiers.rawValue
+        let signature = String(format: "%@ %.4f %.4f %d %llu", phase, Double(normalizedX), Double(normalizedY), button, modifierRaw)
+        let now = DispatchTime.now().uptimeNanoseconds
+        if signature == lastPointerSignature, now - lastPointerSentAt < 8_000_000 {
+            return
+        }
+        lastPointerSignature = signature
+        lastPointerSentAt = now
         recordInputEvent("pointer_\(phase)")
         inputSink?(
             String(format: "IBRIDGE_INPUT pointer %@ %.6f %.6f %d %llu\n",
@@ -559,6 +587,25 @@ final class ReceiverView: NSView {
                    Double(normalizedY),
                    button,
                    modifierRaw)
+        )
+    }
+
+    private func sendScroll(_ event: NSEvent) {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let local = convert(event.locationInWindow, from: nil)
+        let normalizedX = min(max(local.x / bounds.width, 0), 1)
+        let normalizedY = min(max(1 - (local.y / bounds.height), 0), 1)
+        let deltaX = Int32(max(min(event.scrollingDeltaX.rounded(), Double(Int32.max)), Double(Int32.min)))
+        let deltaY = Int32(max(min(event.scrollingDeltaY.rounded(), Double(Int32.max)), Double(Int32.min)))
+        guard deltaX != 0 || deltaY != 0 else { return }
+        recordInputEvent("scroll")
+        inputSink?(
+            String(format: "IBRIDGE_INPUT scroll %.6f %.6f %d %d %llu\n",
+                   Double(normalizedX),
+                   Double(normalizedY),
+                   deltaX,
+                   deltaY,
+                   event.modifierFlags.rawValue)
         )
     }
 
@@ -685,6 +732,10 @@ final class ReceiverViewController: NSViewController {
     func routeNormalizedPointer(_ phase: String, x: Double, y: Double, button: Int, modifiers: UInt64) {
         receiverView?.routeNormalizedPointer(phase, x: x, y: y, button: button, modifiers: modifiers)
     }
+
+    func routeNormalizedScroll(x: Double, y: Double, deltaX: Int32, deltaY: Int32, modifiers: UInt64) {
+        receiverView?.routeNormalizedScroll(x: x, y: y, deltaX: deltaX, deltaY: deltaY, modifiers: modifiers)
+    }
 }
 
 @MainActor
@@ -745,7 +796,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let mask: NSEvent.EventTypeMask = [
             .keyDown,
             .keyUp,
-            .flagsChanged
+            .flagsChanged,
+            .mouseMoved,
+            .leftMouseDown,
+            .leftMouseUp,
+            .leftMouseDragged,
+            .rightMouseDown,
+            .rightMouseUp,
+            .rightMouseDragged,
+            .otherMouseDown,
+            .otherMouseUp,
+            .otherMouseDragged,
+            .scrollWheel
         ]
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
             guard let self else { return event }
@@ -769,7 +831,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .rightMouseDragged,
             .otherMouseDown,
             .otherMouseUp,
-            .otherMouseDragged
+            .otherMouseDragged,
+            .scrollWheel
         ] {
             mask |= CGEventMask(1) << CGEventMask(eventType.rawValue)
         }
@@ -793,7 +856,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         logLine("receiver_event_tap_installed")
     }
 
-    func routeTappedPointer(type: CGEventType, location: CGPoint, button: Int, modifiers: UInt64) {
+    func routeTappedPointer(type: CGEventType, location: CGPoint, button: Int, modifiers: UInt64, scrollDeltaX: Int64 = 0, scrollDeltaY: Int64 = 0) {
         guard let window else { return }
         guard let cgFrame = cgInputFrame(for: window) else { return }
         let hitFrame = cgFrame.insetBy(dx: -pointerEdgeTolerance, dy: -pointerEdgeTolerance)
@@ -811,6 +874,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             phase = "down"
         case .leftMouseUp, .rightMouseUp, .otherMouseUp:
             phase = "up"
+        case .scrollWheel:
+            let clampedX = min(max(location.x, cgFrame.minX), cgFrame.maxX)
+            let clampedY = min(max(location.y, cgFrame.minY), cgFrame.maxY)
+            let normalizedX = Double((clampedX - cgFrame.minX) / max(cgFrame.width, 1))
+            let normalizedY = Double((clampedY - cgFrame.minY) / max(cgFrame.height, 1))
+            receiver.routeNormalizedScroll(
+                x: normalizedX,
+                y: normalizedY,
+                deltaX: Int32(max(min(scrollDeltaX, Int64(Int32.max)), Int64(Int32.min))),
+                deltaY: Int32(max(min(scrollDeltaY, Int64(Int32.max)), Int64(Int32.min))),
+                modifiers: modifiers
+            )
+            return
         default:
             return
         }
@@ -1035,12 +1111,16 @@ func receiverEventTapCallback(
     }
     let location = event.location
     let modifiers = event.flags.rawValue
+    let scrollDeltaX = type == .scrollWheel ? event.getIntegerValueField(.scrollWheelEventDeltaAxis2) : 0
+    let scrollDeltaY = type == .scrollWheel ? event.getIntegerValueField(.scrollWheelEventDeltaAxis1) : 0
     DispatchQueue.main.async {
         delegate.routeTappedPointer(
             type: type,
             location: location,
             button: button,
-            modifiers: modifiers
+            modifiers: modifiers,
+            scrollDeltaX: scrollDeltaX,
+            scrollDeltaY: scrollDeltaY
         )
     }
     return Unmanaged.passUnretained(event)

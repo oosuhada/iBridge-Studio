@@ -141,6 +141,8 @@ iBridge Studio의 cursor mode는 세 가지입니다.
 - Show Captured Cursor: Universal Control을 쓰지 않을 때 MacBook virtual display의 cursor를 영상에 표시합니다.
 - Hide Captured Cursor: 영상만 보여주거나 cursor 중복이 생길 때 사용합니다.
 
+Universal Control Relay 모드는 mouse cursor 자체를 영상으로 보내지 않습니다. iMac receiver 위에서 Universal Control/local cursor로 발생한 click, drag, scroll, keyboard event를 같은 TCP stream의 역방향 input line으로 MacBook sender에 돌려보내고, MacBook에서 해당 좌표를 BetterDisplay virtual display 좌표로 변환해 주입합니다. 따라서 이 모드는 MacBook iBridge Studio와 iMac iBridge Studio 양쪽 모두 Accessibility 권한이 필요합니다.
+
 최상의 입력 경험은 Universal Control, iBridge input relay, macOS 입력 소스 설정의 영향을 받습니다. Caps Lock 한영 전환은 MacBook 쪽 Keyboard 입력 소스 설정이 맞아야 합니다.
 
 ## 문제 해결

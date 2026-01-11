@@ -37,6 +37,17 @@ iMac Receiver may need:
 
 After changing permissions, quit and reopen iBridge Studio.
 
+## Universal Control cursor moves but clicks do not affect the virtual display
+
+- Use `Universal Control Relay` cursor mode on the Sender card.
+- Keep the BetterDisplay virtual display arranged next to the MacBook display so MacBook windows can move onto it.
+- Keep the real iMac arranged for Universal Control so the local cursor can enter the iMac receiver window.
+- Grant Accessibility permission on both Macs:
+  - MacBook: `iBridge Studio.app` posts the relayed click/drag/scroll/key events into the virtual display.
+  - iMac: `iBridge Studio.app` observes receiver-window mouse events and sends them back to the MacBook.
+- Quit and reopen iBridge Studio after changing Accessibility permission.
+- During a running stream, Logs should show `input_event_received` on the MacBook and `receiver_input_event` on the iMac when you click or drag inside the receiver.
+
 ## Wake-on-LAN does not wake the iMac
 
 - Confirm Wake MAC is correct.
@@ -47,4 +58,3 @@ After changing permissions, quit and reopen iBridge Studio.
 ## Diagnostics export
 
 Open Logs and click Export. The exported support bundle is written to Desktop and masks user names and MAC addresses in logs.
-
