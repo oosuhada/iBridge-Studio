@@ -3,6 +3,7 @@ import AppKit
 import CoreMedia
 import Darwin
 import Foundation
+import QuartzCore
 
 struct Options {
     var port = 48320
@@ -115,6 +116,7 @@ func parseOptions(_ args: [String]) throws -> Options {
 enum CodecID: UInt8 {
     case h264 = 1
     case hevc = 2
+    case cursorOverlay = 250
 }
 
 struct FrameHeader {
@@ -637,10 +639,12 @@ final class ReceiverView: NSView {
 
 final class ReceiverViewController: NSViewController {
     let displayLayer = AVSampleBufferDisplayLayer()
+    private let cursorLayer = CAShapeLayer()
     private let statusLabel = NSTextField(labelWithString: "Waiting for iBridge Studio stream")
     private let showStatus: Bool
     private let enableInput: Bool
     private var displayedFrames: UInt64 = 0
+    private var lastVideoSize = CGSize(width: 1, height: 1)
     var inputSink: ((String) -> Void)? {
         didSet {
             receiverView?.inputSink = enableInput ? inputSink : nil
@@ -677,6 +681,7 @@ final class ReceiverViewController: NSViewController {
         displayLayer.videoGravity = .resizeAspect
         displayLayer.backgroundColor = NSColor.black.cgColor
         view.layer?.addSublayer(displayLayer)
+        configureCursorOverlay()
 
         statusLabel.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium)
         statusLabel.textColor = .white
@@ -692,6 +697,7 @@ final class ReceiverViewController: NSViewController {
     override func viewDidLayout() {
         super.viewDidLayout()
         displayLayer.frame = view.bounds
+        cursorLayer.zPosition = 10
         if showStatus {
             statusLabel.frame = NSRect(x: 16, y: view.bounds.height - 44, width: min(760, view.bounds.width - 32), height: 24)
         }
@@ -706,9 +712,25 @@ final class ReceiverViewController: NSViewController {
             }
             self.displayLayer.enqueue(sendableSampleBuffer.value)
             self.displayedFrames += 1
+            self.lastVideoSize = CGSize(width: Int(header.width), height: Int(header.height))
             if self.showStatus, self.displayedFrames % 30 == 1 {
                 self.statusLabel.stringValue = "iBridge Studio \(header.width)x\(header.height)@\(header.fps) frame \(header.frameID) dropped_before \(header.droppedBefore)"
             }
+        }
+    }
+
+    nonisolated func updateCursorOverlay(payload: Data, header: FrameHeader) {
+        guard let text = String(data: payload, encoding: .utf8) else { return }
+        let parts = text.split(separator: " ")
+        guard parts.count >= 3,
+              let x = Double(parts[0]),
+              let y = Double(parts[1]),
+              let visibleValue = Int(parts[2]) else {
+            return
+        }
+        DispatchQueue.main.async {
+            self.lastVideoSize = CGSize(width: Int(header.width), height: Int(header.height))
+            self.moveCursorOverlay(x: x, y: y, visible: visibleValue != 0)
         }
     }
 
@@ -735,6 +757,62 @@ final class ReceiverViewController: NSViewController {
 
     func routeNormalizedScroll(x: Double, y: Double, deltaX: Int32, deltaY: Int32, modifiers: UInt64) {
         receiverView?.routeNormalizedScroll(x: x, y: y, deltaX: deltaX, deltaY: deltaY, modifiers: modifiers)
+    }
+
+    private func configureCursorOverlay() {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 0, y: 25))
+        path.addLine(to: CGPoint(x: 6, y: 19))
+        path.addLine(to: CGPoint(x: 10, y: 29))
+        path.addLine(to: CGPoint(x: 15, y: 27))
+        path.addLine(to: CGPoint(x: 11, y: 17))
+        path.addLine(to: CGPoint(x: 20, y: 17))
+        path.closeSubpath()
+        cursorLayer.path = path
+        cursorLayer.bounds = CGRect(x: 0, y: 0, width: 24, height: 32)
+        cursorLayer.anchorPoint = CGPoint(x: 0, y: 0)
+        cursorLayer.fillColor = NSColor.white.cgColor
+        cursorLayer.strokeColor = NSColor.black.cgColor
+        cursorLayer.lineWidth = 1.25
+        cursorLayer.shadowColor = NSColor.black.cgColor
+        cursorLayer.shadowOpacity = 0.35
+        cursorLayer.shadowRadius = 1.5
+        cursorLayer.shadowOffset = CGSize(width: 0, height: 1)
+        cursorLayer.isHidden = true
+        view.layer?.addSublayer(cursorLayer)
+    }
+
+    private func moveCursorOverlay(x: Double, y: Double, visible: Bool) {
+        guard visible else {
+            cursorLayer.isHidden = true
+            return
+        }
+        let rect = videoContentRect()
+        let position = CGPoint(
+            x: rect.minX + rect.width * min(max(x, 0), 1),
+            y: rect.minY + rect.height * min(max(y, 0), 1)
+        )
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        cursorLayer.position = position
+        cursorLayer.isHidden = false
+        CATransaction.commit()
+    }
+
+    private func videoContentRect() -> CGRect {
+        let bounds = view.bounds
+        guard bounds.width > 0, bounds.height > 0, lastVideoSize.width > 0, lastVideoSize.height > 0 else {
+            return bounds
+        }
+        let videoAspect = lastVideoSize.width / lastVideoSize.height
+        let boundsAspect = bounds.width / bounds.height
+        if boundsAspect > videoAspect {
+            let width = bounds.height * videoAspect
+            return CGRect(x: bounds.midX - width / 2, y: bounds.minY, width: width, height: bounds.height)
+        }
+        let height = bounds.width / videoAspect
+        return CGRect(x: bounds.minX, y: bounds.midY - height / 2, width: bounds.width, height: height)
     }
 }
 
@@ -1058,6 +1136,10 @@ final class TCPReceiver: @unchecked Sendable {
                 let headerData = try readExact(fd: fd, byteCount: FrameHeader.byteCount)
                 let header = try FrameHeader(headerData)
                 let payload = try readExact(fd: fd, byteCount: Int(header.payloadLen))
+                if header.codec == CodecID.cursorOverlay.rawValue {
+                    viewController?.updateCursorOverlay(payload: payload, header: header)
+                    continue
+                }
                 let units = annexBNALUnits(from: payload)
                 guard !units.isEmpty else {
                     throw RuntimeError("frame \(header.frameID) has no Annex-B NAL units")
