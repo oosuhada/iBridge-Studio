@@ -466,7 +466,7 @@ final class ControllerModel: ObservableObject {
         process.arguments = [
             "-lc",
             """
-            trap 'status=$?; trap - TERM INT EXIT; pkill -TERM -P $$ 2>/dev/null || true; exit $status' TERM INT EXIT
+            trap 'exit_code=$?; trap - TERM INT EXIT; pkill -TERM -P $$ 2>/dev/null || true; exit $exit_code' TERM INT EXIT
             \(command)
             """
         ]

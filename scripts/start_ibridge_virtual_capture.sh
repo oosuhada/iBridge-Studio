@@ -100,10 +100,10 @@ fi
 mkdir -p "$RUN_ROOT"
 
 cleanup() {
-  local status=$?
+  local exit_code=$?
   trap - TERM INT EXIT
   pkill -TERM -P $$ 2>/dev/null || true
-  exit "$status"
+  exit "$exit_code"
 }
 trap cleanup TERM INT EXIT
 

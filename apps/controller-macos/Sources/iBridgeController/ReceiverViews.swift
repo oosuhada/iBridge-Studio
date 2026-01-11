@@ -146,7 +146,7 @@ struct ReceiverTab: View {
                 Text("Remote iMacs")
                     .font(.headline)
 
-                Text("Remote targets currently reuse Sender sessions. TODO: split SenderConfig and ReceiverTarget when receiver-only options grow.")
+                Text("Remote iMacs are the same saved display sessions used by Sender, so adding or removing one here updates the Sender list too.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -225,11 +225,13 @@ struct ReceiverTab: View {
                 startRemoteButton(session)
                 testRemoteButton(session)
                 repairRemoteButton(session)
+                removeRemoteButton(session)
             }
             VStack(alignment: .leading, spacing: 8) {
                 startRemoteButton(session)
                 testRemoteButton(session)
                 repairRemoteButton(session)
+                removeRemoteButton(session)
             }
         }
     }
@@ -250,5 +252,14 @@ struct ReceiverTab: View {
             Label("Repair Settings", systemImage: "wrench.and.screwdriver")
         }
         .disabled(session.discoveryHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    private func removeRemoteButton(_ session: DisplaySession) -> some View {
+        Button(role: .destructive) {
+            model.removeSession(session)
+        } label: {
+            Label("Remove", systemImage: "minus.circle")
+        }
+        .disabled(model.sessions.count <= 1)
     }
 }
