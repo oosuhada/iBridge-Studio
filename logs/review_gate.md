@@ -73,3 +73,69 @@ Plan A synthetic local render on iMac Windows:
 ## Next Prompt To Run
 
 `prompts/06_WINDOWS_RECEIVER_IMPLEMENTATION.md`
+
+## 2026-05-15 01:35 — Prompt 09 after Prompt 06
+
+Prompt reviewed: `prompts/06_WINDOWS_RECEIVER_IMPLEMENTATION.md`
+
+## Summary
+
+Pass for receiver local benchmark milestone; remaining receiver networking/decode work is explicitly open.
+
+The Windows Receiver now builds on the iMac, opens fullscreen from the active Windows desktop, runs synthetic benchmark modes, logs actual fps and frame timings to CSV, and displays a lightweight HUD overlay. The local D3D11 renderer has been measured at 5K with dynamic, static, GPU-pattern, and uncapped modes.
+
+## Changed Files
+
+- `apps/receiver-windows/README.md`
+- `apps/receiver-windows/src/main.cpp`
+- `benchmarks/runs/2026-05-15_0126_receiver_isolation_suite/*`
+- `logs/experiments.md`
+- `logs/worklog.md`
+
+## Verification Commands / Results
+
+Windows iMac build:
+
+```cmd
+cl /nologo /EHsc /std:c++17 /O2 /W4 /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN apps\receiver-windows\src\main.cpp /Fe:apps\receiver-windows\build\manual\ibridge-receiver.exe /link d3d11.lib dxgi.lib d3dcompiler.lib user32.lib gdi32.lib
+```
+
+Result: passed.
+
+Interactive desktop smoke test:
+
+```cmd
+ibridge-receiver.exe --synthetic --resolution 1280x720 --fps 30 --duration 3 --fullscreen --gpu-pattern --csv receiver_stats.csv
+```
+
+Result: exited 0, `hud=on`, 62.304 fps, 0 missed frames against a 30fps budget.
+
+## Benchmarks
+
+| Mode | Actual fps | Avg fill ms | Avg upload ms | Avg draw/present ms | P95 total ms | Missed frames |
+|---|---:|---:|---:|---:|---:|---:|
+| dynamic_5k60 | 29.979 | 14.4046 | 18.6822 | 0.2685 | 34.2572 | 1799 / 1799 |
+| static_once_upload_5k60 | 61.749 | 0.0040 | 0.0168 | 16.1721 | 16.8029 | 1684 / 3705 |
+| gpu_pattern_5k60 | 61.140 | 0.0000 | 0.0000 | 16.3543 | 16.7943 | 1724 / 3669 |
+| gpu_pattern_uncapped_5k60 | 290.663 | 0.0000 | 0.0000 | 3.4389 | 9.0732 | 0 / 4362 |
+
+## Known Failures
+
+- Dynamic CPU-filled 5K BGRA full-frame upload is not viable for 5K60.
+- SSH-launched D3D11 windows still cannot substitute for interactive desktop tests.
+- Network receive, H.264 decode, HEVC decode, and scaling comparison remain open receiver work.
+- HUD is lightweight and smoke-tested, but not yet visually screenshot-verified.
+
+## Review Questions
+
+1. Did this stage only do the requested goal? Yes, within Windows Receiver scope.
+2. Did it start the next prompt early? No.
+3. Was build/run verification real? Yes, on the Windows iMac.
+4. Are logs saved? Yes.
+5. Were failures hidden? No.
+6. Were hardware facts guessed? No.
+7. Was Plan downshift measured? Only receiver-path failure pressure was recorded; no full Plan downshift yet.
+
+## Next Prompt To Run
+
+`prompts/05_PRIMARY_MACOS_IMPLEMENTATION.md`
