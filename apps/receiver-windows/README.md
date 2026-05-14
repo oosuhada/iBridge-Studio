@@ -35,4 +35,17 @@ Optional ceiling run without display vsync:
 apps\receiver-windows\build\Release\ibridge-receiver.exe --synthetic --resolution 5120x2880 --fps 60 --duration 30 --fullscreen --no-vsync --static-frame
 ```
 
+Isolation modes:
+
+```powershell
+# Upload a single static 5K frame once, then present it for 60 seconds.
+apps\receiver-windows\build\Release\ibridge-receiver.exe --synthetic --resolution 5120x2880 --fps 60 --duration 60 --fullscreen --static-frame
+
+# Render a generated shader pattern without CPU frame fill or texture upload.
+apps\receiver-windows\build\Release\ibridge-receiver.exe --synthetic --resolution 5120x2880 --fps 60 --duration 60 --fullscreen --gpu-pattern
+
+# Measure an unthrottled present ceiling without vsync.
+apps\receiver-windows\build\Release\ibridge-receiver.exe --synthetic --resolution 5120x2880 --fps 60 --duration 30 --fullscreen --gpu-pattern --no-vsync --uncapped
+```
+
 The first acceptance run should keep vsync enabled because iBridge is display-facing software.
