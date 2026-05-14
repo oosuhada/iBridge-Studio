@@ -265,3 +265,87 @@ No performance benchmark was required for Prompt 07. This was a protocol/schema/
 ## Next Prompt To Run
 
 `prompts/03_PLAN_B_5K60_PRACTICAL.md`
+
+## 2026-05-15 02:45 — Prompt 09 after Prompt 03
+
+Prompt reviewed: `prompts/03_PLAN_B_5K60_PRACTICAL.md`
+
+## Summary
+
+Pass with known decode/render gap.
+
+Prompt 03 made a real 5K compressed attempt instead of downshifting directly. The macOS Primary can now send protocol v0 TCP frame payloads, and the Windows Receiver can run a no-GUI protocol v0 TCP sink. H.264 5K60 failed at encode with zero payloads. HEVC 5K60 encoded, but latency was far above the 60Hz budget, and the current Tailscale TCP path was far too slow for even a 120Mbps 5K60 compressed stream.
+
+## Changed Files
+
+- `apps/primary-macos/README.md`
+- `apps/primary-macos/Sources/iBridgePrimary/main.swift`
+- `apps/receiver-windows/CMakeLists.txt`
+- `apps/receiver-windows/README.md`
+- `apps/receiver-windows/src/main.cpp`
+- `benchmarks/runs/2026-05-15_0210_plan_b_5k_h264_tcp/*`
+- `benchmarks/runs/2026-05-15_0220_plan_b_5k_hevc_local60/*`
+- `benchmarks/runs/2026-05-15_0235_plan_b_5k_hevc_120mbps_local/*`
+- `benchmarks/runs/2026-05-15_0238_plan_b_5k_hevc_120mbps_tcp/*`
+- `logs/experiments.md`
+- `logs/worklog.md`
+
+## Verification Commands / Results
+
+```bash
+swift build --package-path apps/primary-macos -c release
+```
+
+Result: passed.
+
+```bash
+python3 apps/shared-protocol/test_protocol_v0.py
+```
+
+Result: passed, 8 tests.
+
+```bash
+git diff --check
+```
+
+Result: passed.
+
+Windows iMac MSVC build:
+
+```cmd
+cl /nologo /EHsc /std:c++17 /O2 /W4 /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN apps\receiver-windows\src\main.cpp /Fe:apps\receiver-windows\build\manual\ibridge-receiver.exe /link d3d11.lib dxgi.lib d3dcompiler.lib user32.lib gdi32.lib ws2_32.lib
+```
+
+Result: passed.
+
+## Benchmarks
+
+| Test | Frames | Failed | Payload bytes | Main result |
+|---|---:|---:|---:|---|
+| H.264 5K60 TCP | 60 | 60 | 0 | VideoToolbox status -10279 for every frame. |
+| HEVC 5K60 local default bitrate | 60 | 0 | 87,013,939 | Avg encode callback latency 116.081 ms. |
+| HEVC 5K60 local 120Mbps | 60 | 0 | 15,356,893 | Avg encode callback latency 149.548 ms. |
+| HEVC 5K60 TCP 120Mbps | 60 | 0 | 15,356,893 | Receiver got 60/60 frames, but wall time was 38.60 s and measured receive throughput was 3.092 Mbps. |
+
+## Known Failures
+
+- Windows compressed decode is not implemented yet, so decode/render latency is not measured.
+- H.264 5K60 did not produce payloads on this Primary path.
+- HEVC 5K60 encode callback latency is too high for external-display use.
+- TCP over the current Tailscale path is too slow for 5K60 compressed streaming.
+- Blocking send occurs inside the encode callback and inflates latency; sender queueing is required before any fair end-to-end latency claim.
+- Code editor, terminal scroll, and mouse movement visual tests could not be performed because decode/render is not implemented.
+
+## Review Questions
+
+1. Did this stage only do the requested goal? Yes, within the Plan B compressed path.
+2. Did it start the next prompt early? No.
+3. Was build/run verification real? Yes; macOS build, Windows build, and iMac TCP sink runs were executed.
+4. Are logs saved? Yes.
+5. Were failures hidden? No.
+6. Were hardware facts guessed? No; measured results are separated from unmeasured decode/render gaps.
+7. Was Plan downshift measured? Yes. Plan C is now justified by H.264 encode failure, HEVC latency, and current transport throughput.
+
+## Next Prompt To Run
+
+`prompts/04_PLAN_C_60HZ_SCALED_MODES.md`

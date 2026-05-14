@@ -238,3 +238,16 @@ Result:
 - HEVC 5K60 120Mbps TCP reached the Windows sink with all 60 frames, but took 38.60 seconds and measured only 3.092 Mbps receive throughput on the current path.
 Next:
 - Run prompts/09_REVIEW_GATE.md for Prompt 03 before moving to Plan C.
+
+## 2026-05-15 02:45 — Prompt 09 review gate after Plan B
+
+Prompt: prompts/09_REVIEW_GATE.md
+Changed files:
+- logs/review_gate.md
+- logs/worklog.md
+Verification:
+- [x] Reviewed Prompt 03 against 5K compressed attempt, build/run/log, failure classification, and downshift criteria.
+Result:
+- Prompt 03 passes as a measured failed Plan B attempt with decode/render gap explicitly open.
+Next:
+- Start prompts/04_PLAN_C_60HZ_SCALED_MODES.md.
