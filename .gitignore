@@ -1,5 +1,6 @@
 .DS_Store
 logs/env/
+logs/power/
 logs/ping_*.txt
 logs/iperf3_*.txt
 apps/primary-macos/.build/
