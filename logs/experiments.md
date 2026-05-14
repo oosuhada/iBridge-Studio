@@ -82,3 +82,23 @@ Result:
 Decision:
 - HUD code does not block interactive fullscreen benchmark startup.
 - Full 5K HUD overhead should be monitored in future benchmark runs.
+
+## 2026-05-15 01:40 — Primary synthetic 1440p60 VideoToolbox encode
+
+Prompt: `prompts/05_PRIMARY_MACOS_IMPLEMENTATION.md`
+
+Summary:
+- Added SwiftPM CLI scaffold for `apps/primary-macos`.
+- Implemented synthetic BGRA frame generation and VideoToolbox H.264/HEVC encode paths.
+- Wrote diagnostics CSV for generation time, encode callback latency, payload bytes, and status.
+
+Measured results:
+
+| Codec | Frames | Failed | Avg generate ms | Avg encode latency ms | P95 encode latency ms | Max encode latency ms | Payload bytes |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| H.264 | 120 | 0 | 4.894 | 119.916 | 151.081 | 157.933 | 44,277,068 |
+| HEVC | 120 | 0 | 4.892 | 133.649 | 162.608 | 169.744 | 43,277,169 |
+
+Decision:
+- Primary synthetic encode path is functional for both H.264 and HEVC at 1440p60.
+- Current encode callback latency is too high for an external-display target and needs low-latency tuning before transport integration.

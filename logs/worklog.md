@@ -145,3 +145,24 @@ Result:
 - Windows Receiver local benchmark milestone passes review; proceed to macOS Primary implementation while preserving receiver follow-ups.
 Next:
 - Start prompts/05_PRIMARY_MACOS_IMPLEMENTATION.md.
+
+## 2026-05-15 01:40 — Prompt 05 macOS Primary synthetic encoder
+
+Prompt: prompts/05_PRIMARY_MACOS_IMPLEMENTATION.md
+Changed files:
+- apps/primary-macos/Package.swift
+- apps/primary-macos/README.md
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- benchmarks/runs/2026-05-15_0140_primary_1440p60_h264/*
+- benchmarks/runs/2026-05-15_0140_primary_1440p60_hevc/*
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] H.264 synthetic 2560x1440 @ 60 target for 2 seconds encoded 120/120 frames.
+- [x] HEVC synthetic 2560x1440 @ 60 target for 2 seconds encoded 120/120 frames.
+Result:
+- Primary synthetic source and VideoToolbox H.264/HEVC paths are functional.
+- First encode latency measurements are too high for product use and require low-latency tuning.
+Next:
+- Run prompts/09_REVIEW_GATE.md for Prompt 05.
