@@ -35,3 +35,28 @@ Result:
 Next:
 - Run Windows receiver environment collection on the iMac.
 - Start prompts/02_PLAN_A_5K60_FIRST_SPIKE.md after receiver/network facts are available or clearly logged as pending.
+
+## 2026-05-14 22:20 — Prompt 02 Plan A 5K60 first spike
+
+Prompt: prompts/02_PLAN_A_5K60_FIRST_SPIKE.md
+Changed files:
+- apps/receiver-windows/CMakeLists.txt
+- apps/receiver-windows/README.md
+- apps/receiver-windows/src/main.cpp
+- benchmarks/theory/5k60_bandwidth.md
+- benchmarks/plans/windows_synthetic_renderer.md
+- benchmarks/plans/transport_benchmark.md
+- benchmarks/runs/2026-05-14_2220_plan_a_pending/summary.md
+- logs/experiments.md
+- logs/questions.md
+- logs/worklog.md
+Verification:
+- [x] Calculated 5K60 RGB24, YUV 4:2:0, and BGRA32 bandwidth with shell arithmetic.
+- [x] Created a no-network Windows D3D11 synthetic renderer scaffold for 5120x2880 frame upload/draw/present timing.
+- [x] Created Plan A transport benchmark plan for LAN and Thunderbolt Bridge iperf3/ping.
+- [x] Wrote pending benchmark summary under benchmarks/runs/2026-05-14_2220_plan_a_pending/summary.md.
+- [ ] Windows build/run skipped because this MacBook Air session does not have CMake, Windows SDK headers, or the Windows iMac receiver environment.
+Result:
+- Plan A is not downshifted. Raw RGB24 over 1GbE/TB2 looks mathematically constrained, but receiver render and measured transport data are still required.
+Next:
+- Build and run the synthetic renderer on the Windows iMac, then record receiver_stats.csv and a measured summary.
