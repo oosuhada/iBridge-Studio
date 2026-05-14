@@ -15,6 +15,8 @@ First target:
 
 The first implemented target is a local D3D11 synthetic renderer. It does not receive network frames or decode video yet.
 
+Fullscreen runs show a small top-left HUD with current mode, running fps, total frame time, fill time, upload time, and present time. Use `--no-hud` only when measuring whether the overlay itself affects timing.
+
 Build on Windows:
 
 ```powershell

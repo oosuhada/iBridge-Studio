@@ -64,3 +64,21 @@ Decision:
 - iMac D3D11 draw/present can sustain 5K60 when full-frame CPU fill/upload is removed.
 - Dynamic CPU-filled BGRA32 full-frame upload is a failed Plan A receiver path.
 - Receiver work should continue with low-copy/hardware surfaces and compressed decode paths rather than CPU-filled full-frame uploads.
+
+## 2026-05-15 01:32 — Receiver HUD smoke test
+
+Prompt: `prompts/06_WINDOWS_RECEIVER_IMPLEMENTATION.md`
+
+Summary:
+- Added a lightweight top-left Win32 HUD overlay for receiver benchmark runs.
+- Rebuilt `ibridge-receiver.exe` on the Windows iMac.
+- Ran a short interactive desktop smoke test at 1280x720, 30fps target, GPU-pattern mode, HUD enabled.
+
+Result:
+- Process exited with code 0.
+- Console output reported `hud=on`.
+- Actual fps was 62.304 for the 3-second smoke test, with 0 missed frames against the 30fps frame budget.
+
+Decision:
+- HUD code does not block interactive fullscreen benchmark startup.
+- Full 5K HUD overhead should be monitored in future benchmark runs.

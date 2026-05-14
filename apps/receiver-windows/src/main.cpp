@@ -32,6 +32,7 @@ struct Options {
   bool static_frame = false;
   bool gpu_pattern = false;
   bool uncapped = false;
+  bool hud = true;
   std::string csv_path;
 };
 
@@ -77,7 +78,7 @@ void PrintUsage() {
   std::cout
       << "ibridge-receiver --synthetic --resolution 5120x2880 --fps 60 "
          "--duration 60 [--fullscreen] [--csv path] [--no-vsync] "
-         "[--static-frame] [--gpu-pattern] [--uncapped]\n";
+         "[--static-frame] [--gpu-pattern] [--uncapped] [--no-hud]\n";
 }
 
 bool ConsumeValue(int& index, int argc, char** argv, std::string* value) {
@@ -142,6 +143,8 @@ Options ParseOptions(int argc, char** argv) {
       options.gpu_pattern = true;
     } else if (arg == "--uncapped") {
       options.uncapped = true;
+    } else if (arg == "--no-hud") {
+      options.hud = false;
     } else if (arg == "--csv") {
       if (!ConsumeValue(i, argc, argv, &value)) {
         throw std::runtime_error("--csv requires a value");
@@ -177,6 +180,70 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
   }
   return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
+
+std::wstring g_hud_text;
+
+LRESULT CALLBACK HudWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+  switch (msg) {
+    case WM_PAINT: {
+      PAINTSTRUCT ps = {};
+      HDC dc = BeginPaint(hwnd, &ps);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      HBRUSH brush = CreateSolidBrush(RGB(0, 0, 0));
+      FillRect(dc, &rect, brush);
+      DeleteObject(brush);
+      SetBkMode(dc, TRANSPARENT);
+      SetTextColor(dc, RGB(120, 255, 180));
+      DrawTextW(dc, g_hud_text.c_str(), -1, &rect,
+                DT_LEFT | DT_TOP | DT_NOPREFIX | DT_WORDBREAK);
+      EndPaint(hwnd, &ps);
+      return 0;
+    }
+  }
+  return DefWindowProcW(hwnd, msg, wparam, lparam);
+}
+
+class HudOverlay {
+ public:
+  void Create(HWND target, bool enabled) {
+    if (!enabled) {
+      return;
+    }
+
+    HINSTANCE instance = GetModuleHandleW(nullptr);
+    const wchar_t* class_name = L"iBridgeHudOverlay";
+    WNDCLASSW wc = {};
+    wc.lpfnWndProc = HudWindowProc;
+    wc.hInstance = instance;
+    wc.lpszClassName = class_name;
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    RegisterClassW(&wc);
+
+    RECT target_rect = {};
+    GetWindowRect(target, &target_rect);
+    hwnd_ = CreateWindowExW(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+                            class_name, L"", WS_POPUP | WS_VISIBLE,
+                            target_rect.left + 24, target_rect.top + 24, 620, 150,
+                            nullptr, nullptr, instance, nullptr);
+    if (!hwnd_) {
+      CheckHR(HRESULT_FROM_WIN32(GetLastError()), "CreateWindowExW HUD");
+    }
+    SetLayeredWindowAttributes(hwnd_, 0, 210, LWA_ALPHA);
+  }
+
+  void Update(const std::string& text) {
+    if (!hwnd_) {
+      return;
+    }
+    g_hud_text.assign(text.begin(), text.end());
+    InvalidateRect(hwnd_, nullptr, TRUE);
+    UpdateWindow(hwnd_);
+  }
+
+ private:
+  HWND hwnd_ = nullptr;
+};
 
 HWND CreateBenchmarkWindow(const Options& options) {
   SetProcessDPIAware();
@@ -494,6 +561,8 @@ void WriteCsv(const std::string& path, const std::vector<FrameStats>& stats) {
 
 int RunSynthetic(const Options& options) {
   HWND hwnd = CreateBenchmarkWindow(options);
+  HudOverlay hud;
+  hud.Create(hwnd, options.hud);
   D3DRenderer renderer(hwnd, options);
 
   std::vector<uint32_t> pixels;
@@ -546,6 +615,24 @@ int RunSynthetic(const Options& options) {
     frame.missed_budget = frame.total_ms > budget_ms;
     stats.push_back(frame);
 
+    if (frame_id % 30 == 0) {
+      const double elapsed =
+          std::chrono::duration<double>(Clock::now() - run_start).count();
+      const double running_fps = elapsed > 0.0 ? stats.size() / elapsed : 0.0;
+      std::ostringstream hud_text;
+      hud_text << "iBridge Receiver\n"
+               << options.width << "x" << options.height << " @ " << options.fps
+               << " target\n"
+               << "fps " << std::fixed << std::setprecision(2) << running_fps
+               << "  total " << frame.total_ms << " ms\n"
+               << "fill " << frame.fill_ms << " ms  upload " << frame.upload_ms
+               << " ms  present " << frame.draw_present_ms << " ms\n"
+               << "mode "
+               << (options.gpu_pattern ? "gpu-pattern"
+                                       : (options.static_frame ? "static" : "dynamic"));
+      hud.Update(hud_text.str());
+    }
+
     ++frame_id;
     next_frame_time += std::chrono::duration_cast<Clock::duration>(frame_duration);
     if (!options.vsync && !options.uncapped) {
@@ -584,7 +671,8 @@ int RunSynthetic(const Options& options) {
             << "vsync=" << (options.vsync ? "on" : "off") << '\n'
             << "static_frame=" << (options.static_frame ? "on" : "off") << '\n'
             << "gpu_pattern=" << (options.gpu_pattern ? "on" : "off") << '\n'
-            << "uncapped=" << (options.uncapped ? "on" : "off") << '\n';
+            << "uncapped=" << (options.uncapped ? "on" : "off") << '\n'
+            << "hud=" << (options.hud ? "on" : "off") << '\n';
 
   return 0;
 }

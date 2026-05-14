@@ -114,3 +114,20 @@ Result:
 - GPU-pattern no-vsync uncapped reached 290.663 fps.
 Next:
 - Run prompts/09_REVIEW_GATE.md for Prompt 06, then proceed to Prompt 05 if review passes.
+
+## 2026-05-15 01:32 — Add receiver HUD overlay
+
+Prompt: prompts/06_WINDOWS_RECEIVER_IMPLEMENTATION.md
+Changed files:
+- apps/receiver-windows/README.md
+- apps/receiver-windows/src/main.cpp
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] Rebuilt `ibridge-receiver.exe` on Windows iMac with MSVC.
+- [x] Ran interactive desktop HUD smoke test through Task Scheduler.
+- [x] Smoke test exited with code 0 and reported `hud=on`.
+Result:
+- Receiver fullscreen synthetic runs now show a top-left HUD with mode, running fps, total frame time, fill time, upload time, and present time.
+Next:
+- Run prompts/09_REVIEW_GATE.md for Prompt 06.
