@@ -1,5 +1,6 @@
 import CoreMedia
 import CoreVideo
+import Darwin
 import Foundation
 import VideoToolbox
 
@@ -12,43 +13,77 @@ struct Options {
     var codec = "h264"
     var csvPath = ""
     var realtime = true
+    var sendHost = ""
+    var sendPort = 48320
+    var bitrateMbps = 0
 }
 
 struct EncodedFrame {
     let frameID: Int
     let generateMS: Double
     let encodeLatencyMS: Double
+    let sendMS: Double
     let payloadBytes: Int
     let status: OSStatus
 }
 
 final class EncoderState {
     private let lock = NSLock()
-    private var startTimes: [Int: DispatchTime] = [:]
-    private var generateTimes: [Int: Double] = [:]
+    private var timings: [Int: FrameTiming] = [:]
     private(set) var frames: [EncodedFrame] = []
+    private let sender: TcpFrameSender?
+
+    init(sender: TcpFrameSender?) {
+        self.sender = sender
+    }
 
     func markFrame(_ frameID: Int, generateMS: Double) {
         lock.lock()
-        startTimes[frameID] = .now()
-        generateTimes[frameID] = generateMS
+        let now = DispatchTime.now()
+        timings[frameID] = FrameTiming(
+            generateMS: generateMS,
+            captureNS: now.uptimeNanoseconds,
+            encodeStartNS: now.uptimeNanoseconds
+        )
         lock.unlock()
     }
 
     func finishFrame(_ frameID: Int, status: OSStatus, sampleBuffer: CMSampleBuffer?) {
         let end = DispatchTime.now()
         lock.lock()
-        let start = startTimes.removeValue(forKey: frameID) ?? end
-        let generateMS = generateTimes.removeValue(forKey: frameID) ?? 0
+        let timing = timings.removeValue(forKey: frameID) ?? FrameTiming(
+            generateMS: 0,
+            captureNS: end.uptimeNanoseconds,
+            encodeStartNS: end.uptimeNanoseconds
+        )
         lock.unlock()
 
-        let elapsedNS = end.uptimeNanoseconds - start.uptimeNanoseconds
-        let payloadBytes = sampleBuffer.map { CMSampleBufferGetTotalSampleSize($0) } ?? 0
+        let elapsedNS = end.uptimeNanoseconds - timing.encodeStartNS
+        let payload = sampleBuffer.flatMap { try? encodedPayload(from: $0) } ?? Data()
+        var sendMS = 0.0
+        if status == noErr, let sender, !payload.isEmpty {
+            do {
+                sendMS = try sender.sendFrame(
+                    frameID: UInt64(frameID),
+                    width: UInt16(sender.width),
+                    height: UInt16(sender.height),
+                    fps: UInt16(sender.fps),
+                    codec: sender.codecID,
+                    captureNS: timing.captureNS,
+                    encodeStartNS: timing.encodeStartNS,
+                    encodeDoneNS: end.uptimeNanoseconds,
+                    payload: payload
+                )
+            } catch {
+                fputs("transport send failed for frame \(frameID): \(error)\n", stderr)
+            }
+        }
         let frame = EncodedFrame(
             frameID: frameID,
-            generateMS: generateMS,
+            generateMS: timing.generateMS,
             encodeLatencyMS: Double(elapsedNS) / 1_000_000.0,
-            payloadBytes: payloadBytes,
+            sendMS: sendMS,
+            payloadBytes: payload.count,
             status: status
         )
 
@@ -63,6 +98,169 @@ final class EncoderState {
         lock.unlock()
         return output
     }
+}
+
+struct FrameTiming {
+    let generateMS: Double
+    let captureNS: UInt64
+    let encodeStartNS: UInt64
+}
+
+enum ProtocolV0 {
+    static let magic = UInt32(littleEndian: 0x4752_4249)
+    static let version = UInt16(0)
+    static let headerLen = UInt16(80)
+    static let colorNV12 = UInt8(1)
+    static let flagKeyframe = UInt32(1 << 0)
+    static let flagEndOfFrame = UInt32(1 << 2)
+}
+
+final class TcpFrameSender {
+    let width: Int
+    let height: Int
+    let fps: Int
+    let codecID: UInt8
+
+    private let fd: Int32
+    private let lock = NSLock()
+    private let sessionID: UInt64
+
+    init(host: String, port: Int, width: Int, height: Int, fps: Int, codec: String) throws {
+        self.width = width
+        self.height = height
+        self.fps = fps
+        self.codecID = codec == "hevc" ? 2 : 1
+        self.sessionID = UInt64.random(in: 1...UInt64.max)
+
+        fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else {
+            throw RuntimeError("socket failed")
+        }
+        var noSigPipe: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
+
+        var hints = addrinfo(
+            ai_flags: 0,
+            ai_family: AF_UNSPEC,
+            ai_socktype: SOCK_STREAM,
+            ai_protocol: IPPROTO_TCP,
+            ai_addrlen: 0,
+            ai_canonname: nil,
+            ai_addr: nil,
+            ai_next: nil
+        )
+        var results: UnsafeMutablePointer<addrinfo>?
+        let gai = getaddrinfo(host, String(port), &hints, &results)
+        guard gai == 0, let results else {
+            close(fd)
+            throw RuntimeError("getaddrinfo failed for \(host):\(port)")
+        }
+        defer { freeaddrinfo(results) }
+
+        var connected = false
+        var cursor: UnsafeMutablePointer<addrinfo>? = results
+        while let info = cursor {
+            if connect(fd, info.pointee.ai_addr, info.pointee.ai_addrlen) == 0 {
+                connected = true
+                break
+            }
+            cursor = info.pointee.ai_next
+        }
+        guard connected else {
+            close(fd)
+            throw RuntimeError("connect failed for \(host):\(port)")
+        }
+
+        let handshake = """
+        {"magic":"IBRIDGE","version":0,"role":"primary","session_id":\(sessionID),"selected_codec":"\(codec)","width":\(width),"height":\(height),"fps":\(fps),"frame_transport":"tcp"}\n
+        """
+        try sendAll(Data(handshake.utf8))
+    }
+
+    deinit {
+        close(fd)
+    }
+
+    func sendFrame(
+        frameID: UInt64,
+        width: UInt16,
+        height: UInt16,
+        fps: UInt16,
+        codec: UInt8,
+        captureNS: UInt64,
+        encodeStartNS: UInt64,
+        encodeDoneNS: UInt64,
+        payload: Data
+    ) throws -> Double {
+        var packet = Data()
+        appendLE(&packet, ProtocolV0.magic)
+        appendLE(&packet, ProtocolV0.version)
+        appendLE(&packet, ProtocolV0.headerLen)
+        appendLE(&packet, sessionID)
+        appendLE(&packet, frameID)
+        appendLE(&packet, UInt16(0))
+        appendLE(&packet, UInt16(1))
+        appendLE(&packet, width)
+        appendLE(&packet, height)
+        appendLE(&packet, fps)
+        packet.append(codec)
+        packet.append(ProtocolV0.colorNV12)
+        appendLE(&packet, ProtocolV0.flagKeyframe | ProtocolV0.flagEndOfFrame)
+        appendLE(&packet, captureNS)
+        appendLE(&packet, encodeStartNS)
+        appendLE(&packet, encodeDoneNS)
+        appendLE(&packet, DispatchTime.now().uptimeNanoseconds)
+        appendLE(&packet, UInt32(payload.count))
+        appendLE(&packet, UInt32(0))
+        precondition(packet.count == Int(ProtocolV0.headerLen))
+        packet.append(payload)
+
+        let start = DispatchTime.now()
+        lock.lock()
+        defer { lock.unlock() }
+        try sendAll(packet)
+        let elapsed = DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds
+        return Double(elapsed) / 1_000_000.0
+    }
+
+    private func sendAll(_ data: Data) throws {
+        try data.withUnsafeBytes { rawBuffer in
+            guard let base = rawBuffer.baseAddress else { return }
+            var sent = 0
+            while sent < rawBuffer.count {
+                let result = Darwin.send(fd, base.advanced(by: sent), rawBuffer.count - sent, 0)
+                if result <= 0 {
+                    throw RuntimeError("send failed")
+                }
+                sent += result
+            }
+        }
+    }
+}
+
+func appendLE<T: FixedWidthInteger>(_ data: inout Data, _ value: T) {
+    var little = value.littleEndian
+    withUnsafeBytes(of: &little) { data.append(contentsOf: $0) }
+}
+
+func encodedPayload(from sampleBuffer: CMSampleBuffer) throws -> Data {
+    guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
+        throw RuntimeError("sample buffer has no data buffer")
+    }
+    let length = CMBlockBufferGetDataLength(blockBuffer)
+    var data = Data(count: length)
+    let status = data.withUnsafeMutableBytes { rawBuffer in
+        CMBlockBufferCopyDataBytes(
+            blockBuffer,
+            atOffset: 0,
+            dataLength: length,
+            destination: rawBuffer.baseAddress!
+        )
+    }
+    guard status == noErr else {
+        throw RuntimeError("CMBlockBufferCopyDataBytes failed: \(status)")
+    }
+    return data
 }
 
 func compressionOutputCallback(
@@ -83,7 +281,7 @@ func compressionOutputCallback(
 
 func usage() {
     print("""
-    ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--no-realtime]
+    ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--bitrate-mbps 120] [--no-realtime] [--send-host host --send-port 48320]
     """)
 }
 
@@ -145,6 +343,18 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.csvPath = try value()
         } else if arg.hasPrefix("--csv=") {
             options.csvPath = String(arg.dropFirst("--csv=".count))
+        } else if arg == "--send-host" {
+            options.sendHost = try value()
+        } else if arg.hasPrefix("--send-host=") {
+            options.sendHost = String(arg.dropFirst("--send-host=".count))
+        } else if arg == "--send-port" {
+            options.sendPort = try Int(value()) ?? options.sendPort
+        } else if arg.hasPrefix("--send-port=") {
+            options.sendPort = Int(arg.dropFirst("--send-port=".count)) ?? options.sendPort
+        } else if arg == "--bitrate-mbps" {
+            options.bitrateMbps = try Int(value()) ?? options.bitrateMbps
+        } else if arg.hasPrefix("--bitrate-mbps=") {
+            options.bitrateMbps = Int(arg.dropFirst("--bitrate-mbps=".count)) ?? options.bitrateMbps
         } else if arg == "--no-realtime" {
             options.realtime = false
         } else {
@@ -215,7 +425,9 @@ func codecType(_ codec: String) -> CMVideoCodecType {
 }
 
 func configure(_ session: VTCompressionSession, options: Options) throws {
-    let bitrate = options.width * options.height * options.fps * 2
+    let bitrate = options.bitrateMbps > 0
+        ? options.bitrateMbps * 1_000_000
+        : options.width * options.height * options.fps * 2
     let properties: [(CFString, Any)] = [
         (kVTCompressionPropertyKey_RealTime, kCFBooleanTrue as Any),
         (kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse as Any),
@@ -239,10 +451,10 @@ func configure(_ session: VTCompressionSession, options: Options) throws {
 
 func writeCSV(path: String, frames: [EncodedFrame]) throws {
     guard !path.isEmpty else { return }
-    var output = "frame_id,generate_ms,encode_latency_ms,payload_bytes,status\n"
+    var output = "frame_id,generate_ms,encode_latency_ms,send_ms,payload_bytes,status\n"
     for frame in frames {
         output += "\(frame.frameID),"
-        output += String(format: "%.4f,%.4f,", frame.generateMS, frame.encodeLatencyMS)
+        output += String(format: "%.4f,%.4f,%.4f,", frame.generateMS, frame.encodeLatencyMS, frame.sendMS)
         output += "\(frame.payloadBytes),\(frame.status)\n"
     }
     try FileManager.default.createDirectory(
@@ -263,7 +475,15 @@ func percentile(_ values: [Double], _ p: Double) -> Double {
 }
 
 func runSynthetic(options: Options) throws {
-    let state = EncoderState()
+    let sender = options.sendHost.isEmpty ? nil : try TcpFrameSender(
+        host: options.sendHost,
+        port: options.sendPort,
+        width: options.width,
+        height: options.height,
+        fps: options.fps,
+        codec: options.codec
+    )
+    let state = EncoderState(sender: sender)
     var session: VTCompressionSession?
     let createStatus = VTCompressionSessionCreate(
         allocator: kCFAllocatorDefault,
@@ -327,6 +547,7 @@ func runSynthetic(options: Options) throws {
 
     let latencies = frames.map(\.encodeLatencyMS)
     let generateTimes = frames.map(\.generateMS)
+    let sendTimes = frames.map(\.sendMS).filter { $0 > 0 }
     let totalBytes = frames.reduce(0) { $0 + $1.payloadBytes }
     let failed = frames.filter { $0.status != noErr }.count
 
@@ -335,6 +556,7 @@ func runSynthetic(options: Options) throws {
     print("target_fps=\(options.fps)")
     print("duration_seconds=\(options.durationSeconds)")
     print("codec=\(options.codec)")
+    print("bitrate_mbps=\(options.bitrateMbps > 0 ? options.bitrateMbps : 0)")
     print("frames_requested=\(frameCount)")
     print("frames_encoded=\(frames.count)")
     print("failed_frames=\(failed)")
@@ -342,7 +564,10 @@ func runSynthetic(options: Options) throws {
     print(String(format: "avg_encode_latency_ms=%.3f", latencies.reduce(0, +) / Double(max(latencies.count, 1))))
     print(String(format: "p95_encode_latency_ms=%.3f", percentile(latencies, 95)))
     print(String(format: "max_encode_latency_ms=%.3f", latencies.max() ?? 0))
+    print(String(format: "avg_send_ms=%.3f", sendTimes.reduce(0, +) / Double(max(sendTimes.count, 1))))
+    print(String(format: "p95_send_ms=%.3f", percentile(sendTimes, 95)))
     print("payload_bytes=\(totalBytes)")
+    print("send_target=\(options.sendHost.isEmpty ? "none" : "\(options.sendHost):\(options.sendPort)")")
     print("csv=\(options.csvPath.isEmpty ? "none" : options.csvPath)")
 }
 

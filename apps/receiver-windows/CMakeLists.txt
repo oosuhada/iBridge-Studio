@@ -21,4 +21,5 @@ target_link_libraries(ibridge-receiver PRIVATE
   d3d11
   dxgi
   d3dcompiler
+  ws2_32
 )

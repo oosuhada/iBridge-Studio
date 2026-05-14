@@ -210,3 +210,31 @@ Result:
 - Protocol v0 parser/spec milestone passes review. Runtime sender/receiver integration remains open for Prompt 03.
 Next:
 - Start prompts/03_PLAN_B_5K60_PRACTICAL.md.
+
+## 2026-05-15 02:38 — Prompt 03 Plan B compressed transport attempt
+
+Prompt: prompts/03_PLAN_B_5K60_PRACTICAL.md
+Changed files:
+- apps/primary-macos/README.md
+- apps/primary-macos/Sources/iBridgePrimary/main.swift
+- apps/receiver-windows/CMakeLists.txt
+- apps/receiver-windows/README.md
+- apps/receiver-windows/src/main.cpp
+- benchmarks/runs/2026-05-15_0210_plan_b_5k_h264_tcp/*
+- benchmarks/runs/2026-05-15_0220_plan_b_5k_hevc_local60/*
+- benchmarks/runs/2026-05-15_0235_plan_b_5k_hevc_120mbps_local/*
+- benchmarks/runs/2026-05-15_0238_plan_b_5k_hevc_120mbps_tcp/*
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] Windows MSVC build of `ibridge-receiver.exe`
+- [x] H.264 5120x2880 @ 60 target encode/TCP attempt
+- [x] HEVC 5120x2880 @ 60 target local encode attempt
+- [x] HEVC 5120x2880 @ 60 target, 120Mbps, TCP sink attempt
+Result:
+- H.264 5K60 produced zero payloads with status -10279.
+- HEVC 5K60 encoded locally, but encode latency was too high for 60Hz.
+- HEVC 5K60 120Mbps TCP reached the Windows sink with all 60 frames, but took 38.60 seconds and measured only 3.092 Mbps receive throughput on the current path.
+Next:
+- Run prompts/09_REVIEW_GATE.md for Prompt 03 before moving to Plan C.
