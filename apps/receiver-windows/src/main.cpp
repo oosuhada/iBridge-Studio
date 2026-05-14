@@ -3,6 +3,9 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <mfapi.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
 #include <wrl/client.h>
 
 #include <algorithm>
@@ -12,6 +15,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -28,6 +32,7 @@ struct Options {
   int height = 2880;
   int output_width = 0;
   int output_height = 0;
+  bool output_resolution_set = false;
   int fps = 60;
   int duration_seconds = 60;
   bool synthetic = false;
@@ -41,6 +46,7 @@ struct Options {
   int port = 48320;
   std::string scale_mode = "nearest";
   std::string csv_path;
+  std::string decode_file;
 };
 
 struct FrameStats {
@@ -92,6 +98,15 @@ struct TransportStats {
   uint32_t flags = 0;
 };
 
+struct DecodeFrameStats {
+  uint64_t frame_id = 0;
+  double decode_ms = 0.0;
+  double upload_ms = 0.0;
+  double render_ms = 0.0;
+  double total_ms = 0.0;
+  bool missed_budget = false;
+};
+
 double MsSince(Clock::time_point start, Clock::time_point end) {
   return std::chrono::duration<double, std::milli>(end - start).count();
 }
@@ -128,7 +143,9 @@ void PrintUsage() {
          "[--static-frame] [--gpu-pattern] [--uncapped] [--no-hud] "
          "[--output-resolution 5120x2880] [--scale-mode nearest|linear]\n"
          "ibridge-receiver --transport-sink --port 48320 --duration 10 "
-         "[--csv path]\n";
+         "[--csv path]\n"
+         "ibridge-receiver --decode-file sample.mp4 --fullscreen "
+         "[--output-resolution 5120x2880] [--scale-mode linear] [--csv path]\n";
 }
 
 bool ConsumeValue(int& index, int argc, char** argv, std::string* value) {
@@ -161,6 +178,13 @@ Options ParseOptions(int argc, char** argv) {
       std::exit(0);
     } else if (arg == "--transport-sink") {
       options.transport_sink = true;
+    } else if (arg == "--decode-file") {
+      if (!ConsumeValue(i, argc, argv, &value)) {
+        throw std::runtime_error("--decode-file requires a value");
+      }
+      options.decode_file = value;
+    } else if (arg.rfind("--decode-file=", 0) == 0) {
+      options.decode_file = arg.substr(std::strlen("--decode-file="));
     } else if (arg == "--synthetic") {
       options.synthetic = true;
     } else if (arg == "--resolution") {
@@ -176,9 +200,11 @@ Options ParseOptions(int argc, char** argv) {
         throw std::runtime_error("--output-resolution requires a value");
       }
       ParseResolution(value, &options.output_width, &options.output_height);
+      options.output_resolution_set = true;
     } else if (arg.rfind("--output-resolution=", 0) == 0) {
       ParseResolution(arg.substr(std::strlen("--output-resolution=")),
                       &options.output_width, &options.output_height);
+      options.output_resolution_set = true;
     } else if (arg == "--fps") {
       if (!ConsumeValue(i, argc, argv, &value)) {
         throw std::runtime_error("--fps requires a value");
@@ -231,8 +257,8 @@ Options ParseOptions(int argc, char** argv) {
     }
   }
 
-  if (!options.synthetic && !options.transport_sink) {
-    throw std::runtime_error("choose --synthetic or --transport-sink");
+  if (!options.synthetic && !options.transport_sink && options.decode_file.empty()) {
+    throw std::runtime_error("choose --synthetic, --transport-sink, or --decode-file");
   }
   if (options.fps <= 0 || options.duration_seconds <= 0) {
     throw std::runtime_error("--fps and --duration must be positive");
@@ -664,6 +690,24 @@ void WriteTransportCsv(const std::string& path,
   }
 }
 
+void WriteDecodeCsv(const std::string& path,
+                    const std::vector<DecodeFrameStats>& stats) {
+  if (path.empty()) {
+    return;
+  }
+  std::ofstream csv(path);
+  if (!csv) {
+    throw std::runtime_error("could not open CSV output: " + path);
+  }
+  csv << "frame_id,decode_ms,upload_ms,render_ms,total_ms,missed_budget\n";
+  csv << std::fixed << std::setprecision(4);
+  for (const DecodeFrameStats& frame : stats) {
+    csv << frame.frame_id << ',' << frame.decode_ms << ',' << frame.upload_ms
+        << ',' << frame.render_ms << ',' << frame.total_ms << ','
+        << (frame.missed_budget ? 1 : 0) << '\n';
+  }
+}
+
 class WinsockSession {
  public:
   WinsockSession() {
@@ -707,6 +751,134 @@ class SocketHandle {
   }
 
   SOCKET socket_ = INVALID_SOCKET;
+};
+
+class ComSession {
+ public:
+  ComSession() {
+    CheckHR(CoInitializeEx(nullptr, COINIT_MULTITHREADED), "CoInitializeEx");
+  }
+
+  ~ComSession() { CoUninitialize(); }
+
+  ComSession(const ComSession&) = delete;
+  ComSession& operator=(const ComSession&) = delete;
+};
+
+class MediaFoundationSession {
+ public:
+  MediaFoundationSession() {
+    CheckHR(MFStartup(MF_VERSION, MFSTARTUP_LITE), "MFStartup");
+  }
+
+  ~MediaFoundationSession() { MFShutdown(); }
+
+  MediaFoundationSession(const MediaFoundationSession&) = delete;
+  MediaFoundationSession& operator=(const MediaFoundationSession&) = delete;
+};
+
+std::wstring Utf8ToWide(const std::string& text) {
+  if (text.empty()) {
+    return std::wstring();
+  }
+  const int required = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+  if (required <= 0) {
+    CheckHR(HRESULT_FROM_WIN32(GetLastError()), "MultiByteToWideChar size");
+  }
+  std::wstring wide(static_cast<size_t>(required), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, wide.data(), required);
+  wide.resize(static_cast<size_t>(required - 1));
+  return wide;
+}
+
+struct DecodedVideoFrame {
+  std::vector<uint32_t> pixels;
+  int width = 0;
+  int height = 0;
+  LONGLONG sample_time = 0;
+};
+
+class MediaFileDecoder {
+ public:
+  explicit MediaFileDecoder(const std::string& path) {
+    const std::wstring wide_path = Utf8ToWide(path);
+    CheckHR(MFCreateSourceReaderFromURL(wide_path.c_str(), nullptr, &reader_),
+            "MFCreateSourceReaderFromURL");
+
+    ComPtr<IMFMediaType> output_type;
+    CheckHR(MFCreateMediaType(&output_type), "MFCreateMediaType output");
+    CheckHR(output_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video),
+            "Set output major type");
+    CheckHR(output_type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32),
+            "Set output subtype RGB32");
+    CheckHR(reader_->SetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM,
+                                         nullptr, output_type.Get()),
+            "SetCurrentMediaType RGB32");
+
+    ComPtr<IMFMediaType> current_type;
+    CheckHR(reader_->GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM,
+                                         &current_type),
+            "GetCurrentMediaType");
+    UINT32 width = 0;
+    UINT32 height = 0;
+    CheckHR(MFGetAttributeSize(current_type.Get(), MF_MT_FRAME_SIZE, &width,
+                               &height),
+            "MFGetAttributeSize frame size");
+    width_ = static_cast<int>(width);
+    height_ = static_cast<int>(height);
+  }
+
+  int width() const { return width_; }
+  int height() const { return height_; }
+
+  bool ReadFrame(DecodedVideoFrame* frame, double* decode_ms) {
+    DWORD stream_index = 0;
+    DWORD flags = 0;
+    LONGLONG sample_time = 0;
+    ComPtr<IMFSample> sample;
+
+    const auto start = Clock::now();
+    CheckHR(reader_->ReadSample(MF_SOURCE_READER_FIRST_VIDEO_STREAM, 0,
+                                &stream_index, &flags, &sample_time, &sample),
+            "ReadSample");
+    const auto end = Clock::now();
+    *decode_ms = MsSince(start, end);
+
+    if (flags & MF_SOURCE_READERF_ENDOFSTREAM) {
+      return false;
+    }
+    if (!sample) {
+      return true;
+    }
+
+    ComPtr<IMFMediaBuffer> buffer;
+    CheckHR(sample->ConvertToContiguousBuffer(&buffer),
+            "ConvertToContiguousBuffer");
+
+    BYTE* data = nullptr;
+    DWORD max_length = 0;
+    DWORD current_length = 0;
+    CheckHR(buffer->Lock(&data, &max_length, &current_length), "buffer Lock");
+    const size_t expected =
+        static_cast<size_t>(width_) * static_cast<size_t>(height_) * sizeof(uint32_t);
+    if (current_length < expected) {
+      buffer->Unlock();
+      throw std::runtime_error("decoded frame is smaller than expected RGB32 size");
+    }
+
+    frame->pixels.resize(static_cast<size_t>(width_) * height_);
+    std::memcpy(frame->pixels.data(), data, expected);
+    buffer->Unlock();
+    frame->width = width_;
+    frame->height = height_;
+    frame->sample_time = sample_time;
+    return true;
+  }
+
+ private:
+  ComPtr<IMFSourceReader> reader_;
+  int width_ = 0;
+  int height_ = 0;
 };
 
 bool RecvAll(SOCKET socket, void* buffer, int bytes) {
@@ -980,6 +1152,139 @@ int RunSynthetic(const Options& options) {
   return 0;
 }
 
+int RunDecodeFile(const Options& options) {
+  ComSession com;
+  MediaFoundationSession mf;
+  MediaFileDecoder decoder(options.decode_file);
+
+  Options render_options = options;
+  render_options.synthetic = false;
+  render_options.transport_sink = false;
+  render_options.width = decoder.width();
+  render_options.height = decoder.height();
+  render_options.gpu_pattern = false;
+  render_options.static_frame = false;
+  if (!render_options.output_resolution_set) {
+    render_options.output_width = decoder.width();
+    render_options.output_height = decoder.height();
+  }
+
+  HWND hwnd = CreateBenchmarkWindow(render_options);
+  HudOverlay hud;
+  hud.Create(hwnd, render_options.hud);
+  D3DRenderer renderer(hwnd, render_options);
+
+  std::vector<DecodeFrameStats> stats;
+  stats.reserve(static_cast<size_t>(render_options.fps) *
+                render_options.duration_seconds);
+
+  const double budget_ms = 1000.0 / static_cast<double>(render_options.fps);
+  const auto run_duration =
+      std::chrono::seconds(render_options.duration_seconds);
+  const auto run_start = Clock::now();
+  uint64_t frame_id = 0;
+
+  while (Clock::now() - run_start < run_duration) {
+    if (!PumpMessages()) {
+      break;
+    }
+
+    DecodedVideoFrame decoded;
+    double decode_ms = 0.0;
+    const auto frame_start = Clock::now();
+    const bool have_frame = decoder.ReadFrame(&decoded, &decode_ms);
+    if (!have_frame) {
+      break;
+    }
+    if (decoded.pixels.empty()) {
+      continue;
+    }
+
+    FrameStats render_stats = renderer.Render(frame_id, decoded.pixels, true);
+    const auto frame_end = Clock::now();
+
+    DecodeFrameStats frame = {};
+    frame.frame_id = frame_id;
+    frame.decode_ms = decode_ms;
+    frame.upload_ms = render_stats.upload_ms;
+    frame.render_ms = render_stats.draw_present_ms;
+    frame.total_ms = MsSince(frame_start, frame_end);
+    frame.missed_budget = frame.total_ms > budget_ms;
+    stats.push_back(frame);
+
+    if (frame_id % 30 == 0) {
+      const double elapsed =
+          std::chrono::duration<double>(Clock::now() - run_start).count();
+      const double running_fps = elapsed > 0.0 ? stats.size() / elapsed : 0.0;
+      std::ostringstream hud_text;
+      hud_text << "iBridge Receiver Decode\n"
+               << render_options.width << "x" << render_options.height << " -> "
+               << render_options.output_width << "x" << render_options.output_height
+               << "\n"
+               << "fps " << std::fixed << std::setprecision(2) << running_fps
+               << "  decode " << frame.decode_ms << " ms\n"
+               << "upload " << frame.upload_ms << " ms  present "
+               << frame.render_ms << " ms\n"
+               << "scale " << render_options.scale_mode;
+      hud.Update(hud_text.str());
+    }
+
+    ++frame_id;
+  }
+
+  const auto run_end = Clock::now();
+  const double elapsed_sec =
+      std::chrono::duration<double>(run_end - run_start).count();
+  const double actual_fps = stats.empty() ? 0.0 : stats.size() / elapsed_sec;
+
+  std::vector<double> decode_times;
+  std::vector<double> total_times;
+  decode_times.reserve(stats.size());
+  total_times.reserve(stats.size());
+  size_t missed = 0;
+  double max_total = 0.0;
+  double max_decode = 0.0;
+  for (const DecodeFrameStats& frame : stats) {
+    decode_times.push_back(frame.decode_ms);
+    total_times.push_back(frame.total_ms);
+    if (frame.missed_budget) {
+      ++missed;
+    }
+    max_total = std::max(max_total, frame.total_ms);
+    max_decode = std::max(max_decode, frame.decode_ms);
+  }
+
+  WriteDecodeCsv(options.csv_path, stats);
+
+  std::cout << std::fixed << std::setprecision(3)
+            << "iBridge compressed file decode renderer\n"
+            << "file=" << options.decode_file << '\n'
+            << "decoded_resolution=" << render_options.width << 'x'
+            << render_options.height << '\n'
+            << "output_resolution=" << render_options.output_width << 'x'
+            << render_options.output_height << '\n'
+            << "target_fps=" << render_options.fps << '\n'
+            << "actual_fps=" << actual_fps << '\n'
+            << "frames=" << stats.size() << '\n'
+            << "budget_ms=" << budget_ms << '\n'
+            << "avg_decode_ms="
+            << (decode_times.empty()
+                    ? 0.0
+                    : std::accumulate(decode_times.begin(), decode_times.end(), 0.0) /
+                          decode_times.size())
+            << '\n'
+            << "p95_decode_ms=" << Percentile(decode_times, 95.0) << '\n'
+            << "max_decode_ms=" << max_decode << '\n'
+            << "p95_total_ms=" << Percentile(total_times, 95.0) << '\n'
+            << "max_total_ms=" << max_total << '\n'
+            << "missed_frames=" << missed << '\n'
+            << "scale_mode=" << render_options.scale_mode << '\n'
+            << "csv=" << (options.csv_path.empty() ? "none" : options.csv_path)
+            << '\n';
+
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -987,6 +1292,9 @@ int main(int argc, char** argv) {
     const Options options = ParseOptions(argc, argv);
     if (options.transport_sink) {
       return RunTransportSink(options);
+    }
+    if (!options.decode_file.empty()) {
+      return RunDecodeFile(options);
     }
     return RunSynthetic(options);
   } catch (const std::exception& error) {

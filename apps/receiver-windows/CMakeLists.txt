@@ -21,5 +21,10 @@ target_link_libraries(ibridge-receiver PRIVATE
   d3d11
   dxgi
   d3dcompiler
+  mf
+  mfplat
+  mfreadwrite
+  mfuuid
+  ole32
   ws2_32
 )

@@ -38,4 +38,18 @@ Send encoded frames to a protocol v0 TCP receiver sink:
 apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 5120x2880 --fps 60 --duration 1 --codec hevc --bitrate-mbps 120 --send-host 100.86.52.88 --send-port 48320 --csv benchmarks/runs/YYYY-MM-DD_HHMM_plan_b_5k_hevc_tcp/primary_stats.csv
 ```
 
+The TCP sender now uses a bounded async queue. The VideoToolbox output callback copies the encoded payload and enqueues it; a dedicated sender worker owns blocking socket writes. New diagnostics columns include `payload_extract_ms`, `enqueue_ms`, `queue_depth`, `dropped_before`, `send_ms`, `bytes_sent`, `frame_age_at_send_ms`, `send_failed`, `keyframe`, and `sender_dropped`.
+
+List available VideoToolbox encoders on the current Mac:
+
+```bash
+apps/primary-macos/.build/release/ibridge-primary --list-encoders
+```
+
+Run the Plan C low-latency matrix:
+
+```bash
+scripts/mac_plan_c_encode_matrix.sh
+```
+
 This first CLI spike uses synthetic BGRA frames and VideoToolbox. ScreenCaptureKit capture and transport are separate follow-up steps so virtual-display research does not block the frame pipeline.

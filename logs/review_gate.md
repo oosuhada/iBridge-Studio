@@ -506,3 +506,88 @@ No drain-rate benchmark completed because cable changes require physical interve
 ## Next Prompt To Run
 
 `prompts/10_PACKAGING_AND_RELEASE.md` is blocked until compressed decode/render and at least one end-to-end display mode work. Recommended next engineering prompt is a focused decoder/render integration spike, not packaging.
+
+## 2026-05-15 08:54 — Prompt 09 after focused Plan C pipeline spike setup
+
+Prompt reviewed: user-requested sender queue, network matrix, low-latency encoder, and decode/render spike setup
+
+## Summary
+
+Pass for macOS sender/encoder and benchmark-prep work; partial for Windows decode/render because implementation exists but Windows build/run validation is pending.
+
+This spike correctly did not proceed to packaging and did not re-center 5K60 single-stream work. It classified earlier transport results as Tailscale / likely Wi-Fi 2.4GHz / TCP early data, added LAN/Thunderbolt matrix scripts for later physical testing, separated VideoToolbox callback timing from TCP send timing, added low-latency encoder specification at session creation, and added an offline Media Foundation decode/render path for the Windows Receiver.
+
+## Changed Files
+
+- `apps/primary-macos/README.md`
+- `apps/primary-macos/Sources/iBridgePrimary/main.swift`
+- `apps/receiver-windows/CMakeLists.txt`
+- `apps/receiver-windows/README.md`
+- `apps/receiver-windows/src/main.cpp`
+- `benchmarks/plans/network_matrix.md`
+- `benchmarks/runs/2026-05-15_0854_encoder_lowlatency/*`
+- `docs/04_SOURCE_LEDGER.md`
+- `docs/current-work.md`
+- `logs/experiments.md`
+- `logs/worklog.md`
+- `scripts/mac_network_matrix.sh`
+- `scripts/mac_plan_c_encode_matrix.sh`
+- `scripts/windows_network_matrix.ps1`
+
+## Verification Commands / Results
+
+```bash
+swift build --package-path apps/primary-macos -c release
+```
+
+Result: passed.
+
+```bash
+apps/primary-macos/.build/release/ibridge-primary --list-encoders
+```
+
+Result: passed and recorded `benchmarks/runs/primary_encoder_list_latest.txt`.
+
+```bash
+apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 1280x720 --fps 60 --duration 1 --codec hevc --bitrate-mbps 20 --send-host 127.0.0.1 --send-port 48320 --sender-queue-depth 4
+```
+
+Result: loopback TCP drain sent 60/60 frames with no sender drops or send failures.
+
+```bash
+LIMIT_CASES=1 DURATION=1 RUN_ROOT=benchmarks/runs/2026-05-15_encoder_matrix_smoke scripts/mac_plan_c_encode_matrix.sh
+```
+
+Result: passed one matrix case and wrote summary artifacts.
+
+Windows MSVC build: skipped. SSH to `100.86.52.88` failed with `Permission denied`, and the MacBook Air does not have Windows SDK headers/libraries.
+
+## Benchmarks
+
+| Test | Frames | Failed | Avg encode ms | P95 encode ms | Max encode ms | Payload bytes |
+|---|---:|---:|---:|---:|---:|---:|
+| HEVC 2560x1440 @ 60, 120Mbps, 5s | 300 | 0 | 13.783 | 13.295 | 103.114 | 14,103,635 |
+| HEVC 3200x1800 @ 60, 120Mbps, 5s | 300 | 0 | 24.293 | 65.947 | 110.441 | 22,315,381 |
+| H.264 5120x2880 @ 60, 120Mbps, 1s | 60 | 60 | 9.321 | 10.073 | 75.755 | 0 |
+
+## Known Failures
+
+- 3200x1800 HEVC did not meet avg encode latency < 20ms in the local sequential run.
+- H.264 5K still produced zero payloads.
+- Windows compressed file decode/render is implemented but unbuilt/unmeasured on the iMac.
+- Protocol v0 live compressed TCP decode/render is not implemented yet.
+- LAN, 5GHz Wi-Fi, 1GbE, and Thunderbolt Bridge measurements remain pending physical setup.
+
+## Review Questions
+
+1. Did this stage only do the requested goal? Yes; packaging, UDP, tiled 5K, ScreenCaptureKit, and virtual display work were not started.
+2. Did it start the next prompt early? No.
+3. Was build/run verification real? macOS verification was real; Windows verification is explicitly pending.
+4. Are logs saved? Yes.
+5. Were failures hidden? No.
+6. Were hardware facts guessed? No; LAN/TB and Windows decoder support are pending.
+7. Was Plan downshift measured? Existing Plan B failures remain recorded; this spike keeps Plan C as the immediate path.
+
+## Next Prompt To Run
+
+Focused Windows receiver decode validation and live protocol v0 TCP decode/render integration. Do not run `prompts/10_PACKAGING_AND_RELEASE.md`.
