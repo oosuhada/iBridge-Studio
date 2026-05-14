@@ -139,3 +139,72 @@ Result: exited 0, `hud=on`, 62.304 fps, 0 missed frames against a 30fps budget.
 ## Next Prompt To Run
 
 `prompts/05_PRIMARY_MACOS_IMPLEMENTATION.md`
+
+## 2026-05-15 01:45 — Prompt 09 after Prompt 05
+
+Prompt reviewed: `prompts/05_PRIMARY_MACOS_IMPLEMENTATION.md`
+
+## Summary
+
+Pass for Primary synthetic encode milestone; ScreenCaptureKit capture and transport remain open.
+
+The macOS Primary now has a SwiftPM CLI that generates synthetic BGRA frames, encodes with VideoToolbox H.264 or HEVC, and writes diagnostics CSV. Both H.264 and HEVC encoded 120/120 frames at a 2560x1440 @ 60fps target over a 2-second run.
+
+## Changed Files
+
+- `.gitignore`
+- `apps/primary-macos/Package.swift`
+- `apps/primary-macos/README.md`
+- `apps/primary-macos/Sources/iBridgePrimary/main.swift`
+- `benchmarks/runs/2026-05-15_0140_primary_1440p60_h264/*`
+- `benchmarks/runs/2026-05-15_0140_primary_1440p60_hevc/*`
+- `logs/experiments.md`
+- `logs/worklog.md`
+
+## Verification Commands / Results
+
+```bash
+swift build --package-path apps/primary-macos -c release
+```
+
+Result: passed.
+
+```bash
+apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv benchmarks/runs/2026-05-15_0140_primary_1440p60_h264/primary_stats.csv
+```
+
+Result: encoded 120/120 frames, 0 failed frames.
+
+```bash
+apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec hevc --csv benchmarks/runs/2026-05-15_0140_primary_1440p60_hevc/primary_stats.csv
+```
+
+Result: encoded 120/120 frames, 0 failed frames.
+
+## Benchmarks
+
+| Codec | Frames | Failed | Avg generate ms | Avg encode latency ms | P95 encode latency ms | Max encode latency ms | Payload bytes |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| H.264 | 120 | 0 | 4.894 | 119.916 | 151.081 | 157.933 | 44,277,068 |
+| HEVC | 120 | 0 | 4.892 | 133.649 | 162.608 | 169.744 | 43,277,169 |
+
+## Known Failures
+
+- Encode callback latency is too high for external-display use.
+- ScreenCaptureKit capture is not implemented yet.
+- Transport client is not implemented yet.
+- Virtual display research remains intentionally separate.
+
+## Review Questions
+
+1. Did this stage only do the requested goal? Yes, within the synthetic encode milestone.
+2. Did it start the next prompt early? No.
+3. Was build/run verification real? Yes, on the MacBook Air.
+4. Are logs saved? Yes.
+5. Were failures hidden? No.
+6. Were hardware facts guessed? No.
+7. Was Plan downshift measured? No downshift occurred.
+
+## Next Prompt To Run
+
+`prompts/07_PROTOCOL_AND_TRANSPORT.md`
