@@ -208,3 +208,60 @@ Result: encoded 120/120 frames, 0 failed frames.
 ## Next Prompt To Run
 
 `prompts/07_PROTOCOL_AND_TRANSPORT.md`
+
+## 2026-05-15 01:56 — Prompt 09 after Prompt 07
+
+Prompt reviewed: `prompts/07_PROTOCOL_AND_TRANSPORT.md`
+
+## Summary
+
+Pass for protocol v0 definition and parser-test milestone.
+
+Protocol v0 now has a concrete TCP control handshake, UDP frame channel shape, TCP frame fallback, ping/echo clock-offset estimate, and fixed binary frame header. The shared parser test locks the 80-byte header layout and verifies wrong magic/wrong version rejection before payload acceptance.
+
+## Changed Files
+
+- `apps/shared-protocol/README.md`
+- `apps/shared-protocol/protocol_v0.py`
+- `apps/shared-protocol/test_protocol_v0.py`
+- `specs/protocol_v0.md`
+- `logs/worklog.md`
+
+## Verification Commands / Results
+
+```bash
+python3 apps/shared-protocol/test_protocol_v0.py
+```
+
+Result: passed, 8 tests.
+
+```bash
+git diff --check
+```
+
+Result: passed.
+
+## Benchmarks
+
+No performance benchmark was required for Prompt 07. This was a protocol/schema/test milestone.
+
+## Known Failures
+
+- Protocol v0 is not yet wired into the macOS Primary sender.
+- Protocol v0 is not yet wired into the Windows Receiver.
+- UDP fragmentation/reassembly, TCP frame fallback runtime code, and clock-probe runtime code are specified but not implemented.
+- End-to-end latency cannot be measured until Prompt 03 transport integration exists.
+
+## Review Questions
+
+1. Did this stage only do the requested goal? Yes.
+2. Did it start the next prompt early? No.
+3. Was build/run verification real? Yes, parser tests ran locally.
+4. Are logs saved? Yes.
+5. Were failures hidden? No.
+6. Were hardware facts guessed? No hardware claims were added.
+7. Was Plan downshift measured? No downshift occurred.
+
+## Next Prompt To Run
+
+`prompts/03_PLAN_B_5K60_PRACTICAL.md`
