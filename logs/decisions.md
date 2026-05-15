@@ -22,3 +22,14 @@ Decision:
 Reason:
 - Isolated 4096x2304, 3840x2160, 3200x1800, and 2560x1440 HEVC profiles all passed p95 <=16.67 ms across 3/3 repeats.
 - Running 2x2 tiled 5K60 first reproduced slow immediate single-stream results, and 4096x2304 remained slow after a 60-second wait.
+
+## 2026-05-15 13:58 — Emergency fallback after tiled 5K60 is 2560x1440 until stronger reset is proven
+
+Decision:
+- Do not assume `VTEncoderXPCService` restart is enough to recover high-detail single-stream fallback after tiled 5K60.
+- If tiled 5K60 has been active and the app must downshift immediately, treat `2560x1440@60` as the current safe emergency fallback.
+
+Reason:
+- Restarting user `VTEncoderXPCService` did not recover 4096x2304 p95; it stayed around 46.5 ms.
+- 3200x1800 also stayed slow after the post-tiled state.
+- 2560x1440 remained inside budget at p95 10.808 ms.

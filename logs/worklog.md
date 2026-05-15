@@ -657,3 +657,23 @@ Next:
 - Do not benchmark fallback profiles immediately after tiled 5K60.
 - Investigate safe VideoToolbox encoder-service reset/restart before product-mode fallback switching.
 - Run network matrices after Thunderbolt Bridge and Ethernet cables arrive.
+
+## 2026-05-15 13:58 — Encoder service restart probe
+
+Prompt: continue local MBP work by testing whether post-tiled fallback slowdown can be recovered before cables arrive.
+Changed files:
+- docs/14_TRANSMISSION_PROFILE_MATRIX.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/*
+Verification:
+- [x] Restarted user `VTEncoderXPCService` and reran 4096x2304 fallback.
+- [x] Rechecked 4096x2304 after 60 seconds and with `prioritize_speed=unset`.
+- [x] Checked 3200x1800 and 2560x1440 post-slow-state fallback behavior.
+Result:
+- `VTEncoderXPCService` restart did not recover 4096x2304 or 3200x1800 performance after tiled contamination.
+- 2560x1440 stayed within budget and is the current safest emergency fallback after tiled 5K60.
+Next:
+- Treat high-detail fallback switching after tiled 5K60 as unsafe until a stronger reset/session strategy is proven.
+- Keep waiting for M1 Air results and physical cable tests for Thunderbolt Bridge / Ethernet.
