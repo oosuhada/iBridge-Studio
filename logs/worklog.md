@@ -2,6 +2,40 @@
 
 Codex must append entries here after every meaningful change.
 
+## 2026-05-15 10:06 — Add local encoder reference clone workspace
+
+Prompt: user request to clone and study open-source encoding/decoding references
+Changed files:
+- .gitignore
+- reference/README.md
+- docs/04_SOURCE_LEDGER.md
+- logs/worklog.md
+Verification:
+- [x] Clone selected reference repositories under ignored `reference/`.
+- [x] Search cloned repositories for capture, VideoToolbox, decode, transport, and frame pacing implementation targets.
+- [x] Run git status and diff checks.
+Result:
+- Cloned seven reference repositories and recorded first-pass source map in `reference/README.md`.
+Next:
+- Decide whether the next iBridge implementation spike should target VideoToolbox property matrix, UDP/FEC transport, or Windows D3D11VA decode/render first.
+
+## 2026-05-15 10:18 — Expand references for codec and Mac-Mac routes
+
+Prompt: user clarified encoding/decoding references should be broader, and Mac-Mac should remain in scope if it has advantages
+Changed files:
+- reference/README.md
+- docs/current-work.md
+- logs/worklog.md
+Verification:
+- [x] Cloned additional codec, hardware SDK, Windows decode/render, WebRTC, transport, remote desktop, and macOS virtual display references under ignored `reference/`.
+- [x] Recorded commit hashes for the expanded reference set.
+- [x] Searched reference set for low-latency codec settings, hardware encode/decode paths, Media Foundation/D3D11VA, WebRTC/RTP packetization, and macOS virtual display APIs.
+- [x] Run git status and diff checks.
+Result:
+- The local reference set now covers Windows and Mac-Mac routes instead of assuming macOS-to-Windows is the only target.
+Next:
+- Use `reference/README.md` to pick a focused next spike: Mac-Mac virtual display + VideoToolbox path, Windows D3D11VA receiver path, or transport/frame pacing path.
+
 ## 2026-05-14 22:08 — Prompt 00 repo assessment
 
 Prompt: prompts/00_MASTER_PROMPT.md

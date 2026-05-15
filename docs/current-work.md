@@ -24,6 +24,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Windows Receiver has a new offline Media Foundation compressed file decode/render smoke path, but live TCP compressed decode/render is still pending Windows-side validation.
 - MacBook Pro `MacBookPro18,4` / M1 Max has now been tested as a Primary candidate on branch `feat/plan-a-5k60-benchmark`.
 - On the MacBook Pro, forcing `com.apple.videotoolbox.videoencoder.ave.hevc` and disabling low-latency rate-control produced the best Plan C encode results so far.
+- A local ignored `reference/` workspace has been created for clean-room study of mature capture, encode, transport, decode, and frame-pacing implementations.
+- The reference scope has been widened beyond macOS-to-Windows. Mac-to-Mac routes are now explicitly in scope if an older macOS install on the iMac creates a stronger technical path.
 
 ## Key Results
 
@@ -53,6 +55,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `benchmarks/runs/2026-05-15_1012_mbp_display_resolution_encode/summary.md`
 - `logs/review_gate.md`
 - `logs/worklog.md`
+- `reference/README.md`
 
 ## Commands Run
 
@@ -83,3 +86,5 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 3. Run Plan C live TCP end-to-end at 2560x1440 or 3200x1800 before any UDP work.
 4. Run network matrix after LAN and Thunderbolt Bridge cables are attached.
 5. Capture Plan C screenshots and text-quality scoring after compressed decode/render works.
+6. Use the reference source map to choose the next deeper technical spike: VT property matrix, UDP/FEC transport, or D3D11VA decode/render.
+7. Compare Mac-Mac virtual-display and receiver options before assuming the Windows receiver is the long-term best path.
