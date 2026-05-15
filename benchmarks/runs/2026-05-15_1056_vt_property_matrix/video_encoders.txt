@@ -1,0 +1,272 @@
+video_encoder_list=Optional(<__NSArrayM 0x15770be00>(
+{
+    CodecName = "24-bit RGB";
+    CodecType = 24;
+    DisplayName = "24-bit RGB";
+    EncoderID = "com.apple.videotoolbox.videoencoder.24rgb";
+    EncoderName = "Apple 24-bit RGB";
+    PerformanceRating = 0;
+},
+{
+    CodecName = "32-bit ARGB";
+    CodecType = 32;
+    DisplayName = "32-bit ARGB";
+    EncoderID = "com.apple.videotoolbox.videoencoder.32argb";
+    EncoderName = "Apple 32-bit ARGB";
+    PerformanceRating = 0;
+},
+{
+    CodecName = "Apple ProRes 422";
+    CodecType = 1634755438;
+    DisplayName = "Apple ProRes 422";
+    EncoderID = "com.apple.videotoolbox.videoencoder.prores-422";
+    EncoderName = "Apple ProRes 422";
+},
+{
+    CodecName = "Apple ProRes 422 HQ";
+    CodecType = 1634755432;
+    DisplayName = "Apple ProRes 422 HQ";
+    EncoderID = "com.apple.videotoolbox.videoencoder.prores-422hq";
+    EncoderName = "Apple ProRes 422 HQ";
+},
+{
+    CodecName = "Apple ProRes 422 LT";
+    CodecType = 1634755443;
+    DisplayName = "Apple ProRes 422 LT";
+    EncoderID = "com.apple.videotoolbox.videoencoder.prores-422lt";
+    EncoderName = "Apple ProRes 422 LT";
+},
+{
+    CodecName = "Apple ProRes 422 Proxy";
+    CodecType = 1634755439;
+    DisplayName = "Apple ProRes 422 Proxy";
+    EncoderID = "com.apple.videotoolbox.videoencoder.prores-422proxy";
+    EncoderName = "Apple ProRes 422 Proxy";
+},
+{
+    CodecName = "Apple ProRes 4444";
+    CodecType = 1634743400;
+    DisplayName = "Apple ProRes 4444";
+    EncoderID = "com.apple.videotoolbox.videoencoder.prores-4444";
+    EncoderName = "Apple ProRes 4444";
+},
+{
+    CodecName = "Apple ProRes 4444 XQ";
+    CodecType = 1634743416;
+    DisplayName = "Apple ProRes 4444 XQ";
+    EncoderID = "com.apple.videotoolbox.videoencoder.prores-4444xq";
+    EncoderName = "Apple ProRes 4444 XQ";
+},
+{
+    CodecName = "AppleProResHW 422";
+    CodecType = 1634755438;
+    DisplayName = "AppleProResHW 422";
+    EncoderID = "com.apple.videotoolbox.videoencoder.appleproreshw.422";
+    EncoderName = "AppleProResHW 422";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+},
+{
+    CodecName = "AppleProResHW 422 HQ";
+    CodecType = 1634755432;
+    DisplayName = "AppleProResHW 422 HQ";
+    EncoderID = "com.apple.videotoolbox.videoencoder.appleproreshw.422hq";
+    EncoderName = "AppleProResHW 422 HQ";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+},
+{
+    CodecName = "AppleProResHW 422 LT";
+    CodecType = 1634755443;
+    DisplayName = "AppleProResHW 422 LT";
+    EncoderID = "com.apple.videotoolbox.videoencoder.appleproreshw.422lt";
+    EncoderName = "AppleProResHW 422 LT";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+},
+{
+    CodecName = "AppleProResHW 422 Proxy";
+    CodecType = 1634755439;
+    DisplayName = "AppleProResHW 422 Proxy";
+    EncoderID = "com.apple.videotoolbox.videoencoder.appleproreshw.422proxy";
+    EncoderName = "AppleProResHW 422 Proxy";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+},
+{
+    CodecName = "AppleProResHW 4444";
+    CodecType = 1634743400;
+    DisplayName = "AppleProResHW 4444";
+    EncoderID = "com.apple.videotoolbox.videoencoder.appleproreshw.4444";
+    EncoderName = "AppleProResHW 4444";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+},
+{
+    CodecName = "AppleProResHW 4444 XQ";
+    CodecType = 1634743416;
+    DisplayName = "AppleProResHW 4444 XQ";
+    EncoderID = "com.apple.videotoolbox.videoencoder.appleproreshw.4444xq";
+    EncoderName = "AppleProResHW 4444 XQ";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+},
+{
+    CodecName = Depth;
+    CodecType = 1684369512;
+    DisplayName = "Apple Depth (HEVC)-Apple HEVC (HW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.depth-hevc:com.apple.videotoolbox.videoencoder.ave.hevc";
+    EncoderName = "Apple Depth (HEVC)-Apple HEVC (HW)";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+    SupportedSelectionProperties =     {
+    };
+},
+{
+    CodecName = Depth;
+    CodecType = 1684369512;
+    DisplayName = "Apple Depth (HEVC)-Apple HEVC (SW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.depth-hevc:com.apple.videotoolbox.videoencoder.hevc.vcp";
+    EncoderName = "Apple Depth (HEVC)-Apple HEVC (SW)";
+    PerformanceRating = 0;
+    QualityRating = 100;
+    SupportedSelectionProperties =     {
+    };
+},
+{
+    CodecName = Disparity;
+    CodecType = 1684632424;
+    DisplayName = "Apple Disparity (HEVC)-Apple HEVC (HW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.disparity-hevc:com.apple.videotoolbox.videoencoder.ave.hevc";
+    EncoderName = "Apple Disparity (HEVC)-Apple HEVC (HW)";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+    SupportedSelectionProperties =     {
+    };
+},
+{
+    CodecName = Disparity;
+    CodecType = 1684632424;
+    DisplayName = "Apple Disparity (HEVC)-Apple HEVC (SW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.disparity-hevc:com.apple.videotoolbox.videoencoder.hevc.vcp";
+    EncoderName = "Apple Disparity (HEVC)-Apple HEVC (SW)";
+    PerformanceRating = 0;
+    QualityRating = 100;
+    SupportedSelectionProperties =     {
+    };
+},
+{
+    CodecName = "H.263";
+    CodecType = 1748121139;
+    DisplayName = "H.263";
+    EncoderID = "com.apple.videotoolbox.videoencoder.h263";
+    EncoderName = "Apple H.263 (SW)";
+    PerformanceRating = "-10";
+},
+{
+    CodecName = "H.264";
+    CodecType = 1635148593;
+    DisplayName = "Apple H.264 (HW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.ave.avc";
+    EncoderName = "Apple H.264 (HW)";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+},
+{
+    CodecName = "H.264";
+    CodecType = 1635148593;
+    DisplayName = "Apple H.264 (SW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.h264";
+    EncoderName = "Apple H.264 (SW)";
+    PerformanceRating = 200;
+},
+{
+    CodecName = HEVC;
+    CodecType = 1752589105;
+    DisplayName = "Apple HEVC (HW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.ave.hevc";
+    EncoderName = "Apple HEVC (HW)";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+    SupportedSelectionProperties =     {
+        ProfileLevel =         (
+            "HEVC_Main_AutoLevel",
+            "HEVC_Main10_AutoLevel",
+            "HEVC_Main42210_AutoLevel"
+        );
+    };
+},
+{
+    CodecName = HEVC;
+    CodecType = 1752589105;
+    DisplayName = "Apple HEVC (SW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.hevc.vcp";
+    EncoderName = "Apple HEVC (SW)";
+    PerformanceRating = 0;
+    QualityRating = 100;
+    SupportedSelectionProperties =     {
+        ProfileLevel =         (
+            "HEVC_Main_AutoLevel",
+            "HEVC_Main10_AutoLevel"
+        );
+    };
+},
+{
+    CodecName = JPEG;
+    CodecType = 1785750887;
+    DisplayName = "Apple JPEG";
+    EncoderID = "com.apple.videotoolbox.videoencoder.jpeg";
+    EncoderName = "Apple JPEG";
+    PerformanceRating = "-10";
+},
+{
+    CodecName = JPEG;
+    CodecType = 1785750887;
+    DisplayName = "JPEG (HW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.jpeg.ajpeg";
+    EncoderName = "JPEG (HW)";
+    IsHardwareAccelerated = 1;
+},
+{
+    CodecName = "Muxed Alpha";
+    CodecType = 1836415073;
+    DisplayName = "Apple Muxed Alpha-Apple HEVC (HW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.hevc-with-alpha:com.apple.videotoolbox.videoencoder.ave.hevc";
+    EncoderName = "Apple Muxed Alpha-Apple HEVC (HW)";
+    IsHardwareAccelerated = 1;
+    PerformanceRating = 400;
+    QualityRating = 90;
+    SupportedSelectionProperties =     {
+        ProfileLevel =         (
+            "HEVC_Main_AutoLevel",
+            "HEVC_Main10_AutoLevel",
+            "HEVC_Main42210_AutoLevel"
+        );
+    };
+},
+{
+    CodecName = "Muxed Alpha";
+    CodecType = 1836415073;
+    DisplayName = "Apple Muxed Alpha-Apple HEVC (SW)";
+    EncoderID = "com.apple.videotoolbox.videoencoder.hevc-with-alpha:com.apple.videotoolbox.videoencoder.hevc.vcp";
+    EncoderName = "Apple Muxed Alpha-Apple HEVC (SW)";
+    PerformanceRating = 0;
+    QualityRating = 100;
+    SupportedSelectionProperties =     {
+        ProfileLevel =         (
+            "HEVC_Main_AutoLevel",
+            "HEVC_Main10_AutoLevel"
+        );
+    };
+}
+)
+)

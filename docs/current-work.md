@@ -29,6 +29,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Nested `.git` directories have been removed from the ignored `reference/` clones so VS Code only sees the outer iBridge repository.
 - Reference analysis now points to concrete next spikes: VT property matrix, Annex-B fixture path, bounded receiver pacing, GPU-native decode/render, and a local Mac virtual-display smoke.
 - iMac setup prep is documented with a Windows inventory script and a conservative remote-vs-physical-access boundary for Boot Camp/macOS work.
+- Primary VideoToolbox encoding has been rechecked with reference-informed controls. Plan B 5K60 still fails before any receiver dependency; 3200x1800 and 3840x2160 are the current strongest encode-only candidates.
 
 ## Key Results
 
@@ -39,6 +40,10 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - HEVC 5120x2880 @ 60 target encoded, but 120Mbps TCP to Windows sink took 38.60s for 1s of frames.
 - Plan C receiver static scaled-render modes all reached about 60fps.
 - MacBook Pro HEVC 3200x1800 @ 60, 120Mbps, forced `ave.hevc`, no low-latency RC: avg encode 16.612 ms, p95 16.777 ms.
+- MacBook Pro HEVC 3200x1800 @ 60, 120Mbps, forced `ave.hevc`, no low-latency RC, DataRateLimits: 5s sustained avg 11.583 ms, p95 11.766 ms.
+- MacBook Pro HEVC 3840x2160 @ 60, 120Mbps, forced `ave.hevc`, no low-latency RC, DataRateLimits: 5s sustained avg 15.457 ms, p95 15.831 ms.
+- MacBook Pro HEVC 4096x2304 @ 60, 120Mbps, forced `ave.hevc`, no low-latency RC, DataRateLimits: 5s sustained avg 17.292 ms, p95 17.231 ms.
+- MacBook Pro HEVC 5120x2880 @ 60, 120Mbps, forced `ave.hevc`, no low-latency RC, speed priority: 5s sustained avg 100.617 ms, p95 119.982 ms.
 - MacBook Pro display-sized synthetic sources for built-in XDR, external portrait display, Sidecar iPad, and HDMI FHD display all encoded successfully with forced `ave.hevc`.
 - MacBook Pro to iMac Tailscale path is reachable, but ping is jittery: 20-packet ICMP min/avg/max/stddev 14.484/108.629/423.525/96.505 ms.
 
@@ -50,6 +55,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `scripts/mac_network_matrix.sh`
 - `scripts/windows_network_matrix.ps1`
 - `scripts/mac_plan_c_encode_matrix.sh`
+- `scripts/mac_vt_property_matrix.sh`
+- `benchmarks/runs/2026-05-15_1056_vt_property_matrix/summary.csv`
+- `benchmarks/runs/2026-05-15_1058_vt_targeted_sustain/summary.md`
 - `apps/shared-protocol/protocol_v0.py`
 - `specs/protocol_v0.md`
 - `benchmarks/runs/2026-05-15_0238_plan_b_5k_hevc_120mbps_tcp/summary.md`
@@ -73,9 +81,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 ## Known Issues
 
+- Plan B 5K60 compressed encode is still not viable on the current MBP Primary path.
 - Compressed decode/render on Windows is not implemented.
 - UDP frame transport is specified but not implemented.
-- TCP sending currently blocks inside the encode callback.
 - ScreenCaptureKit capture is not implemented.
 - Text-quality screenshots are pending.
 - Power cable/drain-rate tests require physical cable changes.
@@ -87,11 +95,12 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 ## Next Steps
 
-1. Build and run the Windows `--decode-file` smoke path on the iMac with a known-good H.264/HEVC MP4 sample.
-2. Extend receiver decode from offline file to protocol v0 TCP payloads.
-3. Run Plan C live TCP end-to-end at 2560x1440 or 3200x1800 before any UDP work.
-4. Run network matrix after LAN and Thunderbolt Bridge cables are attached.
-5. Capture Plan C screenshots and text-quality scoring after compressed decode/render works.
-6. Use the reference source map to choose the next deeper technical spike: VT property matrix, UDP/FEC transport, or D3D11VA decode/render.
-7. Compare Mac-Mac virtual-display and receiver options before assuming the Windows receiver is the long-term best path.
-8. Run `scripts/windows_imac_setup_inventory.ps1` on the iMac from RDP or an existing authorized remote shell before any boot-volume or macOS install decision.
+1. Continue encoding-first work with real ScreenCaptureKit/IOSurface input and compare against the synthetic BGRA generator.
+2. Test static-screen / dirty-region / lower-motion modes before declaring 4K60 quality sufficient.
+3. Only after encode remains stable, build and run the Windows `--decode-file` smoke path on the iMac with a known-good H.264/HEVC sample.
+4. Extend receiver decode from offline file to protocol v0 TCP payloads.
+5. Run Plan C live TCP end-to-end at 3200x1800 or 3840x2160 before any UDP work.
+6. Run network matrix after LAN and Thunderbolt Bridge cables are attached.
+7. Capture screenshots and text-quality scoring after compressed decode/render works.
+8. Compare Mac-Mac virtual-display and receiver options before assuming the Windows receiver is the long-term best path.
+9. Run `scripts/windows_imac_setup_inventory.ps1` on the iMac from RDP or an existing authorized remote shell before any boot-volume or macOS install decision.

@@ -16,9 +16,17 @@ struct Options {
     var sendHost = ""
     var sendPort = 48320
     var bitrateMbps = 0
+    var dataRateLimitMbps = 0
+    var dataRateWindowSeconds = 1.0
     var lowLatencyRateControl = true
     var maxKeyFrameInterval = 60
     var maxKeyFrameIntervalDuration = 2.0
+    var maxFrameDelayCount: Int? = 0
+    var allowTemporalCompression = true
+    var allowFrameReordering = false
+    var allowOpenGOP = false
+    var prioritizeSpeed: Bool?
+    var payloadFormat = "length-prefixed"
     var senderQueueDepth = 4
     var listEncoders = false
     var printSupportedProperties = false
@@ -47,7 +55,14 @@ final class EncoderState {
     private let lock = NSLock()
     private var timings: [Int: FrameTiming] = [:]
     private var framesByID: [Int: EncodedFrame] = [:]
+    let codec: String
+    let payloadFormat: String
     var sender: AsyncTcpFrameSender?
+
+    init(codec: String, payloadFormat: String) {
+        self.codec = codec
+        self.payloadFormat = payloadFormat
+    }
 
     func markFrame(_ frameID: Int, generateMS: Double) {
         lock.lock()
@@ -75,7 +90,7 @@ final class EncoderState {
         var payload = Data()
         if let sampleBuffer {
             do {
-                payload = try encodedPayload(from: sampleBuffer)
+                payload = try encodedPayload(from: sampleBuffer, codec: codec, payloadFormat: payloadFormat)
             } catch {
                 fputs("payload extraction failed for frame \(frameID): \(error)\n", stderr)
             }
@@ -404,7 +419,7 @@ func appendLE<T: FixedWidthInteger>(_ data: inout Data, _ value: T) {
     withUnsafeBytes(of: &little) { data.append(contentsOf: $0) }
 }
 
-func encodedPayload(from sampleBuffer: CMSampleBuffer) throws -> Data {
+func encodedPayload(from sampleBuffer: CMSampleBuffer, codec: String, payloadFormat: String) throws -> Data {
     guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
         throw RuntimeError("sample buffer has no data buffer")
     }
@@ -421,7 +436,106 @@ func encodedPayload(from sampleBuffer: CMSampleBuffer) throws -> Data {
     guard status == noErr else {
         throw RuntimeError("CMBlockBufferCopyDataBytes failed: \(status)")
     }
-    return data
+    guard payloadFormat == "annex-b" else {
+        return data
+    }
+
+    var annexB = Data()
+    if sampleBufferIsKeyframe(sampleBuffer),
+       let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) {
+        appendParameterSets(formatDescription, codec: codec, to: &annexB)
+    }
+    try appendLengthPrefixedNALUnitsAsAnnexB(data, to: &annexB)
+    return annexB
+}
+
+func appendStartCode(to data: inout Data) {
+    data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+}
+
+func appendParameterSets(_ formatDescription: CMFormatDescription, codec: String, to output: inout Data) {
+    if codec == "h264" {
+        var parameterSetCount = 0
+        var nalUnitHeaderLength: Int32 = 0
+        var pointer: UnsafePointer<UInt8>?
+        var size = 0
+        let countStatus = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
+            formatDescription,
+            parameterSetIndex: 0,
+            parameterSetPointerOut: &pointer,
+            parameterSetSizeOut: &size,
+            parameterSetCountOut: &parameterSetCount,
+            nalUnitHeaderLengthOut: &nalUnitHeaderLength
+        )
+        guard countStatus == noErr else { return }
+        for index in 0..<parameterSetCount {
+            pointer = nil
+            size = 0
+            let status = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
+                formatDescription,
+                parameterSetIndex: index,
+                parameterSetPointerOut: &pointer,
+                parameterSetSizeOut: &size,
+                parameterSetCountOut: nil,
+                nalUnitHeaderLengthOut: nil
+            )
+            if status == noErr, let pointer, size > 0 {
+                appendStartCode(to: &output)
+                output.append(pointer, count: size)
+            }
+        }
+    } else {
+        var parameterSetCount = 0
+        var nalUnitHeaderLength: Int32 = 0
+        var pointer: UnsafePointer<UInt8>?
+        var size = 0
+        let countStatus = CMVideoFormatDescriptionGetHEVCParameterSetAtIndex(
+            formatDescription,
+            parameterSetIndex: 0,
+            parameterSetPointerOut: &pointer,
+            parameterSetSizeOut: &size,
+            parameterSetCountOut: &parameterSetCount,
+            nalUnitHeaderLengthOut: &nalUnitHeaderLength
+        )
+        guard countStatus == noErr else { return }
+        for index in 0..<parameterSetCount {
+            pointer = nil
+            size = 0
+            let status = CMVideoFormatDescriptionGetHEVCParameterSetAtIndex(
+                formatDescription,
+                parameterSetIndex: index,
+                parameterSetPointerOut: &pointer,
+                parameterSetSizeOut: &size,
+                parameterSetCountOut: nil,
+                nalUnitHeaderLengthOut: nil
+            )
+            if status == noErr, let pointer, size > 0 {
+                appendStartCode(to: &output)
+                output.append(pointer, count: size)
+            }
+        }
+    }
+}
+
+func appendLengthPrefixedNALUnitsAsAnnexB(_ payload: Data, to output: inout Data) throws {
+    var offset = 0
+    while offset < payload.count {
+        guard offset + 4 <= payload.count else {
+            throw RuntimeError("incomplete NAL length prefix at offset \(offset)")
+        }
+        let naluLength =
+            (UInt32(payload[offset]) << 24)
+            | (UInt32(payload[offset + 1]) << 16)
+            | (UInt32(payload[offset + 2]) << 8)
+            | UInt32(payload[offset + 3])
+        offset += 4
+        guard naluLength > 0, offset + Int(naluLength) <= payload.count else {
+            throw RuntimeError("invalid NAL length \(naluLength) at offset \(offset)")
+        }
+        appendStartCode(to: &output)
+        output.append(payload.subdata(in: offset..<(offset + Int(naluLength))))
+        offset += Int(naluLength)
+    }
 }
 
 func sampleBufferIsKeyframe(_ sampleBuffer: CMSampleBuffer) -> Bool {
@@ -456,6 +570,16 @@ func usage() {
     print("""
     ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--bitrate-mbps 120] [--no-realtime] [--send-host host --send-port 48320] [--sender-queue-depth 4] [--encoder-id com.apple.videotoolbox.videoencoder.ave.hevc]
     ibridge-primary --list-encoders
+
+    Reference-informed VideoToolbox options:
+      --disable-low-latency-rate-control
+      --allow-temporal-compression | --disable-temporal-compression
+      --allow-frame-reordering | --disable-frame-reordering
+      --allow-open-gop | --disable-open-gop
+      --prioritize-speed | --no-prioritize-speed
+      --max-frame-delay-count 0 | --no-max-frame-delay-count
+      --data-rate-limit-mbps 120 [--data-rate-window 1.0]
+      --payload-format length-prefixed|annex-b
     """)
 }
 
@@ -529,6 +653,14 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.bitrateMbps = try Int(value()) ?? options.bitrateMbps
         } else if arg.hasPrefix("--bitrate-mbps=") {
             options.bitrateMbps = Int(arg.dropFirst("--bitrate-mbps=".count)) ?? options.bitrateMbps
+        } else if arg == "--data-rate-limit-mbps" {
+            options.dataRateLimitMbps = try Int(value()) ?? options.dataRateLimitMbps
+        } else if arg.hasPrefix("--data-rate-limit-mbps=") {
+            options.dataRateLimitMbps = Int(arg.dropFirst("--data-rate-limit-mbps=".count)) ?? options.dataRateLimitMbps
+        } else if arg == "--data-rate-window" {
+            options.dataRateWindowSeconds = try Double(value()) ?? options.dataRateWindowSeconds
+        } else if arg.hasPrefix("--data-rate-window=") {
+            options.dataRateWindowSeconds = Double(arg.dropFirst("--data-rate-window=".count)) ?? options.dataRateWindowSeconds
         } else if arg == "--sender-queue-depth" {
             options.senderQueueDepth = try Int(value()) ?? options.senderQueueDepth
         } else if arg.hasPrefix("--sender-queue-depth=") {
@@ -541,6 +673,34 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.maxKeyFrameIntervalDuration = try Double(value()) ?? options.maxKeyFrameIntervalDuration
         } else if arg.hasPrefix("--max-keyframe-interval-duration=") {
             options.maxKeyFrameIntervalDuration = Double(arg.dropFirst("--max-keyframe-interval-duration=".count)) ?? options.maxKeyFrameIntervalDuration
+        } else if arg == "--max-frame-delay-count" {
+            options.maxFrameDelayCount = try Int(value())
+        } else if arg.hasPrefix("--max-frame-delay-count=") {
+            options.maxFrameDelayCount = Int(arg.dropFirst("--max-frame-delay-count=".count))
+        } else if arg == "--no-max-frame-delay-count" {
+            options.maxFrameDelayCount = nil
+        } else if arg == "--allow-temporal-compression" {
+            options.allowTemporalCompression = true
+        } else if arg == "--disable-temporal-compression" {
+            options.allowTemporalCompression = false
+        } else if arg == "--allow-frame-reordering" {
+            options.allowFrameReordering = true
+        } else if arg == "--disable-frame-reordering" {
+            options.allowFrameReordering = false
+        } else if arg == "--allow-open-gop" {
+            options.allowOpenGOP = true
+        } else if arg == "--disable-open-gop" {
+            options.allowOpenGOP = false
+        } else if arg == "--prioritize-speed" {
+            options.prioritizeSpeed = true
+        } else if arg == "--no-prioritize-speed" {
+            options.prioritizeSpeed = false
+        } else if arg == "--payload-format" {
+            options.payloadFormat = try value().lowercased()
+        } else if arg.hasPrefix("--payload-format=") {
+            options.payloadFormat = String(arg.dropFirst("--payload-format=".count)).lowercased()
+        } else if arg == "--annex-b" {
+            options.payloadFormat = "annex-b"
         } else if arg == "--disable-low-latency-rate-control" {
             options.lowLatencyRateControl = false
         } else if arg == "--encoder-id" {
@@ -573,6 +733,15 @@ func parseOptions(_ args: [String]) throws -> Options {
     }
     guard options.senderQueueDepth > 0 else {
         throw RuntimeError("--sender-queue-depth must be positive")
+    }
+    guard options.dataRateLimitMbps >= 0, options.dataRateWindowSeconds > 0 else {
+        throw RuntimeError("--data-rate-limit-mbps must be non-negative and --data-rate-window must be positive")
+    }
+    guard options.maxFrameDelayCount == nil || options.maxFrameDelayCount! >= 0 else {
+        throw RuntimeError("--max-frame-delay-count must be non-negative")
+    }
+    guard options.payloadFormat == "length-prefixed" || options.payloadFormat == "annex-b" else {
+        throw RuntimeError("--payload-format must be length-prefixed or annex-b")
     }
     return options
 }
@@ -652,13 +821,29 @@ func configure(_ session: VTCompressionSession, options: Options) throws {
         }
     }
 
-    try setProperty(kVTCompressionPropertyKey_RealTime, kCFBooleanTrue as Any)
-    try setProperty(kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse as Any)
-    try setProperty(kVTCompressionPropertyKey_AllowTemporalCompression, kCFBooleanFalse as Any, required: false)
+    let keyAllowOpenGOP = "AllowOpenGOP" as CFString
+    let keyMaxFrameDelayCount = "MaxFrameDelayCount" as CFString
+    let keyPrioritizeSpeed = "PrioritizeEncodingSpeedOverQuality" as CFString
+
+    try setProperty(kVTCompressionPropertyKey_RealTime, (options.realtime ? kCFBooleanTrue : kCFBooleanFalse) as Any)
+    try setProperty(kVTCompressionPropertyKey_AllowFrameReordering, (options.allowFrameReordering ? kCFBooleanTrue : kCFBooleanFalse) as Any)
+    try setProperty(kVTCompressionPropertyKey_AllowTemporalCompression, (options.allowTemporalCompression ? kCFBooleanTrue : kCFBooleanFalse) as Any, required: false)
+    try setProperty(keyAllowOpenGOP, (options.allowOpenGOP ? kCFBooleanTrue : kCFBooleanFalse) as Any, required: false)
+    if let maxFrameDelayCount = options.maxFrameDelayCount {
+        try setProperty(keyMaxFrameDelayCount, maxFrameDelayCount, required: false)
+    }
+    if let prioritizeSpeed = options.prioritizeSpeed {
+        try setProperty(keyPrioritizeSpeed, (prioritizeSpeed ? kCFBooleanTrue : kCFBooleanFalse) as Any, required: false)
+    }
     try setProperty(kVTCompressionPropertyKey_ExpectedFrameRate, options.fps)
     try setProperty(kVTCompressionPropertyKey_MaxKeyFrameInterval, options.maxKeyFrameInterval)
     try setProperty(kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, options.maxKeyFrameIntervalDuration)
     try setProperty(kVTCompressionPropertyKey_AverageBitRate, bitrate)
+    if options.dataRateLimitMbps > 0 {
+        let bytesPerSecond = Int64(options.dataRateLimitMbps * 1_000_000 / 8)
+        let limits = [NSNumber(value: bytesPerSecond), NSNumber(value: options.dataRateWindowSeconds)] as CFArray
+        try setProperty(kVTCompressionPropertyKey_DataRateLimits, limits, required: false)
+    }
 
     let prepareStatus = VTCompressionSessionPrepareToEncodeFrames(session)
     guard prepareStatus == noErr else {
@@ -717,7 +902,7 @@ func percentile(_ values: [Double], _ p: Double) -> Double {
 }
 
 func runSynthetic(options: Options) throws {
-    let state = EncoderState()
+    let state = EncoderState(codec: options.codec, payloadFormat: options.payloadFormat)
     if !options.sendHost.isEmpty {
         state.sender = try AsyncTcpFrameSender(
             host: options.sendHost,
@@ -823,7 +1008,16 @@ func runSynthetic(options: Options) throws {
     print("codec=\(options.codec)")
     print("encoder_id=\(options.encoderID.isEmpty ? "auto" : options.encoderID)")
     print("bitrate_mbps=\(options.bitrateMbps > 0 ? options.bitrateMbps : 0)")
+    print("data_rate_limit_mbps=\(options.dataRateLimitMbps)")
+    print(String(format: "data_rate_window_seconds=%.3f", options.dataRateWindowSeconds))
     print("low_latency_rate_control=\(options.lowLatencyRateControl ? "on" : "off")")
+    print("realtime=\(options.realtime ? "on" : "off")")
+    print("allow_temporal_compression=\(options.allowTemporalCompression ? "on" : "off")")
+    print("allow_frame_reordering=\(options.allowFrameReordering ? "on" : "off")")
+    print("allow_open_gop=\(options.allowOpenGOP ? "on" : "off")")
+    print("prioritize_speed=\(options.prioritizeSpeed.map { $0 ? "on" : "off" } ?? "unset")")
+    print("max_frame_delay_count=\(options.maxFrameDelayCount.map(String.init) ?? "unset")")
+    print("payload_format=\(options.payloadFormat)")
     print("max_keyframe_interval=\(options.maxKeyFrameInterval)")
     print(String(format: "max_keyframe_interval_duration=%.3f", options.maxKeyFrameIntervalDuration))
     print("sender_queue_depth=\(options.senderQueueDepth)")
