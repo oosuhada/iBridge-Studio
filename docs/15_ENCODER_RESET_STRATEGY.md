@@ -90,3 +90,20 @@ Because the machine was already in a post-tiled slow state before this probe, tr
 - Do not switch product mode directly from tiled 5K60 to `4096x2304@60` or `3200x1800@60` until a stronger reset boundary is proven.
 - Use `2560x1440@60` as the conservative emergency fallback after tiled 5K60.
 - Next clean-session test should start from a fresh login or reboot, run segment-hints tiled first, then immediately test 4096/3200 fallback to see whether hints reduce contamination.
+
+## Clean-Session Gate
+
+`scripts/mac_clean_session_encoder_probe.sh` is the dedicated gate for this decision. It refuses to run as a valid clean-session test when uptime exceeds `CLEAN_BOOT_MAX_MINUTES` unless `REQUIRE_CLEAN_BOOT=0` is set for a deliberately dirty control run.
+
+The first current-session dirty control passed high-detail fallback, but the immediate repeat failed:
+
+| Run | Tiled p95 ms | 4096 fallback p95 ms | 3200 fallback p95 ms | 2560 fallback p95 ms | Interpretation |
+|---|---:|---:|---:|---:|---|
+| `2026-05-15_1552_dirty_session_encoder_probe` | 13.765 | 14.918 | 11.444 | 6.307 | high-detail fallback survived once |
+| `2026-05-15_1553_dirty_session_encoder_probe_repeat` | 14.417 | 46.669 | 42.616 | 16.482 | high-detail fallback failed on repeat |
+
+Current interpretation:
+
+- Segment hints still improve tiled reset behavior.
+- Segment hints do not yet prove stable product-mode switching from tiled 5K60 to high-detail single-stream fallback.
+- Product emergency fallback should remain `2560x1440@60` until a fresh-boot clean-session run and repeat pass both succeed.

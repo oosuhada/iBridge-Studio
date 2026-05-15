@@ -708,6 +708,32 @@ Next:
 - From a known-clean login/reboot state, run segment-hints tiled first and immediately test high-detail fallback recovery.
 - Keep `2560x1440@60` as the safe emergency fallback until clean-session recovery is proven.
 
+## 2026-05-15 15:53 — Clean-session fallback gate script
+
+Prompt: user asked to proceed with the remaining clean-session test.
+Changed files:
+- scripts/mac_clean_session_encoder_probe.sh
+- docs/15_ENCODER_RESET_STRATEGY.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- benchmarks/runs/2026-05-15_1550_clean_session_probe_guard/*
+- benchmarks/runs/2026-05-15_1552_dirty_session_encoder_probe/*
+- benchmarks/runs/2026-05-15_1553_dirty_session_encoder_probe_repeat/*
+Verification:
+- [x] `bash -n scripts/mac_clean_session_encoder_probe.sh`
+- [x] `swift build --package-path apps/primary-macos -c release`
+- [x] Clean-session guard run skipped current session because uptime was 2936 minutes.
+- [x] Dirty current-session control run.
+- [x] Dirty current-session repeat run.
+Result:
+- Added a dedicated clean-session gate script that refuses valid runs after `CLEAN_BOOT_MAX_MINUTES` unless explicitly overridden.
+- Current session was not clean enough for the requested proof.
+- Dirty controls were mixed: the first run passed high-detail fallback, but the immediate repeat failed 4096x2304/3200x1800 fallback p95 badly.
+Next:
+- After reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes and repeat once if it passes.
+- Keep product emergency fallback at `2560x1440@60` until both clean runs pass.
+
 ## 2026-05-15 13:18 — M1 Air sender profile matrix
 
 Prompt: user asked to pull latest branch and run the M1 Air encode-only sender profile matrix

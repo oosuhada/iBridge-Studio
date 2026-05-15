@@ -1,0 +1,10 @@
+timestamp=2026-05-15_1551
+duration_seconds=10
+fallback_duration_seconds=5
+clean_boot_max_minutes=15
+require_clean_boot=1
+uptime_minutes=2936
+boot_time=2026-05-13 14:55:23 +0900
+hostname=Gabriels-MacBook-Pro.local
+pwd=/Users/gabriel/Development/iBridge
+Darwin Gabriels-MacBook-Pro.local 23.6.0 Darwin Kernel Version 23.6.0: Mon Jul 29 21:14:30 PDT 2024; root:xnu-10063.141.2~1/RELEASE_ARM64_T6000 arm64

@@ -556,6 +556,38 @@ Artifacts:
 - `benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe/`
 - `benchmarks/runs/2026-05-15_1424_encoder_reset_strategy_probe_summary_fix/`
 
+## 2026-05-15 15:53 — Clean-session fallback gate setup and dirty controls
+
+Prompt: user asked to run the remaining clean-session test: segment-hints tiled first, then immediate 4096/3200 fallback.
+
+Commands:
+
+```bash
+RUN_ROOT=benchmarks/runs/2026-05-15_1550_clean_session_probe_guard scripts/mac_clean_session_encoder_probe.sh
+DURATION=6 FALLBACK_DURATION=5 REQUIRE_CLEAN_BOOT=0 RUN_ROOT=benchmarks/runs/2026-05-15_1552_dirty_session_encoder_probe scripts/mac_clean_session_encoder_probe.sh
+DURATION=10 FALLBACK_DURATION=5 REQUIRE_CLEAN_BOOT=0 RUN_ROOT=benchmarks/runs/2026-05-15_1553_dirty_session_encoder_probe_repeat scripts/mac_clean_session_encoder_probe.sh
+```
+
+Guard result:
+- The valid clean-session run was skipped because uptime was 2936 minutes and the boot time was `2026-05-13 14:55:23 +0900`.
+
+Dirty current-session controls:
+
+| Run | Tiled p95 ms | 4096 fallback p95 ms | 3200 fallback p95 ms | 2560 fallback p95 ms | Result |
+|---|---:|---:|---:|---:|---|
+| `2026-05-15_1552_dirty_session_encoder_probe` | 13.765 | 14.918 | 11.444 | 6.307 | high-detail fallback passed once |
+| `2026-05-15_1553_dirty_session_encoder_probe_repeat` | 14.417 | 46.669 | 42.616 | 16.482 | high-detail fallback failed on repeat |
+
+Interpretation:
+- This is not the requested clean-session proof because the machine had been up for about two days.
+- The dirty-control repeat is still useful: high-detail fallback after segment-hints tiled 5K60 is not stable enough to promote.
+- Keep product fallback limited to `2560x1440@60` until a fresh-boot clean run and immediate repeat both pass.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1550_clean_session_probe_guard/`
+- `benchmarks/runs/2026-05-15_1552_dirty_session_encoder_probe/`
+- `benchmarks/runs/2026-05-15_1553_dirty_session_encoder_probe_repeat/`
+
 ## 2026-05-15 13:18 — M1 Air sender profile matrix
 
 Prompt: user asked to pull latest branch and run the sender-only Air profile matrix before receiver work
