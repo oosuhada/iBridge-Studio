@@ -122,6 +122,34 @@ Result:
 
 Deadline analysis for the tiled profile shows only 2/300 logical frames over 16.67ms in this 5-second quick run; both were reset/startup frames.
 
+## Single-Stream Stability Re-Isolation
+
+After the quick retest, single-stream profiles were re-isolated without running tiled encoding first.
+
+Command:
+
+```bash
+REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=unset RUN_ROOT=benchmarks/runs/2026-05-15_1330_single_stream_stability_unset scripts/mac_single_stream_stability_matrix.sh
+REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=on RUN_ROOT=benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on scripts/mac_single_stream_stability_matrix.sh
+```
+
+Result:
+
+| Resolution | `prioritize_speed=unset` median p95 | `prioritize_speed=on` median p95 | Read |
+|---|---:|---:|---|
+| 4096x2304 | 13.050ms | 13.087ms | stable when isolated |
+| 3840x2160 | 11.669ms | 11.668ms | stable when isolated |
+| 3200x1800 | 11.250ms | 11.218ms | stable when isolated |
+| 2560x1440 | 10.636ms | 6.455ms | stable when isolated |
+
+The earlier slow quick-matrix single-stream results were reproduced when the matrix ran 2x2 tiled 5K60 first and then immediately ran single-stream profiles. A follow-up 4096x2304 single-stream run remained slow even after a 60-second wait. Treat this as a VideoToolbox encoder-service state effect until proven otherwise.
+
+Practical rule:
+
+- Do not benchmark single-stream fallbacks immediately after tiled 5K60.
+- Run fallback profiles first, or run tiled profiles in a separate process/session after fallbacks.
+- In the product, avoid switching from tiled 5K60 to single-stream fallback without an explicit encoder reset/restart strategy.
+
 ## New Benchmark Entry Point
 
 Use:

@@ -442,3 +442,45 @@ Artifacts:
 - `benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/m1max_wired_full_5k60_tiled_hevc_synthetic_nv12_tiled_5120x2880_60fps_30mbps_deadline.md`
 - `docs/14_TRANSMISSION_PROFILE_MATRIX.md`
+
+## 2026-05-15 13:40 — M1 Max single-stream stability re-isolation
+
+Prompt: user asked MBP Codex to continue with M1 Max single-stream instability analysis while waiting for cables and M1 Air results.
+
+Commands:
+
+```bash
+REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=unset RUN_ROOT=benchmarks/runs/2026-05-15_1330_single_stream_stability_unset scripts/mac_single_stream_stability_matrix.sh
+REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=on RUN_ROOT=benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on scripts/mac_single_stream_stability_matrix.sh
+DEVICE_PROFILE=m1max PROFILE_SET=quick DURATION=5 RUN_ROOT=benchmarks/runs/2026-05-15_1338_transmission_profile_recheck scripts/mac_transmission_profile_matrix.sh
+```
+
+Isolated single-stream results:
+
+| Resolution | prioritize_speed | Runs | Median p95 ms | Worst p95 ms | Pass p95 <=16.67 |
+|---|---|---:|---:|---:|---:|
+| 4096x2304 | unset | 3 | 13.050 | 13.059 | 3/3 |
+| 3840x2160 | unset | 3 | 11.669 | 11.791 | 3/3 |
+| 3200x1800 | unset | 3 | 11.250 | 11.274 | 3/3 |
+| 2560x1440 | unset | 3 | 10.636 | 10.647 | 3/3 |
+| 4096x2304 | on | 3 | 13.087 | 13.176 | 3/3 |
+| 3840x2160 | on | 3 | 11.668 | 11.719 | 3/3 |
+| 3200x1800 | on | 3 | 11.218 | 11.376 | 3/3 |
+| 2560x1440 | on | 3 | 6.455 | 6.472 | 3/3 |
+
+Order/state finding:
+- Re-running the transmission quick matrix reproduced the slow fallback behavior after 2x2 tiled 5K60 ran first.
+- In that mixed-order run, tiled 5K60 still passed p95: avg 12.542 ms, p95 12.741 ms.
+- But immediate single-stream follow-ups were pessimistic: 4096x2304 p95 46.612 ms and 3200x1800 p95 41.956 ms.
+- A direct 4096x2304 run after that was still slow after a 60-second wait: p95 46.544 ms.
+
+Interpretation:
+- Single-stream HEVC fallbacks are stable when measured in isolation.
+- The instability is likely VideoToolbox encoder-service state after heavy tiled HEVC, not thermal throttling or the `prioritize_speed` flag by itself.
+- Product-mode switching from tiled 5K60 down to single-stream fallback needs an explicit encoder reset/restart strategy or separate process/session boundary.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
+- `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
+- `benchmarks/runs/2026-05-15_1338_transmission_profile_recheck/summary.csv`
+- `benchmarks/runs/2026-05-15_1341_post_tiled_recovery/`

@@ -12,3 +12,13 @@ Decision:
 Reason:
 - The commercial shape of iBridge needs versatile sender/connection profiles, not a single receiver-specific prototype.
 - Current evidence says M1 Max 2x2 tiled HEVC is promising for full-resolution wired sender work, while Air and wireless profiles are still unproven.
+
+## 2026-05-15 13:40 — Do not mix tiled-first benchmarks with fallback profile selection
+
+Decision:
+- Run single-stream fallback profile benchmarks before tiled 5K60, or in a separate clean session.
+- Treat tiled-first single-stream follow-up results as pessimistic until a safe VideoToolbox reset strategy exists.
+
+Reason:
+- Isolated 4096x2304, 3840x2160, 3200x1800, and 2560x1440 HEVC profiles all passed p95 <=16.67 ms across 3/3 repeats.
+- Running 2x2 tiled 5K60 first reproduced slow immediate single-stream results, and 4096x2304 remained slow after a 60-second wait.
