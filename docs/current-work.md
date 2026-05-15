@@ -31,6 +31,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - iMac setup prep is documented with a Windows inventory script and a conservative remote-vs-physical-access boundary for Boot Camp/macOS work.
 - Primary VideoToolbox encoding has been rechecked with reference-informed controls. Plan B 5K60 still fails before any receiver dependency; 3200x1800 and 3840x2160 are the current strongest encode-only candidates.
 - Primary encoding now has source strategy probes for synthetic BGRA, synthetic NV12, static-frame skipping, ScreenCaptureKit capture, 5K45/5K30, and 2x2 tiled HEVC sessions.
+- Tiled 5K60 has a stronger encode-only path after deeper investigation: per-tile PTS was corrected, and `2x2 30Mbps/tile reset150 inflight1` sustained 30 seconds at 60.002 effective fps with p95 12.920 ms. Reset-frame max spikes around 100-133 ms remain unresolved.
 
 ## Key Results
 
@@ -51,6 +52,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Pro ScreenCaptureKit HEVC 5120x2880 @ 60, forced `ave.hevc`, DataRateLimits: 3s avg 302.354 ms, p95 360.042 ms.
 - MacBook Pro synthetic NV12 HEVC 5120x2880 @ 30, forced `ave.hevc`, DataRateLimits: 3s avg 19.296 ms, p95 19.824 ms.
 - MacBook Pro 2x2 tiled-session approximation for 5120x2880 @ 60 using four 2560x1440 NV12 HEVC sessions: per-tile avg 6.496-9.528 ms, p95 10.568-11.254 ms; recomposition is unimplemented.
+- MacBook Pro 2x2 tiled HEVC 5120x2880 @ 60, corrected per-tile PTS, 30Mbps/tile, reset every 150 logical frames, max 1 in-flight logical frame: 30s sustained avg 12.374 ms, p95 12.920 ms, effective 60.002 fps, max 132.944 ms on reset frames.
 - MacBook Pro display-sized synthetic sources for built-in XDR, external portrait display, Sidecar iPad, and HDMI FHD display all encoded successfully with forced `ave.hevc`.
 - MacBook Pro to iMac Tailscale path is reachable, but ping is jittery: 20-packet ICMP min/avg/max/stddev 14.484/108.629/423.525/96.505 ms.
 
@@ -64,6 +66,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `scripts/mac_plan_c_encode_matrix.sh`
 - `scripts/mac_vt_property_matrix.sh`
 - `scripts/mac_encode_strategy_matrix.sh`
+- `benchmarks/runs/2026-05-15_1213_tiled_5k60_reset_sustain_30s/summary.md`
+- `benchmarks/runs/2026-05-15_1212_tiled_5k60_reset_sustain_10s/summary.md`
 - `benchmarks/runs/2026-05-15_1056_vt_property_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1058_vt_targeted_sustain/summary.md`
 - `benchmarks/runs/2026-05-15_1129_encode_strategy_matrix/summary.md`
@@ -93,6 +97,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 ## Known Issues
 
 - Plan B 5K60 compressed encode is still not viable on the current MBP Primary path.
+- Tiled 5K60 encode-only p95 is now promising, but reset-frame spikes around 100-133 ms would likely be visible unless the receiver hides, drops, or staggers them.
 - Compressed decode/render on Windows is not implemented.
 - UDP frame transport is specified but not implemented.
 - ScreenCaptureKit capture is implemented as a benchmark source, but not yet connected to live receiver transport/decode/render.
@@ -106,12 +111,12 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 ## Next Steps
 
-1. Decide whether the next Plan B spike is tiled 5K60, or whether to prioritize single-session 4096x2304/3840x2160 @ 60 first.
-2. If preserving 5K logical resolution matters, design tiled protocol metadata, receiver decode sessions, sync, and recomposition.
-3. If single-session quality is preferred, run live TCP at 4096x2304 or 3840x2160 before any UDP work.
+1. For full 5120x2880 logical resolution, continue tiled 5K60 next: mitigate reset spikes with staggered/prewarmed sessions or an explicit drop/hide policy.
+2. Design tiled protocol metadata: tile index/grid, logical frame ID, codec config/keyframe boundaries, and receiver sync/recomposition behavior.
+3. If smoothness matters more than 5K logical resolution, run live TCP at 4096x2304 or 3840x2160 before any UDP work.
 4. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.
 5. Only after encode remains stable, build and run the Windows `--decode-file` smoke path on the iMac with a known-good H.264/HEVC sample.
-6. Extend receiver decode from offline file to protocol v0 TCP payloads.
+6. Extend receiver decode from offline files to protocol v0 TCP payloads.
 7. Run network matrix after LAN and Thunderbolt Bridge cables are attached.
 8. Capture screenshots and text-quality scoring after compressed decode/render works.
 9. Compare Mac-Mac virtual-display and receiver options before assuming the Windows receiver is the long-term best path.

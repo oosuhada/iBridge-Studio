@@ -204,6 +204,8 @@ run_case "static_skip_every_60" "synthetic-static-skip" "5120x2880" 60 --static-
 run_case "nv12_5k45" "synthetic-nv12" "5120x2880" 45
 run_case "nv12_5k30" "synthetic-nv12" "5120x2880" 30
 
+run_case "tiled_inprocess_2x2_5k60" "synthetic-nv12-tiled" "5120x2880" 60 --tile-columns 2 --tile-rows 2
+run_case "tiled_reset150_inflight1_2x2_5k60" "synthetic-nv12-tiled" "5120x2880" 60 --tile-columns 2 --tile-rows 2 --tile-reuse-buffers --tile-reset-every-frames 150 --tile-max-inflight-logical-frames 1
 run_tile_2x2_case
 
 if [[ "$INCLUDE_SCREEN_CAPTURE" == "1" ]]; then
