@@ -1,0 +1,12 @@
+/Users/gabriel/Development/iBridge/benchmarks/runs/2026-05-15_1010_mbp_display_capture_smoke/display_1.png
+  pixelWidth: 3024
+  pixelHeight: 1964
+/Users/gabriel/Development/iBridge/benchmarks/runs/2026-05-15_1010_mbp_display_capture_smoke/display_2.png
+  pixelWidth: 1080
+  pixelHeight: 1920
+/Users/gabriel/Development/iBridge/benchmarks/runs/2026-05-15_1010_mbp_display_capture_smoke/display_3.png
+  pixelWidth: 1920
+  pixelHeight: 1080
+/Users/gabriel/Development/iBridge/benchmarks/runs/2026-05-15_1010_mbp_display_capture_smoke/display_4.png
+  pixelWidth: 2360
+  pixelHeight: 1640

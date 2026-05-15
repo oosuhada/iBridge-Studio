@@ -1,0 +1,4 @@
+error: VTCompressionSessionCreate failed: -12902
+
+ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--bitrate-mbps 120] [--no-realtime] [--send-host host --send-port 48320] [--sender-queue-depth 4] [--encoder-id com.apple.videotoolbox.videoencoder.ave.hevc]
+ibridge-primary --list-encoders

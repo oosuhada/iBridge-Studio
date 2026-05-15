@@ -200,3 +200,60 @@ Decision:
 - 2560x1440 HEVC meets the requested avg encode latency target in this local run; 3200x1800 does not yet meet avg < 20ms after the new low-latency settings and needs additional tuning.
 - H.264 5K remains a failed payload-producing path on this Primary and should not block HEVC Plan C.
 - LAN and Thunderbolt Bridge tests remain pending physical setup and must be measured separately from Tailscale.
+
+## 2026-05-15 10:12 — MacBook Pro Primary comparison
+
+Prompt: user requested continuing iBridge from the MacBook Pro environment
+
+Summary:
+- Cloned `feat/plan-a-5k60-benchmark` under `/Users/gabriel/Development/iBridge` on `Gabriels-MacBook-Pro.local`.
+- Confirmed machine is MacBook Pro `MacBookPro18,4`, Apple M1 Max, 32 GB memory, AC power.
+- Current displays: built-in 3024x1964, external portrait 1080x1920, Sidecar 2360x1640, external FHD 1920x1080.
+- `screencapture` captured all four displays successfully.
+- Automatic low-latency encoder selection was poor on this MBP.
+- Added `--encoder-id` to the Primary CLI and found forced `com.apple.videotoolbox.videoencoder.ave.hevc` with low-latency rate-control disabled gives the best Plan C signal so far.
+
+Measured automatic encoder results:
+
+| Test | Avg encode ms | P95 encode ms | Result |
+|---|---:|---:|---|
+| HEVC 2560x1440 120Mbps | 59.218 | 129.926 | too high |
+| HEVC 3200x1800 120Mbps | 96.271 | 196.283 | too high |
+| H.264 5120x2880 120Mbps | 8.309 | 8.684 | failed, payload 0 |
+
+Measured forced encoder results:
+
+| Test | Avg encode ms | P95 encode ms | Result |
+|---|---:|---:|---|
+| HEVC 2560x1440 120Mbps, `ave.hevc`, no low-latency RC | 17.096 | 41.361 | average passes, p95 high |
+| HEVC 3200x1800 120Mbps, `ave.hevc`, no low-latency RC | 16.612 | 16.777 | strongest Plan C encode signal |
+| HEVC 3840x2160 120Mbps, `ave.hevc`, no low-latency RC | 21.884 | 22.839 | near target, over 20ms avg |
+| HEVC 4096x2304 120Mbps, `ave.hevc`, no low-latency RC | 24.969 | 32.502 | over target |
+| HEVC 2560x1440 120Mbps, `hevc.vcp`, no low-latency RC | 643.025 | 706.557 | unusable |
+
+Display-resolution encode probe:
+
+| Source | Resolution | Avg encode ms | P95 encode ms |
+|---|---:|---:|---:|
+| Built-in XDR | 3024x1964 | 16.941 | 17.235 |
+| External portrait | 1080x1920 | 9.718 | 9.559 |
+| Sidecar iPad Air 5 | 2360x1640 | 16.205 | 17.276 |
+| HDMI FHD | 1920x1080 | 9.498 | 9.485 |
+
+Transport probe:
+- Tailscale ping to `100.86.52.88` initially used DERP Tokyo, then direct `14.4.153.167:1050`.
+- ICMP ping 20/20 received with min/avg/max/stddev `14.484/108.629/423.525/96.505 ms`.
+- TCP port 22 is open, but SSH auth from this MBP is blocked because the MBP key is not accepted.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_0950_mbp_environment_baseline/summary.md`
+- `benchmarks/runs/2026-05-15_0952_mbp_encoder_baseline/summary.md`
+- `benchmarks/runs/2026-05-15_1000_mbp_encoder_id_probe/summary.md`
+- `benchmarks/runs/2026-05-15_1005_mbp_to_imac_tailscale_probe/summary.md`
+- `benchmarks/runs/2026-05-15_1010_mbp_display_capture_smoke/summary.md`
+- `benchmarks/runs/2026-05-15_1012_mbp_display_resolution_encode/summary.md`
+
+Decision:
+- MacBook Pro Primary is a better candidate than the MacBook Air for Plan C HEVC if the encoder is forced to `ave.hevc`.
+- Do not treat automatic low-latency encoder selection as acceptable on this MBP.
+- Next live test needs Windows iMac receiver startup and/or SSH authorization from the MBP.

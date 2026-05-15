@@ -32,6 +32,14 @@ Run the HEVC path:
 apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec hevc --csv benchmarks/runs/YYYY-MM-DD_HHMM_primary_1440p60_hevc/primary_stats.csv
 ```
 
+On machines that expose multiple VideoToolbox encoders, force an encoder ID for isolation:
+
+```bash
+apps/primary-macos/.build/release/ibridge-primary --synthetic --resolution 3200x1800 --fps 60 --duration 3 --codec hevc --bitrate-mbps 120 --disable-low-latency-rate-control --encoder-id com.apple.videotoolbox.videoencoder.ave.hevc --csv benchmarks/runs/YYYY-MM-DD_HHMM_primary_1800p60_hevc_ave/primary_stats.csv
+```
+
+Use `--list-encoders` first and keep encoder-ID-specific results separate from automatic encoder selection.
+
 Send encoded frames to a protocol v0 TCP receiver sink:
 
 ```bash

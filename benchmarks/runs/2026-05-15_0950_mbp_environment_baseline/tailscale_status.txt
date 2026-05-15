@@ -1,0 +1,7 @@
+100.102.202.93  gabriels-macbook-pro   woosu91@  macOS    -
+100.94.11.28    gabriel-macbookair     woosu91@  macOS    offline, last seen 8m ago
+100.110.60.104  gabriels-ipad          woosu91@  iOS      -
+100.114.210.8   gabriels-mac-mini      woosu91@  macOS    idle, tx 1757232 rx 24678216
+100.90.208.5    ipad-air-5th-gen-wifi  woosu91@  iOS      -
+100.88.12.67    iphone-14-pro          woosu91@  iOS      -
+100.86.52.88    oosu-imac              woosu91@  windows  -
