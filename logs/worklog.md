@@ -603,3 +603,28 @@ Result:
 Next:
 - Build receiver-side tiled composition with stale-tile reuse and HUD counters before trying full tiled decode.
 - Add tiled protocol metadata after the synthetic receiver composition path is clear.
+
+## 2026-05-15 12:54 — Sender transmission profile matrix
+
+Prompt: user corrected the next step away from Windows tiled rendering and toward sender-side profiles for M1 Max/M1 Air wired/wireless combinations.
+Changed files:
+- docs/04_SOURCE_LEDGER.md
+- docs/14_TRANSMISSION_PROFILE_MATRIX.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- scripts/mac_transmission_profile_matrix.sh
+- benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/*
+Verification:
+- [x] Searched current Apple official sources for M1 Max media engines, M1 media engine context, current MacBook Pro AV1 decode direction, M1 Air ports/Wi-Fi, Thunderbolt Bridge, and iMac 2015 connection limits.
+- [x] `bash -n scripts/mac_transmission_profile_matrix.sh`
+- [x] `DEVICE_PROFILE=m1max PROFILE_SET=quick DURATION=5 RUN_ROOT=benchmarks/runs/2026-05-15_1258_transmission_profile_matrix scripts/mac_transmission_profile_matrix.sh`
+Result:
+- Added an encode-first transmission profile matrix for M1 Max/M1 Air and wired/wireless paths.
+- Added a repeatable sender profile benchmark script that records sanitized system profile data, encoder list, per-case logs, summary CSV, and tiled deadline analysis.
+- Current M1 Max quick retest keeps 2x2 tiled HEVC 5K60 promising: avg 12.501 ms, p95 13.222 ms, effective 60.040 fps; 2/300 logical frames exceeded 16.67 ms.
+- Current single-stream fallback retests were slower than earlier runs, so 4096x2304/3200x1800 should be re-isolated before becoming default profiles.
+Next:
+- Run the Air profile set on the M1 Air.
+- Run wired M1 Max tests after Thunderbolt Bridge or 1GbE is physically connected.
+- Defer receiver decode/recomposition work until sender profiles and iMac OS-specific decode targets are clearer.

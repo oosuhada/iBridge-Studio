@@ -411,3 +411,34 @@ Decision:
 - Continue tiled 5K60 as the top full-resolution prototype path.
 - Do not make the receiver wait for all tiles on every logical frame. Use deadline-based composition with stale-tile reuse and HUD counters.
 - Keep single-session 3840x2160/4096x2304 as fallback paths while tiled receiver composition is built.
+
+## 2026-05-15 12:54 — M1 Max sender profile quick retest
+
+Prompt: user corrected the next step to sender/encoding profiles for M1 Max/M1 Air and wired/wireless combinations before receiver decode work.
+
+Command:
+
+```bash
+DEVICE_PROFILE=m1max PROFILE_SET=quick DURATION=5 RUN_ROOT=benchmarks/runs/2026-05-15_1258_transmission_profile_matrix scripts/mac_transmission_profile_matrix.sh
+```
+
+Results:
+
+| Profile | Avg ms | P95 ms | Max ms | Result |
+|---|---:|---:|---:|---|
+| M1 Max wired 2x2 tiled HEVC 5K60, 30Mbps/tile, reset180, inflight1 | 12.501 | 13.222 | 123.935 | Pass p95; reset spike remains |
+| M1 Max wired single HEVC 4096x2304@60, 120Mbps | 25.717 | 46.742 | 47.979 | Fail current 60Hz budget |
+| M1 Max wireless-style single HEVC 3200x1800@60, 60Mbps | 23.614 | 41.764 | 82.782 | Fail current 60Hz budget |
+
+Deadline note:
+- Tiled 5K60 had 2/300 logical frames over 16.67 ms in this quick run; both were startup/reset frames.
+
+Interpretation:
+- The full-resolution M1 Max wired path should stay focused on 2x2 tiled HEVC first.
+- Single-stream fallback results are not stable across the day's runs. Re-isolate 4096x2304, 3840x2160, 3200x1800, and 2560x1440 before selecting a commercial default.
+- Lower bitrate did not automatically reduce latency in this run; stronger compression can increase VideoToolbox work.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/summary.csv`
+- `benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/m1max_wired_full_5k60_tiled_hevc_synthetic_nv12_tiled_5120x2880_60fps_30mbps_deadline.md`
+- `docs/14_TRANSMISSION_PROFILE_MATRIX.md`
