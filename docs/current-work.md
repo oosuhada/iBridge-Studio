@@ -39,6 +39,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - M1 MacBook Air `MacBookAir10,1` sender profile matrix has now been run locally for 30 seconds per case. Only `2560x1440 @ 60` synthetic NV12 HEVC passed the 16.67 ms p95 encode budget; `3200x1800`, `3840x2160`, and 2x2 tiled 5K60 missed the sender-only 60Hz budget.
 - MacBook Pro current-path Tailscale ping to the Windows iMac was rechecked from `macbook-pro`: 20/20 received, min/avg/max/stddev `9.451/73.839/507.671/107.944 ms`. This path remains too jittery to choose display profiles; wired Thunderbolt Bridge or 1GbE tests are still the next transport gate.
 - MacBook Pro current-path formal network matrix over Tailscale recorded 100-packet ping with 2.0% loss and min/avg/max/stddev `8.198/61.867/485.532/58.935 ms`. MBP currently lacks `iperf3` and Tailscale CLI, so throughput and direct/relay status remain unmeasured on this path.
+- Encoder reset/session strategy now has reference-backed probe controls. `--tile-segment-hints` applies VideoToolbox concatenate/source-frame-count hints to per-tile reset segments, and `--tile-reset-stagger-frames` can stagger per-tile resets for comparison.
+- Initial M1 Max reset strategy probes favor `2x2 tiled HEVC 5K60 + reset180 + inflight1 + tile segment hints + simultaneous reset`: segment hints reduced logical frames over 16.67 ms in short probes, while staggered reset lowered max spike but spread reset misses across more frames.
 
 ## Key Results
 
@@ -66,6 +68,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Re-isolated single-stream stability, `PRIORITIZE_SPEED=unset`, 3 repeats: 4096x2304 median p95 13.050 ms, 3840x2160 11.669 ms, 3200x1800 11.250 ms, 2560x1440 10.636 ms.
 - Re-isolated single-stream stability, `PRIORITIZE_SPEED=on`, 3 repeats: 4096x2304 median p95 13.087 ms, 3840x2160 11.668 ms, 3200x1800 11.218 ms, 2560x1440 6.455 ms.
 - Post-tiled recovery probe: restarting `VTEncoderXPCService` did not recover 4096x2304; p95 stayed around 46.5 ms immediately and after 60 seconds. 3200x1800 solo also stayed slow at p95 41.839 ms, while 2560x1440 stayed safe at p95 10.808 ms.
+- Encoder reset strategy probe, 6s M1 Max tiled 5K60: baseline simultaneous reset avg 13.199 ms, p95 14.330 ms, max 132.700 ms, 7/360 logical frames >16.67 ms. Segment hints simultaneous reset avg 13.362 ms, p95 14.158 ms, max 134.008 ms, 4/360 logical frames >16.67 ms. Segment hints staggered reset avg 13.300 ms, p95 14.243 ms, max 113.596 ms, 8/360 logical frames >16.67 ms and 4/360 >33.33 ms.
+- Post-reset-strategy fallback probe still showed the post-tiled slow state: 4096x2304 p95 46.578 ms, 3200x1800 p95 42.273 ms, 2560x1440 p95 16.866 ms. Because the machine was already in a slow state, this confirms the risk but is not a clean recovery A/B.
 - M1 Air HEVC 2560x1440 @ 60, 25Mbps: avg 8.145 ms, p95 9.296 ms, max 20.146 ms; passes p95 encode budget and is the realistic Air default.
 - M1 Air HEVC 3200x1800 @ 60, 35Mbps: avg 18.873 ms, p95 38.897 ms, max 325.872 ms; fails 60Hz encode budget.
 - M1 Air HEVC 3840x2160 @ 60, 45Mbps: avg 18.727 ms, p95 54.584 ms, max 233.527 ms; fails 60Hz encode budget.
@@ -90,6 +94,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `benchmarks/runs/2026-05-15_1222_tiled_5k60_reset180_sustain_30s/summary.md`
 - `docs/13_TILED_5K60_STRATEGY.md`
 - `docs/14_TRANSMISSION_PROFILE_MATRIX.md`
+- `docs/15_ENCODER_RESET_STRATEGY.md`
+- `scripts/mac_encoder_reset_strategy_probe.sh`
 - `scripts/mac_transmission_profile_matrix.sh`
 - `scripts/mac_single_stream_stability_matrix.sh`
 - `benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/summary.csv`
@@ -99,6 +105,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
 - `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
+- `benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe/`
+- `benchmarks/runs/2026-05-15_1424_encoder_reset_strategy_probe_summary_fix/`
 - `scripts/analyze_tiled_deadline.py`
 - `benchmarks/runs/2026-05-15_1056_vt_property_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1058_vt_targeted_sustain/summary.md`
@@ -130,6 +138,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=unset RUN_ROOT=benchmarks/runs/2026-05-15_1330_single_stream_stability_unset scripts/mac_single_stream_stability_matrix.sh`
 - `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=on RUN_ROOT=benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on scripts/mac_single_stream_stability_matrix.sh`
 - `pkill -x VTEncoderXPCService` followed by 4096x2304, 3200x1800, and 2560x1440 fallback probes.
+- `bash -n scripts/mac_encoder_reset_strategy_probe.sh`
+- `DURATION=6 RUN_FALLBACK=1 RUN_ROOT=benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe scripts/mac_encoder_reset_strategy_probe.sh`
+- `DURATION=6 RUN_FALLBACK=0 RUN_ROOT=benchmarks/runs/2026-05-15_1424_encoder_reset_strategy_probe_summary_fix scripts/mac_encoder_reset_strategy_probe.sh`
 - Windows MSVC `cl` build for `ibridge-receiver.exe`
 - Windows iMac Task Scheduler D3D11 fullscreen benchmark runs
 - `scripts/mac_power_probe.sh`
@@ -140,6 +151,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Tiled 5K60 encode-only p95 is now promising, but reset-frame spikes around 100-133 ms would likely be visible unless the receiver hides, drops, or staggers them.
 - Single-stream fallback results are stable when isolated, but become pessimistic when run immediately after tiled 5K60. Benchmark and product profile switching should not run tiled first and then immediately judge single-stream fallback performance.
 - `VTEncoderXPCService` restart alone does not clear the post-tiled slow state for 4096x2304/3200x1800. Treat 2560x1440 as the current safest post-tiled emergency fallback until a stronger reset strategy is proven.
+- VideoToolbox segment hints improve tiled reset deadline counts but do not yet prove recovery from post-tiled high-detail fallback contamination. A clean-session or reboot-start A/B is still required.
 - M1 Air should not default above `2560x1440 @ 60` based on current encode-only evidence.
 - M1 Air tiled 5K60 is substantially below target in the current probe; do not spend receiver implementation time on Air-specific tiled 5K60 unless a new sender strategy changes this signal.
 - Compressed decode/render on Windows is not implemented.
@@ -160,7 +172,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 2. Install or expose `iperf3` on the MBP and iMac, then run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput. Current Tailscale/Wi-Fi path is not stable enough for display-profile decisions.
 3. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
 4. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
-5. Investigate a stronger safe reset strategy before allowing product-mode switching from tiled 5K60 down to high-detail single-stream fallback; user-level `VTEncoderXPCService` restart alone was not enough.
+5. Retest the encoder reset strategy from a known-clean session: run segment-hints tiled 5K60 first, then immediately test 4096x2304/3200x1800/2560x1440 fallback. If high-detail fallback still stays slow, keep fallback switching limited to 2560x1440 until reboot/login-level recovery is automated.
 6. After macOS is installed on the iMac, test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
 7. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
 8. Implement dirty-region/cursor-separate logic after a live capture path exists, because static skipping alone only proves the encoder-side principle.

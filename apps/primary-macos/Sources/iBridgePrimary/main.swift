@@ -30,6 +30,9 @@ struct Options {
     var allowFrameReordering = false
     var allowOpenGOP = false
     var prioritizeSpeed: Bool?
+    var moreFramesBeforeStart: Bool?
+    var moreFramesAfterEnd: Bool?
+    var sourceFrameCount: Int?
     var payloadFormat = "length-prefixed"
     var staticChangeEvery = 1
     var captureDisplayIndex = 0
@@ -39,6 +42,8 @@ struct Options {
     var tileReuseBuffers = false
     var tileMaxInFlightLogicalFrames = 0
     var tileResetEveryFrames = 0
+    var tileResetStaggerFrames = 0
+    var tileSegmentHints = false
     var warmupFrames = 0
     var senderQueueDepth = 4
     var listEncoders = false
@@ -602,9 +607,14 @@ func usage() {
       --allow-frame-reordering | --disable-frame-reordering
       --allow-open-gop | --disable-open-gop
       --prioritize-speed | --no-prioritize-speed
+      --more-frames-before-start | --no-more-frames-before-start
+      --more-frames-after-end | --no-more-frames-after-end
+      --source-frame-count 180
       --max-frame-delay-count 0 | --no-max-frame-delay-count
       --data-rate-limit-mbps 120 [--data-rate-window 1.0]
       --payload-format length-prefixed|annex-b
+      --tile-segment-hints
+      --tile-reset-stagger-frames 30
     """)
 }
 
@@ -730,6 +740,18 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.prioritizeSpeed = true
         } else if arg == "--no-prioritize-speed" {
             options.prioritizeSpeed = false
+        } else if arg == "--more-frames-before-start" {
+            options.moreFramesBeforeStart = true
+        } else if arg == "--no-more-frames-before-start" {
+            options.moreFramesBeforeStart = false
+        } else if arg == "--more-frames-after-end" {
+            options.moreFramesAfterEnd = true
+        } else if arg == "--no-more-frames-after-end" {
+            options.moreFramesAfterEnd = false
+        } else if arg == "--source-frame-count" {
+            options.sourceFrameCount = try Int(value())
+        } else if arg.hasPrefix("--source-frame-count=") {
+            options.sourceFrameCount = Int(arg.dropFirst("--source-frame-count=".count))
         } else if arg == "--payload-format" {
             options.payloadFormat = try value().lowercased()
         } else if arg.hasPrefix("--payload-format=") {
@@ -766,6 +788,12 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.tileResetEveryFrames = try Int(value()) ?? options.tileResetEveryFrames
         } else if arg.hasPrefix("--tile-reset-every-frames=") {
             options.tileResetEveryFrames = Int(arg.dropFirst("--tile-reset-every-frames=".count)) ?? options.tileResetEveryFrames
+        } else if arg == "--tile-reset-stagger-frames" {
+            options.tileResetStaggerFrames = try Int(value()) ?? options.tileResetStaggerFrames
+        } else if arg.hasPrefix("--tile-reset-stagger-frames=") {
+            options.tileResetStaggerFrames = Int(arg.dropFirst("--tile-reset-stagger-frames=".count)) ?? options.tileResetStaggerFrames
+        } else if arg == "--tile-segment-hints" {
+            options.tileSegmentHints = true
         } else if arg == "--warmup-frames" {
             options.warmupFrames = try Int(value()) ?? options.warmupFrames
         } else if arg.hasPrefix("--warmup-frames=") {
@@ -820,6 +848,9 @@ func parseOptions(_ args: [String]) throws -> Options {
     guard options.maxFrameDelayCount == nil || options.maxFrameDelayCount! >= 0 else {
         throw RuntimeError("--max-frame-delay-count must be non-negative")
     }
+    guard options.sourceFrameCount == nil || options.sourceFrameCount! > 0 else {
+        throw RuntimeError("--source-frame-count must be positive")
+    }
     guard options.payloadFormat == "length-prefixed" || options.payloadFormat == "annex-b" else {
         throw RuntimeError("--payload-format must be length-prefixed or annex-b")
     }
@@ -841,9 +872,20 @@ func parseOptions(_ args: [String]) throws -> Options {
     guard options.tileResetEveryFrames >= 0 else {
         throw RuntimeError("--tile-reset-every-frames must be non-negative")
     }
+    guard options.tileResetStaggerFrames >= 0 else {
+        throw RuntimeError("--tile-reset-stagger-frames must be non-negative")
+    }
     if options.source == "synthetic-nv12-tiled" {
         guard options.width % options.tileColumns == 0, options.height % options.tileRows == 0 else {
             throw RuntimeError("resolution must divide evenly by --tile-columns and --tile-rows")
+        }
+        if options.tileResetStaggerFrames > 0 {
+            guard options.tileResetEveryFrames > 0 else {
+                throw RuntimeError("--tile-reset-stagger-frames requires --tile-reset-every-frames")
+            }
+            guard options.tileResetStaggerFrames < options.tileResetEveryFrames else {
+                throw RuntimeError("--tile-reset-stagger-frames must be smaller than --tile-reset-every-frames")
+            }
         }
         guard options.sendHost.isEmpty else {
             throw RuntimeError("synthetic-nv12-tiled is an encode benchmark only; live tiled transport is not implemented yet")
@@ -991,6 +1033,23 @@ func configure(_ session: VTCompressionSession, options: Options) throws {
     }
     if let prioritizeSpeed = options.prioritizeSpeed {
         try setProperty(keyPrioritizeSpeed, (prioritizeSpeed ? kCFBooleanTrue : kCFBooleanFalse) as Any, required: false)
+    }
+    if let moreFramesBeforeStart = options.moreFramesBeforeStart {
+        try setProperty(
+            kVTCompressionPropertyKey_MoreFramesBeforeStart,
+            (moreFramesBeforeStart ? kCFBooleanTrue : kCFBooleanFalse) as Any,
+            required: false
+        )
+    }
+    if let moreFramesAfterEnd = options.moreFramesAfterEnd {
+        try setProperty(
+            kVTCompressionPropertyKey_MoreFramesAfterEnd,
+            (moreFramesAfterEnd ? kCFBooleanTrue : kCFBooleanFalse) as Any,
+            required: false
+        )
+    }
+    if let sourceFrameCount = options.sourceFrameCount {
+        try setProperty(kVTCompressionPropertyKey_SourceFrameCount, sourceFrameCount, required: false)
     }
     try setProperty(kVTCompressionPropertyKey_ExpectedFrameRate, options.fps)
     try setProperty(kVTCompressionPropertyKey_MaxKeyFrameInterval, options.maxKeyFrameInterval)
@@ -1174,6 +1233,9 @@ func printRunSummary(options: Options, state: EncoderState, frameCount: Int, sub
     print("allow_frame_reordering=\(options.allowFrameReordering ? "on" : "off")")
     print("allow_open_gop=\(options.allowOpenGOP ? "on" : "off")")
     print("prioritize_speed=\(options.prioritizeSpeed.map { $0 ? "on" : "off" } ?? "unset")")
+    print("more_frames_before_start=\(options.moreFramesBeforeStart.map { $0 ? "on" : "off" } ?? "unset")")
+    print("more_frames_after_end=\(options.moreFramesAfterEnd.map { $0 ? "on" : "off" } ?? "unset")")
+    print("source_frame_count=\(options.sourceFrameCount.map(String.init) ?? "unset")")
     print("max_frame_delay_count=\(options.maxFrameDelayCount.map(String.init) ?? "unset")")
     print("payload_format=\(options.payloadFormat)")
     print("static_change_every=\(options.staticChangeEvery)")
@@ -1342,6 +1404,8 @@ func printTiledRunSummary(
     print("tile_reuse_buffers=\(options.tileReuseBuffers ? "on" : "off")")
     print("tile_max_inflight_logical_frames=\(options.tileMaxInFlightLogicalFrames)")
     print("tile_reset_every_frames=\(options.tileResetEveryFrames)")
+    print("tile_reset_stagger_frames=\(options.tileResetStaggerFrames)")
+    print("tile_segment_hints=\(options.tileSegmentHints ? "on" : "off")")
     print("warmup_frames=\(options.warmupFrames)")
     print("target_fps=\(options.fps)")
     print("duration_seconds=\(options.durationSeconds)")
@@ -1356,6 +1420,9 @@ func printTiledRunSummary(
     print("allow_frame_reordering=\(options.allowFrameReordering ? "on" : "off")")
     print("allow_open_gop=\(options.allowOpenGOP ? "on" : "off")")
     print("prioritize_speed=\(options.prioritizeSpeed.map { $0 ? "on" : "off" } ?? "unset")")
+    print("more_frames_before_start=\(options.moreFramesBeforeStart.map { $0 ? "on" : "off" } ?? "auto")")
+    print("more_frames_after_end=\(options.moreFramesAfterEnd.map { $0 ? "on" : "off" } ?? "auto")")
+    print("source_frame_count=\(options.sourceFrameCount.map(String.init) ?? "auto")")
     print("max_frame_delay_count=\(options.maxFrameDelayCount.map(String.init) ?? "unset")")
     print("payload_format=\(options.payloadFormat)")
     print("max_keyframe_interval=\(options.maxKeyFrameInterval)")
@@ -1398,17 +1465,68 @@ func runSyntheticTiled(options: Options) throws {
     tileOptions.width = tileWidth
     tileOptions.height = tileHeight
 
-    func makeTileStatesAndSessions() throws -> ([EncoderState], [VTCompressionSession]) {
-        let states = try (0..<tileCount).map { _ in
-            try makeState(options: tileOptions) { frame in
-                tracker.finishTile(frame)
-            }
+    func segmentOptions(startLogicalFrameID: Int, endLogicalFrameID: Int, totalLogicalFrames: Int) -> Options {
+        var segment = tileOptions
+        guard options.tileSegmentHints else {
+            return segment
         }
-        let sessions = try states.map { try makeCompressionSession(options: tileOptions, state: $0) }
+        segment.moreFramesBeforeStart = options.moreFramesBeforeStart ?? (startLogicalFrameID > 0)
+        segment.moreFramesAfterEnd = options.moreFramesAfterEnd ?? (endLogicalFrameID < totalLogicalFrames)
+        segment.sourceFrameCount = options.sourceFrameCount ?? max(1, endLogicalFrameID - startLogicalFrameID)
+        return segment
+    }
+
+    func makeTileStateAndSession(options segmentOptions: Options) throws -> (EncoderState, VTCompressionSession) {
+        let state = try makeState(options: segmentOptions) { frame in
+            tracker.finishTile(frame)
+        }
+        let session = try makeCompressionSession(options: segmentOptions, state: state)
+        return (state, session)
+    }
+
+    func makeTileStatesAndSessions(options segmentOptions: Options) throws -> ([EncoderState], [VTCompressionSession]) {
+        let states = try (0..<tileCount).map { _ in
+            try makeState(options: segmentOptions) { frame in tracker.finishTile(frame) }
+        }
+        let sessions = try states.map { try makeCompressionSession(options: segmentOptions, state: $0) }
         return (states, sessions)
     }
 
-    var (states, sessions) = try makeTileStatesAndSessions()
+    let logicalFrameCount = options.fps * options.durationSeconds
+    func initialSegmentEnd(tileIndex: Int) -> Int {
+        guard options.tileResetEveryFrames > 0 else {
+            return logicalFrameCount
+        }
+        let offset = options.tileResetStaggerFrames > 0 ? tileIndex * options.tileResetStaggerFrames : 0
+        return min(options.tileResetEveryFrames + offset, logicalFrameCount)
+    }
+
+    var states: [EncoderState] = []
+    var sessions: [VTCompressionSession] = []
+    if options.tileResetStaggerFrames > 0 {
+        for tileIndex in 0..<tileCount {
+            let pair = try makeTileStateAndSession(
+                options: segmentOptions(
+                    startLogicalFrameID: 0,
+                    endLogicalFrameID: initialSegmentEnd(tileIndex: tileIndex),
+                    totalLogicalFrames: logicalFrameCount
+                )
+            )
+            states.append(pair.0)
+            sessions.append(pair.1)
+        }
+    } else {
+        let firstSegmentEnd = initialSegmentEnd(tileIndex: 0)
+        let pair = try makeTileStatesAndSessions(
+            options: segmentOptions(
+                startLogicalFrameID: 0,
+                endLogicalFrameID: firstSegmentEnd,
+                totalLogicalFrames: logicalFrameCount
+            )
+        )
+        states = pair.0
+        sessions = pair.1
+    }
     var allStates = states
     defer {
         for session in sessions {
@@ -1416,29 +1534,77 @@ func runSyntheticTiled(options: Options) throws {
         }
     }
 
-    let logicalFrameCount = options.fps * options.durationSeconds
     let frameDuration = CMTime(value: 1, timescale: CMTimeScale(options.fps))
     let wallFrameDuration = 1.0 / Double(options.fps)
     let runStart = DispatchTime.now()
     var submittedFrames = 0
-    var sessionStartLogicalFrameID = 0
+    var sessionStartByTile = Array(repeating: 0, count: tileCount)
     let reusablePixelBuffers: [(CVPixelBuffer, Double)] = options.tileReuseBuffers
         ? try (0..<tileCount).map { try makeNV12PixelBuffer(width: tileWidth, height: tileHeight, frameID: $0) }
         : []
 
+    func segmentEnd(after startLogicalFrameID: Int, tileIndex: Int) -> Int {
+        guard options.tileResetEveryFrames > 0 else {
+            return logicalFrameCount
+        }
+        return min(startLogicalFrameID + options.tileResetEveryFrames, logicalFrameCount)
+    }
+
+    func shouldReset(tileIndex: Int, at logicalFrameID: Int) -> Bool {
+        guard options.tileResetEveryFrames > 0, logicalFrameID > 0 else {
+            return false
+        }
+        if options.tileResetStaggerFrames == 0 {
+            return logicalFrameID % options.tileResetEveryFrames == 0
+        }
+        let offset = tileIndex * options.tileResetStaggerFrames
+        return logicalFrameID >= options.tileResetEveryFrames + offset
+            && (logicalFrameID - offset) % options.tileResetEveryFrames == 0
+    }
+
+    func resetTile(_ tileIndex: Int, at logicalFrameID: Int) throws {
+        VTCompressionSessionCompleteFrames(sessions[tileIndex], untilPresentationTimeStamp: .invalid)
+        VTCompressionSessionInvalidate(sessions[tileIndex])
+        let end = segmentEnd(after: logicalFrameID, tileIndex: tileIndex)
+        let replacement = try makeTileStateAndSession(
+            options: segmentOptions(
+                startLogicalFrameID: logicalFrameID,
+                endLogicalFrameID: end,
+                totalLogicalFrames: logicalFrameCount
+            )
+        )
+        states[tileIndex] = replacement.0
+        sessions[tileIndex] = replacement.1
+        allStates.append(replacement.0)
+        sessionStartByTile[tileIndex] = logicalFrameID
+    }
+
     for logicalFrameID in 0..<logicalFrameCount {
-        if options.tileResetEveryFrames > 0,
-           logicalFrameID > 0,
-           logicalFrameID % options.tileResetEveryFrames == 0 {
-            for session in sessions {
-                VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)
-                VTCompressionSessionInvalidate(session)
+        if options.tileResetEveryFrames > 0 {
+            if options.tileResetStaggerFrames == 0,
+               logicalFrameID > 0,
+               logicalFrameID % options.tileResetEveryFrames == 0 {
+                let end = min(logicalFrameID + options.tileResetEveryFrames, logicalFrameCount)
+                for session in sessions {
+                    VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)
+                    VTCompressionSessionInvalidate(session)
+                }
+                let replacement = try makeTileStatesAndSessions(
+                    options: segmentOptions(
+                        startLogicalFrameID: logicalFrameID,
+                        endLogicalFrameID: end,
+                        totalLogicalFrames: logicalFrameCount
+                    )
+                )
+                states = replacement.0
+                sessions = replacement.1
+                allStates.append(contentsOf: states)
+                sessionStartByTile = Array(repeating: logicalFrameID, count: tileCount)
+            } else if options.tileResetStaggerFrames > 0 {
+                for tileIndex in 0..<tileCount where shouldReset(tileIndex: tileIndex, at: logicalFrameID) {
+                    try resetTile(tileIndex, at: logicalFrameID)
+                }
             }
-            let replacement = try makeTileStatesAndSessions()
-            states = replacement.0
-            sessions = replacement.1
-            allStates.append(contentsOf: states)
-            sessionStartLogicalFrameID = logicalFrameID
         }
 
         if options.tileMaxInFlightLogicalFrames > 0 {
@@ -1465,7 +1631,7 @@ func runSyntheticTiled(options: Options) throws {
             encodePixelBuffer(
                 pixelBuffer,
                 frameID: tileFrameID,
-                presentationFrameID: logicalFrameID - sessionStartLogicalFrameID,
+                presentationFrameID: logicalFrameID - sessionStartByTile[tileIndex],
                 generateMS: generateMS,
                 frameDuration: frameDuration,
                 session: sessions[tileIndex],
