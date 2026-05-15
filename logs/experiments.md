@@ -375,3 +375,39 @@ Decision:
 - Tiled 5K60 should move from "research only" to the next Plan B prototype candidate, but only with explicit caveats.
 - The encode-only budget is now promising for p95, but reset-frame max spikes around 100-133 ms must be solved or hidden before calling it display-smooth.
 - Next tiled work should investigate receiver protocol metadata, multi-stream decode/recomposition, and reset-spike mitigation such as staggered/prewarmed tile sessions or dropping/hiding reset frames.
+
+## 2026-05-15 12:22 — Tiled reset interval and deadline policy
+
+Prompt: user asked whether 2x2 tiled 5K60 can continue and whether other speed-reduction methods or current encoding trends suggest improvements.
+
+Summary:
+- Searched current primary/official encoding sources around split-frame encoding, low-latency controls, and ScreenCaptureKit queue behavior.
+- Added `scripts/analyze_tiled_deadline.py` to convert tiled logical CSV results into deadline-miss counts.
+- Tuned tiled session reset interval from 150 to 180 logical frames.
+- Wrote `docs/13_TILED_5K60_STRATEGY.md`.
+
+Measured reset-interval results:
+
+| Case | Duration | Frames | Effective fps | Avg ms | P95 ms | Max ms | Late >16.67ms | Result |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| reset150, inflight1 | 20s | 1200 | 60.008 | 13.075 | 15.210 | 128.469 | 27 | Pass |
+| reset180, inflight1 | 20s | 1200 | 60.010 | 11.991 | 12.632 | 131.582 | 8 | Pass |
+| reset210, inflight1 | 20s | 1200 | 60.006 | 14.300 | 31.276 | 127.290 | 147 | Fail |
+| reset180, inflight1 | 30s | 1800 | 60.009 | 12.100 | 12.690 | 135.530 | 18 | Pass |
+
+Deadline interpretation:
+- In the reset180 30-second run, only 18/1800 logical frames exceeded 16.67 ms.
+- Only 10/1800 logical frames exceeded 33.33 ms, matching the reset cadence.
+- This supports a receiver presentation policy that reuses previous tile textures instead of stalling the full logical frame when one tile misses deadline.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1220_tiled_5k60_reset_interval_probe/summary.md`
+- `benchmarks/runs/2026-05-15_1222_tiled_5k60_reset180_sustain_30s/summary.md`
+- `benchmarks/runs/2026-05-15_1222_tiled_5k60_reset180_sustain_30s/deadline_analysis.md`
+- `docs/13_TILED_5K60_STRATEGY.md`
+- `scripts/analyze_tiled_deadline.py`
+
+Decision:
+- Continue tiled 5K60 as the top full-resolution prototype path.
+- Do not make the receiver wait for all tiles on every logical frame. Use deadline-based composition with stale-tile reuse and HUD counters.
+- Keep single-session 3840x2160/4096x2304 as fallback paths while tiled receiver composition is built.

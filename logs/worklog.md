@@ -577,3 +577,29 @@ Next:
 - Keep tiled 5K60 as the top Plan B prototype candidate if preserving full 5120x2880 logical resolution matters.
 - Investigate reset-spike mitigation before receiver work, or design the receiver protocol so reset/keyframe spikes can be dropped, hidden, or staggered.
 - Add tiled metadata/decode/recomposition only after deciding how to handle reset spikes.
+
+## 2026-05-15 12:22 — Tiled 5K60 strategy and reset180 probe
+
+Prompt: user asked whether 2x2 tiled 5K60 is viable and asked to search current encoding trends while improving the approach
+Changed files:
+- docs/04_SOURCE_LEDGER.md
+- docs/13_TILED_5K60_STRATEGY.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+- scripts/analyze_tiled_deadline.py
+- benchmarks/runs/2026-05-15_1220_tiled_5k60_reset_interval_probe/*
+- benchmarks/runs/2026-05-15_1222_tiled_5k60_reset180_sustain_30s/*
+Verification:
+- [x] Searched Apple and NVIDIA primary/official sources for VideoToolbox, ScreenCaptureKit queue behavior, split-frame encoding, and low-latency HEVC trends.
+- [x] `scripts/analyze_tiled_deadline.py` generated deadline analysis for the reset180 30-second run.
+- [x] 20-second reset interval probe for reset150/reset180/reset210.
+- [x] 30-second reset180 sustain probe.
+Result:
+- reset180/inflight1 improved the tiled HEVC path to 30-second avg 12.100 ms, p95 12.690 ms, effective 60.009 fps.
+- reset210 failed p95, so the useful reset interval is currently around 180 logical frames.
+- Deadline analysis shows only 18/1800 logical frames exceed 16.67 ms and 10/1800 exceed 33.33 ms.
+- Current encoding trends support the manual tiled direction: NVIDIA's current split-frame encoding for HEVC/AV1 uses independent frame partitions to increase single-stream speed when one encoder is not enough.
+Next:
+- Build receiver-side tiled composition with stale-tile reuse and HUD counters before trying full tiled decode.
+- Add tiled protocol metadata after the synthetic receiver composition path is clear.
