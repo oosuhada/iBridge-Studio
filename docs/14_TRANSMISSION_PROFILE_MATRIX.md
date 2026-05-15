@@ -52,11 +52,11 @@ Apple documents IP-over-Thunderbolt between two Macs using Thunderbolt Bridge. [
 | Source Mac | Connection | First profile | Why | Status |
 |---|---|---|---|---|
 | M1 Max MacBook Pro | Thunderbolt Bridge | 2x2 tiled HEVC 5K60, 30Mbps/tile | Only current full-5K60 sender path with p95 under budget | promising sender-only |
-| M1 Max MacBook Pro | 1GbE | 4096x2304@60 HEVC or 3840x2160@60 HEVC | 120Mbps tiled 5K may exceed practical 1GbE once overhead/retransmit/decode are included | needs repeat profile test |
-| M1 Max MacBook Pro | Wi-Fi | 3200x1800@60 HEVC, then 2560x1440@60 if latency matters | Wireless needs lower bitrate and adaptation before chasing full 5K | needs repeat profile test |
-| M1 Air | Thunderbolt Bridge | 2560x1440@60, 3200x1800@60, then 2x2 5K60 probe | Do not assume Air has M1 Max headroom; establish ceiling first | needs Air test |
-| M1 Air | 1GbE | 2560x1440@60 or 3200x1800@60 HEVC | Air thermal/media budget plus 1GbE makes 5K60 unlikely as the default | needs Air test |
-| M1 Air | Wi-Fi | 2560x1440@60 HEVC | Best chance for stable interaction and text scaling | needs Air test |
+| M1 Max MacBook Pro | 1GbE | 4096x2304@60 HEVC or 3840x2160@60 HEVC | Isolated single-stream p95 passes, but product switching after tiled can poison encoder state | needs wired network test |
+| M1 Max MacBook Pro | Wi-Fi | 3200x1800@60 HEVC, then 2560x1440@60 if latency matters | Wireless needs lower bitrate and adaptation before chasing full 5K | needs stable local Wi-Fi test |
+| M1 Air | Thunderbolt Bridge | 2560x1440@60 HEVC | Air tiled 5K60 and 3200x1800 missed p95 budget; do not assume M1 Max headroom | sender-tested; transport pending |
+| M1 Air | 1GbE | 2560x1440@60 HEVC | Air thermal/media budget plus 1GbE makes 5K60 unlikely as the default | sender-tested; transport pending |
+| M1 Air | Wi-Fi | 2560x1440@60 HEVC | Best chance for stable interaction and text scaling | sender-tested; transport pending |
 
 ## Transfer Types To Build Toward
 
@@ -205,6 +205,18 @@ Interpretation:
 - M1 Air should default to `2560x1440 @ 60` HEVC for now.
 - `3200x1800 @ 60` can remain a retest/tuning target, but current p95 and max spikes make it unsuitable as the first Air profile.
 - 2x2 tiled 5K60 should continue only as an M1 Max + best-wired path unless a new Air-side strategy changes the encode-only ceiling.
+
+## Immediate Transport Gate
+
+The MacBook Pro was updated to commit `a1f629d`, and its currently active path to the Windows iMac was rechecked over Tailscale:
+
+```text
+target=100.86.52.88
+20 packets transmitted, 20 received, 0.0% loss
+round-trip min/avg/max/stddev = 9.451/73.839/507.671/107.944 ms
+```
+
+This confirms reachability, but not display viability. The next real transport gate is still physical: Thunderbolt Bridge or 1GbE plus `scripts/mac_network_matrix.sh` and the Windows-side iperf server. Do not use the current Tailscale jitter to reject M1 Max wired tiled 5K60 or high-detail single-stream profiles.
 
 ## New Benchmark Entry Point
 

@@ -37,6 +37,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Re-isolated M1 Max single-stream profiles. When run without tiled 5K60 first, 4096x2304, 3840x2160, 3200x1800, and 2560x1440 all passed p95 <=16.67ms across 3/3 repeats. The slow quick-matrix fallback results are now attributed to tiled 5K60 contaminating immediate follow-up single-stream VideoToolbox state.
 - Restarting the user `VTEncoderXPCService` did not recover post-tiled 4096x2304/3200x1800 performance. After tiled contamination, 2560x1440 remained inside budget and is the current safest emergency fallback.
 - M1 MacBook Air `MacBookAir10,1` sender profile matrix has now been run locally for 30 seconds per case. Only `2560x1440 @ 60` synthetic NV12 HEVC passed the 16.67 ms p95 encode budget; `3200x1800`, `3840x2160`, and 2x2 tiled 5K60 missed the sender-only 60Hz budget.
+- MacBook Pro current-path Tailscale ping to the Windows iMac was rechecked from `macbook-pro`: 20/20 received, min/avg/max/stddev `9.451/73.839/507.671/107.944 ms`. This path remains too jittery to choose display profiles; wired Thunderbolt Bridge or 1GbE tests are still the next transport gate.
 
 ## Key Results
 
@@ -70,6 +71,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - M1 Air 2x2 tiled HEVC 5120x2880 @ 60, 25Mbps/tile, reset180, inflight1: effective 41.599 fps, avg 23.626 ms, p95 23.718 ms, max 72.096 ms; all 1800 logical frames exceeded 16.67 ms, so this is not worth continuing on M1 Air without a major new strategy.
 - MacBook Pro display-sized synthetic sources for built-in XDR, external portrait display, Sidecar iPad, and HDMI FHD display all encoded successfully with forced `ave.hevc`.
 - MacBook Pro to iMac Tailscale path is reachable, but ping is jittery: 20-packet ICMP min/avg/max/stddev 14.484/108.629/423.525/96.505 ms.
+- MacBook Pro to iMac Tailscale recheck remains jittery: 20-packet ICMP min/avg/max/stddev `9.451/73.839/507.671/107.944 ms`.
 
 ## Files Likely Relevant Next
 
@@ -90,6 +92,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `scripts/mac_single_stream_stability_matrix.sh`
 - `benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/summary.csv`
+- `benchmarks/runs/2026-05-15_1344_mbp_current_path_probe/ping_20_imac_tailscale.txt`
 - `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
 - `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
@@ -118,6 +121,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `DURATION=3 scripts/mac_encode_strategy_matrix.sh`
 - `DEVICE_PROFILE=m1max PROFILE_SET=quick DURATION=5 RUN_ROOT=benchmarks/runs/2026-05-15_1258_transmission_profile_matrix scripts/mac_transmission_profile_matrix.sh`
 - `DEVICE_PROFILE=m1air PROFILE_SET=air DURATION=30 scripts/mac_transmission_profile_matrix.sh`
+- `ssh macbook-pro 'cd ~/development/iBridge && git pull --rebase'`
+- `ssh macbook-pro 'ping -c 20 100.86.52.88'`
 - `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=unset RUN_ROOT=benchmarks/runs/2026-05-15_1330_single_stream_stability_unset scripts/mac_single_stream_stability_matrix.sh`
 - `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=on RUN_ROOT=benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on scripts/mac_single_stream_stability_matrix.sh`
 - `pkill -x VTEncoderXPCService` followed by 4096x2304, 3200x1800, and 2560x1440 fallback probes.
@@ -147,7 +152,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 ## Next Steps
 
 1. Use M1 Air `2560x1440 @ 60` HEVC as the realistic default candidate; only retest `3200x1800 @ 60` after profile tuning or thermal isolation.
-2. Run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput.
+2. Run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput. Current Tailscale/Wi-Fi path is not stable enough for display-profile decisions.
 3. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
 4. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
 5. Investigate a stronger safe reset strategy before allowing product-mode switching from tiled 5K60 down to high-detail single-stream fallback; user-level `VTEncoderXPCService` restart alone was not enough.

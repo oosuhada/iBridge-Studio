@@ -704,3 +704,25 @@ Result:
 Next:
 - Treat `2560x1440 @ 60` HEVC as the realistic M1 Air default.
 - Keep tiled 5K60 focused on M1 Max/best-wired paths; do not implement an Air-specific tiled receiver path from this result.
+
+## 2026-05-15 13:45 — Plan next transport gate
+
+Prompt: user confirmed the MBP vs M1 Air tiled speed gap and asked to plan/proceed with the next step
+Changed files:
+- benchmarks/runs/2026-05-15_1344_mbp_current_path_probe/*
+- docs/14_TRANSMISSION_PROFILE_MATRIX.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `ssh macbook-pro 'hostname; whoami; pwd'`
+- [x] `ssh macbook-pro 'cd ~/development/iBridge && git pull --rebase'`
+- [x] `ssh macbook-pro 'networksetup -listallhardwareports; ifconfig ...'`
+- [x] `ssh macbook-pro 'ping -c 20 100.86.52.88'`
+Result:
+- MacBook Pro repo is updated to the Air result commit.
+- MacBook Pro currently has Wi-Fi active; Thunderbolt Bridge and USB/Ethernet adapter interfaces are inactive.
+- Current Tailscale path to the Windows iMac is reachable but jittery: min/avg/max/stddev `9.451/73.839/507.671/107.944 ms`.
+Next:
+- Run `scripts/mac_network_matrix.sh` on the MacBook Pro only after Thunderbolt Bridge or 1GbE is physically connected and an `iperf3` server is running on the iMac.
+- Keep receiver tiled composition deferred until sender profile plus physical transport have a credible path.

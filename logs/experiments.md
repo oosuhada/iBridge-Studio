@@ -550,3 +550,34 @@ Artifacts:
 - `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/m1air_wired_full_5k60_tiled_probe_hevc_synthetic_nv12_tiled_5120x2880_60fps_25mbps_deadline.md`
 - `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/system_profile_sanitized.txt`
+
+## 2026-05-15 13:45 — Next-step transport gate check
+
+Prompt: user confirmed the M1 Air vs M1 Max tiled speed difference and asked to plan and proceed with the next step.
+
+Plan:
+- Lock M1 Air default to `2560x1440 @ 60` HEVC based on sender evidence.
+- Keep M1 Max 2x2 tiled 5K60 as the only current full-resolution sender candidate.
+- Before receiver work, verify whether the MacBook Pro has a usable physical transport path to the iMac.
+
+Commands:
+
+```bash
+ssh macbook-pro 'cd ~/development/iBridge && git pull --rebase'
+ssh macbook-pro 'networksetup -listallhardwareports; ifconfig ...'
+ssh macbook-pro 'ping -c 20 100.86.52.88'
+```
+
+Results:
+- MacBook Pro repo fast-forwarded to `a1f629d`.
+- MacBook Pro active normal interface is Wi-Fi with `192.168.5.31`.
+- Thunderbolt Bridge and USB/Ethernet adapter interfaces were present but inactive.
+- Tailscale ping to Windows iMac `100.86.52.88`: 20/20 received, min/avg/max/stddev `9.451/73.839/507.671/107.944 ms`.
+
+Interpretation:
+- Current Tailscale path is reachable but too jittery for display-profile decisions.
+- The next meaningful experiment is still a physical transport matrix: Thunderbolt Bridge first if available, otherwise 1GbE.
+- Do not implement Windows tiled receiver yet; sender profile and transport gates are not both green.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1344_mbp_current_path_probe/ping_20_imac_tailscale.txt`
