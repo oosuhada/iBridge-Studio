@@ -581,3 +581,29 @@ Interpretation:
 
 Artifacts:
 - `benchmarks/runs/2026-05-15_1344_mbp_current_path_probe/ping_20_imac_tailscale.txt`
+
+## 2026-05-15 13:51 — Current Tailscale network matrix
+
+Prompt: continue the next experiment after the transport gate check.
+
+Command:
+
+```bash
+ssh macbook-pro 'cd ~/development/iBridge && DURATION=10 RUN_ROOT=benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix scripts/mac_network_matrix.sh --case tailscale --receiver-ip 100.86.52.88 --tailscale-name 100.86.52.88'
+```
+
+Results:
+- Ping: 100 transmitted, 98 received, 2.0% packet loss.
+- RTT min/avg/max/stddev: `8.198/61.867/485.532/58.935 ms`.
+- `iperf3` was not installed on the MBP, so TCP/UDP throughput was not measured.
+- `tailscale` CLI was not found in the MBP SSH shell, so direct/DERP status was not captured.
+
+Interpretation:
+- Current Tailscale path is reachable but not a credible display transport due to packet loss and high jitter/spikes.
+- This does not downshift the M1 Max wired sender plan; it only says the current overlay path is not the right next validation path.
+- Before the wired matrix, install or expose `iperf3` on both MBP and iMac, then connect Thunderbolt Bridge or 1GbE.
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/ping_100.txt`
+- `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/iperf3_missing.txt`
+- `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/tailscale_missing.txt`

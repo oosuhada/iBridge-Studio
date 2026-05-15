@@ -218,6 +218,16 @@ round-trip min/avg/max/stddev = 9.451/73.839/507.671/107.944 ms
 
 This confirms reachability, but not display viability. The next real transport gate is still physical: Thunderbolt Bridge or 1GbE plus `scripts/mac_network_matrix.sh` and the Windows-side iperf server. Do not use the current Tailscale jitter to reject M1 Max wired tiled 5K60 or high-detail single-stream profiles.
 
+A formal current-path matrix on the same Tailscale target then recorded:
+
+```text
+target=100.86.52.88
+100 packets transmitted, 98 received, 2.0% loss
+round-trip min/avg/max/stddev = 8.198/61.867/485.532/58.935 ms
+```
+
+The MBP shell did not have `iperf3` or `tailscale` CLI available, so this matrix could not measure throughput or direct-vs-DERP status. Treat this as a blocker for current-path display decisions, not as evidence against Thunderbolt Bridge or 1GbE.
+
 ## New Benchmark Entry Point
 
 Use:

@@ -726,3 +726,24 @@ Result:
 Next:
 - Run `scripts/mac_network_matrix.sh` on the MacBook Pro only after Thunderbolt Bridge or 1GbE is physically connected and an `iperf3` server is running on the iMac.
 - Keep receiver tiled composition deferred until sender profile plus physical transport have a credible path.
+
+## 2026-05-15 13:51 — Current Tailscale network matrix
+
+Prompt: user asked to continue the next experiment
+Changed files:
+- benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/*
+- docs/14_TRANSMISSION_PROFILE_MATRIX.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `ssh macbook-pro 'cd ~/development/iBridge && DURATION=10 RUN_ROOT=benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix scripts/mac_network_matrix.sh --case tailscale --receiver-ip 100.86.52.88 --tailscale-name 100.86.52.88'`
+- [x] Copied the MBP artifact back into this repo and removed the untracked remote copy.
+- [x] `bash -n scripts/mac_network_matrix.sh`
+Result:
+- Current MBP-to-iMac Tailscale path had 100-packet ping loss/jitter: 98/100 received, 2.0% loss, min/avg/max/stddev `8.198/61.867/485.532/58.935 ms`.
+- MBP did not have `iperf3` installed, so throughput was not measured.
+- MBP SSH shell did not expose `tailscale` CLI, so direct/DERP status was not captured.
+Next:
+- Install or expose `iperf3` on MBP and iMac before throughput experiments.
+- Run the real transport matrix only after Thunderbolt Bridge or 1GbE is active.

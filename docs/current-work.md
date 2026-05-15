@@ -38,6 +38,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Restarting the user `VTEncoderXPCService` did not recover post-tiled 4096x2304/3200x1800 performance. After tiled contamination, 2560x1440 remained inside budget and is the current safest emergency fallback.
 - M1 MacBook Air `MacBookAir10,1` sender profile matrix has now been run locally for 30 seconds per case. Only `2560x1440 @ 60` synthetic NV12 HEVC passed the 16.67 ms p95 encode budget; `3200x1800`, `3840x2160`, and 2x2 tiled 5K60 missed the sender-only 60Hz budget.
 - MacBook Pro current-path Tailscale ping to the Windows iMac was rechecked from `macbook-pro`: 20/20 received, min/avg/max/stddev `9.451/73.839/507.671/107.944 ms`. This path remains too jittery to choose display profiles; wired Thunderbolt Bridge or 1GbE tests are still the next transport gate.
+- MacBook Pro current-path formal network matrix over Tailscale recorded 100-packet ping with 2.0% loss and min/avg/max/stddev `8.198/61.867/485.532/58.935 ms`. MBP currently lacks `iperf3` and Tailscale CLI, so throughput and direct/relay status remain unmeasured on this path.
 
 ## Key Results
 
@@ -72,6 +73,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Pro display-sized synthetic sources for built-in XDR, external portrait display, Sidecar iPad, and HDMI FHD display all encoded successfully with forced `ave.hevc`.
 - MacBook Pro to iMac Tailscale path is reachable, but ping is jittery: 20-packet ICMP min/avg/max/stddev 14.484/108.629/423.525/96.505 ms.
 - MacBook Pro to iMac Tailscale recheck remains jittery: 20-packet ICMP min/avg/max/stddev `9.451/73.839/507.671/107.944 ms`.
+- MacBook Pro to iMac formal Tailscale network matrix: 100-packet ICMP `98/100` received, 2.0% loss, min/avg/max/stddev `8.198/61.867/485.532/58.935 ms`; not suitable for display transport decisions.
 
 ## Files Likely Relevant Next
 
@@ -93,6 +95,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `benchmarks/runs/2026-05-15_1258_transmission_profile_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1306_transmission_profile_matrix/summary.csv`
 - `benchmarks/runs/2026-05-15_1344_mbp_current_path_probe/ping_20_imac_tailscale.txt`
+- `benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix/tailscale/ping_100.txt`
 - `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
 - `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
@@ -123,6 +126,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `DEVICE_PROFILE=m1air PROFILE_SET=air DURATION=30 scripts/mac_transmission_profile_matrix.sh`
 - `ssh macbook-pro 'cd ~/development/iBridge && git pull --rebase'`
 - `ssh macbook-pro 'ping -c 20 100.86.52.88'`
+- `ssh macbook-pro 'cd ~/development/iBridge && DURATION=10 RUN_ROOT=benchmarks/runs/2026-05-15_1349_current_tailscale_network_matrix scripts/mac_network_matrix.sh --case tailscale --receiver-ip 100.86.52.88 --tailscale-name 100.86.52.88'`
 - `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=unset RUN_ROOT=benchmarks/runs/2026-05-15_1330_single_stream_stability_unset scripts/mac_single_stream_stability_matrix.sh`
 - `REPEATS=3 DURATION=5 COOLDOWN_SECONDS=3 PRIORITIZE_SPEED=on RUN_ROOT=benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on scripts/mac_single_stream_stability_matrix.sh`
 - `pkill -x VTEncoderXPCService` followed by 4096x2304, 3200x1800, and 2560x1440 fallback probes.
@@ -144,6 +148,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Text-quality screenshots are pending.
 - Power cable/drain-rate tests require physical cable changes.
 - LAN/Thunderbolt Bridge throughput tests require physical cable changes and `iperf3` on both machines.
+- MBP currently needs `iperf3` installed before throughput matrix runs; the current MBP shell also did not expose `tailscale` CLI for direct/relay status capture.
 - Windows compressed file decode/render code needs MSVC build/run validation on the iMac.
 - MacBook Pro SSH auth to Windows iMac is blocked; port 22 is open but the MBP key is not accepted.
 - Forced encoder ID plus low-latency rate-control currently fails `VTCompressionSessionCreate` with `-12902`; forced `ave.hevc` works when low-latency rate-control is disabled.
@@ -152,7 +157,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 ## Next Steps
 
 1. Use M1 Air `2560x1440 @ 60` HEVC as the realistic default candidate; only retest `3200x1800 @ 60` after profile tuning or thermal isolation.
-2. Run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput. Current Tailscale/Wi-Fi path is not stable enough for display-profile decisions.
+2. Install or expose `iperf3` on the MBP and iMac, then run wired sender tests on the M1 Max after Thunderbolt Bridge or 1GbE is physically connected; pair with `scripts/mac_network_matrix.sh` to classify link latency/throughput. Current Tailscale/Wi-Fi path is not stable enough for display-profile decisions.
 3. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
 4. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
 5. Investigate a stronger safe reset strategy before allowing product-mode switching from tiled 5K60 down to high-detail single-stream fallback; user-level `VTEncoderXPCService` restart alone was not enough.
