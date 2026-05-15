@@ -299,3 +299,40 @@ Decision:
 - The strongest encoding-only path is now 3200x1800 or 3840x2160 HEVC with forced `ave.hevc`, low-latency rate-control disabled, temporal compression enabled, frame reordering disabled, and DataRateLimits set.
 - `MaxFrameDelayCount` returned `-12900` in these probes and should be treated as unsupported for this encoder/session path.
 - Next encoding work should focus on real ScreenCaptureKit/IOSurface input and possibly lower-motion/static-screen modes, not receiver connection.
+
+## 2026-05-15 11:32 — ScreenCaptureKit, NV12, static skip, tiled, and 5K refresh matrix
+
+Prompt: user requested all proposed encoding optimizations be tested before continuing iMac connection work
+
+Summary:
+- Added a source strategy matrix around the current best VideoToolbox profile: forced `com.apple.videotoolbox.videoencoder.ave.hevc`, low-latency rate-control disabled, temporal compression enabled, frame reordering disabled, DataRateLimits 120Mbps, speed priority on.
+- Compared CPU BGRA synthetic input with synthetic NV12 input.
+- Added real ScreenCaptureKit capture input.
+- Simulated unchanged-screen behavior by submitting only changed frames.
+- Tested 5K45 and 5K30.
+- Tested a 2x2 tiled-session approximation by running four 2560x1440 HEVC sessions in parallel.
+
+Measured 3-second highlights:
+
+| Mode | Avg encode ms | P95 encode ms | Result |
+|---|---:|---:|---|
+| synthetic NV12 3840x2160 @ 60 | 11.557 | 11.906 | strong 4K60 encode-only signal |
+| ScreenCaptureKit 3840x2160 @ 60 | 16.363 | 18.412 | real capture works, p95 slightly misses 60Hz budget |
+| synthetic NV12 4096x2304 @ 60 | 12.898 | 13.245 | strong high-detail 60Hz candidate |
+| synthetic NV12 5120x2880 @ 60 | 222.716 | 234.220 | single-session 5K60 fails |
+| ScreenCaptureKit 5120x2880 @ 60 | 302.354 | 360.042 | real 5K60 capture+encode fails |
+| synthetic NV12 5120x2880 @ 30 | 19.296 | 19.824 | usable for 30Hz budget, not 60Hz |
+| 2x2 5K60 tile approximation | 6.496-9.528 | 10.568-11.254 | per-tile encode passes; recomposition unproven |
+
+Artifacts:
+- `benchmarks/runs/2026-05-15_1129_encode_strategy_matrix/summary.csv`
+- `benchmarks/runs/2026-05-15_1129_encode_strategy_matrix/summary.md`
+- `benchmarks/runs/2026-05-15_1129_encode_strategy_matrix/tile_2x2_5k60/summary.md`
+- `benchmarks/runs/2026-05-15_1129_encode_strategy_matrix/targeted/sck_5k60.txt`
+- `scripts/mac_encode_strategy_matrix.sh`
+
+Decision:
+- Single-session Plan B 5K60 HEVC is still not viable on the current MacBook Pro path, even with real ScreenCaptureKit input.
+- NV12-style input materially improves 4K/4096x2304 encode results and should replace BGRA synthetic as the main encode benchmark path.
+- The only current 5K60-shaped positive signal is tiled encoding; it requires protocol, receiver decode, synchronization, and recomposition work before it can count as a display solution.
+- Recommended single-session quality candidates are now `4096x2304 @ 60` and `3840x2160 @ 60`; `5120x2880 @ 30` is a high-quality low-refresh fallback.

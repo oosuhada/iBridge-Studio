@@ -15,7 +15,9 @@ let package = Package(
             name: "iBridgePrimary",
             linkerSettings: [
                 .linkedFramework("CoreMedia"),
+                .linkedFramework("CoreGraphics"),
                 .linkedFramework("CoreVideo"),
+                .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("VideoToolbox")
             ]
         )

@@ -1,11 +1,15 @@
+import CoreGraphics
 import CoreMedia
 import CoreVideo
 import Darwin
 import Foundation
+import ScreenCaptureKit
 import VideoToolbox
 
 struct Options {
     var synthetic = false
+    var screenCapture = false
+    var source = "synthetic-bgra"
     var width = 2560
     var height = 1440
     var fps = 60
@@ -27,6 +31,9 @@ struct Options {
     var allowOpenGOP = false
     var prioritizeSpeed: Bool?
     var payloadFormat = "length-prefixed"
+    var staticChangeEvery = 1
+    var captureDisplayIndex = 0
+    var captureQueueDepth = 8
     var senderQueueDepth = 4
     var listEncoders = false
     var printSupportedProperties = false
@@ -568,8 +575,15 @@ func compressionOutputCallback(
 
 func usage() {
     print("""
-    ibridge-primary --synthetic --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--bitrate-mbps 120] [--no-realtime] [--send-host host --send-port 48320] [--sender-queue-depth 4] [--encoder-id com.apple.videotoolbox.videoencoder.ave.hevc]
+    ibridge-primary --synthetic --source synthetic-bgra --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--bitrate-mbps 120] [--no-realtime] [--send-host host --send-port 48320] [--sender-queue-depth 4] [--encoder-id com.apple.videotoolbox.videoencoder.ave.hevc]
+    ibridge-primary --screen-capture --source screen-capture --resolution 3840x2160 --fps 60 --duration 5 --codec hevc --csv diagnostics.csv
     ibridge-primary --list-encoders
+
+    Sources:
+      --source synthetic-bgra
+      --source synthetic-nv12
+      --source synthetic-static-skip --static-change-every 60
+      --source screen-capture --capture-display-index 0 --capture-queue-depth 8
 
     Reference-informed VideoToolbox options:
       --disable-low-latency-rate-control
@@ -617,6 +631,16 @@ func parseOptions(_ args: [String]) throws -> Options {
             exit(0)
         } else if arg == "--synthetic" {
             options.synthetic = true
+            if options.source == "screen-capture" {
+                options.source = "synthetic-bgra"
+            }
+        } else if arg == "--screen-capture" {
+            options.screenCapture = true
+            options.source = "screen-capture"
+        } else if arg == "--source" {
+            options.source = try value().lowercased()
+        } else if arg.hasPrefix("--source=") {
+            options.source = String(arg.dropFirst("--source=".count)).lowercased()
         } else if arg == "--resolution" {
             let parsed = try parseResolution(try value())
             options.width = parsed.0
@@ -701,6 +725,18 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.payloadFormat = String(arg.dropFirst("--payload-format=".count)).lowercased()
         } else if arg == "--annex-b" {
             options.payloadFormat = "annex-b"
+        } else if arg == "--static-change-every" {
+            options.staticChangeEvery = try Int(value()) ?? options.staticChangeEvery
+        } else if arg.hasPrefix("--static-change-every=") {
+            options.staticChangeEvery = Int(arg.dropFirst("--static-change-every=".count)) ?? options.staticChangeEvery
+        } else if arg == "--capture-display-index" {
+            options.captureDisplayIndex = try Int(value()) ?? options.captureDisplayIndex
+        } else if arg.hasPrefix("--capture-display-index=") {
+            options.captureDisplayIndex = Int(arg.dropFirst("--capture-display-index=".count)) ?? options.captureDisplayIndex
+        } else if arg == "--capture-queue-depth" {
+            options.captureQueueDepth = try Int(value()) ?? options.captureQueueDepth
+        } else if arg.hasPrefix("--capture-queue-depth=") {
+            options.captureQueueDepth = Int(arg.dropFirst("--capture-queue-depth=".count)) ?? options.captureQueueDepth
         } else if arg == "--disable-low-latency-rate-control" {
             options.lowLatencyRateControl = false
         } else if arg == "--encoder-id" {
@@ -722,8 +758,19 @@ func parseOptions(_ args: [String]) throws -> Options {
     if options.listEncoders {
         return options
     }
-    guard options.synthetic else {
-        throw RuntimeError("only --synthetic exists in the first Primary spike")
+    let validSources = ["synthetic-bgra", "synthetic-nv12", "synthetic-static-skip", "screen-capture"]
+    guard validSources.contains(options.source) else {
+        throw RuntimeError("--source must be one of \(validSources.joined(separator: ", "))")
+    }
+    if options.source == "screen-capture" {
+        options.screenCapture = true
+        options.synthetic = false
+    } else {
+        options.synthetic = true
+        options.screenCapture = false
+    }
+    guard options.synthetic || options.screenCapture else {
+        throw RuntimeError("choose --synthetic or --screen-capture")
     }
     guard options.fps > 0, options.durationSeconds > 0 else {
         throw RuntimeError("--fps and --duration must be positive")
@@ -743,10 +790,16 @@ func parseOptions(_ args: [String]) throws -> Options {
     guard options.payloadFormat == "length-prefixed" || options.payloadFormat == "annex-b" else {
         throw RuntimeError("--payload-format must be length-prefixed or annex-b")
     }
+    guard options.staticChangeEvery > 0 else {
+        throw RuntimeError("--static-change-every must be positive")
+    }
+    guard options.captureDisplayIndex >= 0, options.captureQueueDepth > 0 else {
+        throw RuntimeError("--capture-display-index must be non-negative and --capture-queue-depth must be positive")
+    }
     return options
 }
 
-func makePixelBuffer(width: Int, height: Int, frameID: Int) throws -> (CVPixelBuffer, Double) {
+func makeBGRAPixelBuffer(width: Int, height: Int, frameID: Int) throws -> (CVPixelBuffer, Double) {
     let start = DispatchTime.now()
     var pixelBuffer: CVPixelBuffer?
     let attrs: [CFString: Any] = [
@@ -784,6 +837,57 @@ func makePixelBuffer(width: Int, height: Int, frameID: Int) throws -> (CVPixelBu
             let bx = UInt32((x + Int(frame)) & 0xff)
             let r = UInt32(((x >> 5) + (y >> 5) + Int(frame)) & 0xff)
             row[x] = 0xff00_0000 | (r << 16) | (gy << 8) | bx
+        }
+    }
+
+    let elapsed = DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds
+    return (pixelBuffer, Double(elapsed) / 1_000_000.0)
+}
+
+func makeNV12PixelBuffer(width: Int, height: Int, frameID: Int) throws -> (CVPixelBuffer, Double) {
+    let start = DispatchTime.now()
+    var pixelBuffer: CVPixelBuffer?
+    let attrs: [CFString: Any] = [
+        kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+        kCVPixelBufferWidthKey: width,
+        kCVPixelBufferHeightKey: height,
+        kCVPixelBufferIOSurfacePropertiesKey: [:] as CFDictionary
+    ]
+    let status = CVPixelBufferCreate(
+        kCFAllocatorDefault,
+        width,
+        height,
+        kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+        attrs as CFDictionary,
+        &pixelBuffer
+    )
+    guard status == kCVReturnSuccess, let pixelBuffer else {
+        throw RuntimeError("CVPixelBufferCreate NV12 failed: \(status)")
+    }
+
+    CVPixelBufferLockBaseAddress(pixelBuffer, [])
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+
+    guard CVPixelBufferGetPlaneCount(pixelBuffer) >= 2,
+          let yBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0),
+          let uvBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1) else {
+        throw RuntimeError("NV12 pixel buffer has no planes")
+    }
+
+    let yStride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+    let uvStride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1)
+    let frame = frameID & 0xff
+    for y in 0..<height {
+        let row = yBase.advanced(by: y * yStride).assumingMemoryBound(to: UInt8.self)
+        for x in 0..<width {
+            row[x] = UInt8((x + y + frame) & 0xff)
+        }
+    }
+    for y in 0..<(height / 2) {
+        let row = uvBase.advanced(by: y * uvStride).assumingMemoryBound(to: UInt8.self)
+        for x in stride(from: 0, to: width, by: 2) {
+            row[x] = UInt8(128 + ((frame / 4) % 24))
+            row[x + 1] = UInt8(128 - ((frame / 4) % 24))
         }
     }
 
@@ -901,7 +1005,7 @@ func percentile(_ values: [Double], _ p: Double) -> Double {
     return sorted[lower] * (1 - fraction) + sorted[upper] * fraction
 }
 
-func runSynthetic(options: Options) throws {
+func makeState(options: Options) throws -> EncoderState {
     let state = EncoderState(codec: options.codec, payloadFormat: options.payloadFormat)
     if !options.sendHost.isEmpty {
         state.sender = try AsyncTcpFrameSender(
@@ -927,6 +1031,10 @@ func runSynthetic(options: Options) throws {
             }
         )
     }
+    return state
+}
+
+func makeCompressionSession(options: Options, state: EncoderState) throws -> VTCompressionSession {
     var session: VTCompressionSession?
     let createStatus = VTCompressionSessionCreate(
         allocator: kCFAllocatorDefault,
@@ -943,50 +1051,40 @@ func runSynthetic(options: Options) throws {
     guard createStatus == noErr, let session else {
         throw RuntimeError("VTCompressionSessionCreate failed: \(createStatus)")
     }
-    defer { VTCompressionSessionInvalidate(session) }
 
     try configure(session, options: options)
     if options.printSupportedProperties {
         printSupportedProperties(for: session)
     }
+    return session
+}
 
-    let frameCount = options.fps * options.durationSeconds
-    let frameDuration = CMTime(value: 1, timescale: CMTimeScale(options.fps))
-    let wallFrameDuration = 1.0 / Double(options.fps)
-    let runStart = DispatchTime.now()
-
-    for frameID in 0..<frameCount {
-        if options.realtime {
-            let target = Double(frameID) * wallFrameDuration
-            let elapsed = Double(DispatchTime.now().uptimeNanoseconds - runStart.uptimeNanoseconds) / 1_000_000_000.0
-            if target > elapsed {
-                Thread.sleep(forTimeInterval: target - elapsed)
-            }
-        }
-
-        let (pixelBuffer, generateMS) = try makePixelBuffer(
-            width: options.width,
-            height: options.height,
-            frameID: frameID
-        )
-        state.markFrame(frameID, generateMS: generateMS)
-        let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frameID))
-        let status = VTCompressionSessionEncodeFrame(
-            session,
-            imageBuffer: pixelBuffer,
-            presentationTimeStamp: presentationTime,
-            duration: frameDuration,
-            frameProperties: nil,
-            sourceFrameRefcon: UnsafeMutableRawPointer(bitPattern: frameID + 1),
-            infoFlagsOut: nil
-        )
-        guard status == noErr else {
-            state.finishFrame(frameID, status: status, sampleBuffer: nil)
-            continue
-        }
+func encodePixelBuffer(
+    _ pixelBuffer: CVPixelBuffer,
+    frameID: Int,
+    generateMS: Double,
+    frameDuration: CMTime,
+    session: VTCompressionSession,
+    state: EncoderState
+) {
+    state.markFrame(frameID, generateMS: generateMS)
+    let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frameID))
+    let status = VTCompressionSessionEncodeFrame(
+        session,
+        imageBuffer: pixelBuffer,
+        presentationTimeStamp: presentationTime,
+        duration: frameDuration,
+        frameProperties: nil,
+        sourceFrameRefcon: UnsafeMutableRawPointer(bitPattern: frameID + 1),
+        infoFlagsOut: nil
+    )
+    guard status == noErr else {
+        state.finishFrame(frameID, status: status, sampleBuffer: nil)
+        return
     }
+}
 
-    VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)
+func printRunSummary(options: Options, state: EncoderState, frameCount: Int, submittedFrames: Int, skippedFrames: Int, label: String) throws {
     state.sender?.finishAndWait()
 
     let frames = state.sortedFrames()
@@ -1001,7 +1099,9 @@ func runSynthetic(options: Options) throws {
     let senderDropped = frames.filter(\.senderDropped).count
     let sendFailed = frames.filter(\.sendFailed).count
 
-    print("iBridge Primary synthetic encoder")
+    print("iBridge Primary encoder")
+    print("run_label=\(label)")
+    print("source=\(options.source)")
     print("resolution=\(options.width)x\(options.height)")
     print("target_fps=\(options.fps)")
     print("duration_seconds=\(options.durationSeconds)")
@@ -1018,10 +1118,13 @@ func runSynthetic(options: Options) throws {
     print("prioritize_speed=\(options.prioritizeSpeed.map { $0 ? "on" : "off" } ?? "unset")")
     print("max_frame_delay_count=\(options.maxFrameDelayCount.map(String.init) ?? "unset")")
     print("payload_format=\(options.payloadFormat)")
+    print("static_change_every=\(options.staticChangeEvery)")
     print("max_keyframe_interval=\(options.maxKeyFrameInterval)")
     print(String(format: "max_keyframe_interval_duration=%.3f", options.maxKeyFrameIntervalDuration))
     print("sender_queue_depth=\(options.senderQueueDepth)")
     print("frames_requested=\(frameCount)")
+    print("frames_submitted=\(submittedFrames)")
+    print("frames_skipped=\(skippedFrames)")
     print("frames_encoded=\(frames.count)")
     print("failed_frames=\(failed)")
     print("sender_dropped_frames=\(senderDropped)")
@@ -1038,10 +1141,212 @@ func runSynthetic(options: Options) throws {
     print("csv=\(options.csvPath.isEmpty ? "none" : options.csvPath)")
 }
 
+func runSynthetic(options: Options) throws {
+    let state = try makeState(options: options)
+    let session = try makeCompressionSession(options: options, state: state)
+    defer { VTCompressionSessionInvalidate(session) }
+
+    let frameCount = options.fps * options.durationSeconds
+    let frameDuration = CMTime(value: 1, timescale: CMTimeScale(options.fps))
+    let wallFrameDuration = 1.0 / Double(options.fps)
+    let runStart = DispatchTime.now()
+    var submittedFrames = 0
+    var skippedFrames = 0
+
+    for frameID in 0..<frameCount {
+        if options.realtime {
+            let target = Double(frameID) * wallFrameDuration
+            let elapsed = Double(DispatchTime.now().uptimeNanoseconds - runStart.uptimeNanoseconds) / 1_000_000_000.0
+            if target > elapsed {
+                Thread.sleep(forTimeInterval: target - elapsed)
+            }
+        }
+
+        if options.source == "synthetic-static-skip", frameID % options.staticChangeEvery != 0 {
+            skippedFrames += 1
+            continue
+        }
+
+        let (pixelBuffer, generateMS) = options.source == "synthetic-nv12"
+            ? try makeNV12PixelBuffer(width: options.width, height: options.height, frameID: frameID)
+            : try makeBGRAPixelBuffer(width: options.width, height: options.height, frameID: frameID)
+        submittedFrames += 1
+        encodePixelBuffer(
+            pixelBuffer,
+            frameID: frameID,
+            generateMS: generateMS,
+            frameDuration: frameDuration,
+            session: session,
+            state: state
+        )
+    }
+
+    VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)
+    try printRunSummary(
+        options: options,
+        state: state,
+        frameCount: frameCount,
+        submittedFrames: submittedFrames,
+        skippedFrames: skippedFrames,
+        label: "synthetic"
+    )
+}
+
+@available(macOS 14.0, *)
+final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
+    private let options: Options
+    private let state: EncoderState
+    private let session: VTCompressionSession
+    private let frameDuration: CMTime
+    private let frameCount: Int
+    private let done = DispatchSemaphore(value: 0)
+    private let stateQueue = DispatchQueue(label: "iBridgePrimary.ScreenCaptureState")
+    private var stream: SCStream?
+    private var frameID = 0
+    private var submittedFrames = 0
+    private var startError: Error?
+    private var stopped = false
+
+    init(options: Options, state: EncoderState, session: VTCompressionSession) {
+        self.options = options
+        self.state = state
+        self.session = session
+        self.frameDuration = CMTime(value: 1, timescale: CMTimeScale(options.fps))
+        self.frameCount = options.fps * options.durationSeconds
+    }
+
+    func run() throws {
+        Task {
+            do {
+                let content = try await SCShareableContent.excludingDesktopWindows(
+                    false,
+                    onScreenWindowsOnly: true
+                )
+                guard options.captureDisplayIndex < content.displays.count else {
+                    throw RuntimeError("capture display index \(options.captureDisplayIndex) out of range; displays=\(content.displays.count)")
+                }
+                let display = content.displays[options.captureDisplayIndex]
+                let filter = SCContentFilter(display: display, excludingWindows: [])
+                let configuration = SCStreamConfiguration()
+                configuration.width = options.width
+                configuration.height = options.height
+                configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(options.fps))
+                configuration.queueDepth = options.captureQueueDepth
+                configuration.pixelFormat = kCVPixelFormatType_32BGRA
+                configuration.showsCursor = true
+                configuration.capturesAudio = false
+
+                let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
+                self.stream = stream
+                try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "iBridgePrimary.ScreenCaptureOutput"))
+                try await stream.startCapture()
+            } catch {
+                self.stateQueue.sync {
+                    self.startError = error
+                }
+                self.done.signal()
+            }
+        }
+
+        let timeout = DispatchTime.now() + .seconds(options.durationSeconds + 10)
+        if done.wait(timeout: timeout) == .timedOut {
+            stream?.stopCapture { _ in }
+            throw RuntimeError("screen capture timed out")
+        }
+        let error = stateQueue.sync { startError }
+        if let error {
+            throw error
+        }
+    }
+
+    func stream(_: SCStream, didStopWithError error: Error) {
+        stateQueue.sync {
+            if startError == nil {
+                startError = error
+            }
+        }
+        done.signal()
+    }
+
+    func stream(
+        _ stream: SCStream,
+        didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
+        of outputType: SCStreamOutputType
+    ) {
+        guard outputType == .screen,
+              sampleBuffer.isValid,
+              let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return
+        }
+
+        let nextFrame = stateQueue.sync { () -> (frameID: Int, shouldStop: Bool)? in
+            if stopped || frameID >= frameCount {
+                return nil
+            }
+            let currentFrameID = frameID
+            frameID += 1
+            submittedFrames += 1
+            let shouldStop = frameID >= frameCount
+            if shouldStop {
+                stopped = true
+            }
+            return (currentFrameID, shouldStop)
+        }
+        guard let nextFrame else {
+            return
+        }
+
+        encodePixelBuffer(
+            pixelBuffer,
+            frameID: nextFrame.frameID,
+            generateMS: 0,
+            frameDuration: frameDuration,
+            session: session,
+            state: state
+        )
+
+        if nextFrame.shouldStop {
+            stream.stopCapture { _ in
+                VTCompressionSessionCompleteFrames(self.session, untilPresentationTimeStamp: .invalid)
+                self.done.signal()
+            }
+        }
+    }
+
+    func counts() -> (submitted: Int, skipped: Int) {
+        stateQueue.sync {
+            (submittedFrames, max(0, frameCount - submittedFrames))
+        }
+    }
+}
+
+func runScreenCapture(options: Options) throws {
+    guard #available(macOS 14.0, *) else {
+        throw RuntimeError("ScreenCaptureKit path requires macOS 14 or newer in this spike")
+    }
+    let state = try makeState(options: options)
+    let session = try makeCompressionSession(options: options, state: state)
+    defer { VTCompressionSessionInvalidate(session) }
+
+    let runner = ScreenCaptureEncodeRunner(options: options, state: state, session: session)
+    try runner.run()
+    let counts = runner.counts()
+    try printRunSummary(
+        options: options,
+        state: state,
+        frameCount: options.fps * options.durationSeconds,
+        submittedFrames: counts.submitted,
+        skippedFrames: counts.skipped,
+        label: "screen-capture"
+    )
+}
+
 do {
     let options = try parseOptions(CommandLine.arguments)
     if options.listEncoders {
         try printVideoEncoderList()
+    } else if options.screenCapture {
+        try runScreenCapture(options: options)
     } else {
         try runSynthetic(options: options)
     }
