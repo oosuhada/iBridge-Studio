@@ -118,6 +118,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Air to 2015 iMac macOS receiver smoke, `2560x1440@60` HEVC 25Mbps TCP over Wi-Fi for 30s: sender `1800/1800` encoded, 0 send failures, 2 sender queue drops, p95 encode `9.730 ms`, receiver `1798` frames with two 1-frame missing events. User visually confirmed the iMac panel changed during the smoke.
 - MacBook Air to 2015 iMac live capture smoke, `2560x1440@30` HEVC 15Mbps TCP over Wi-Fi for 10s: sender `300/300` encoded, 0 send failures, 1 sender queue drop, receiver `299` frames. A 3s script validation run then passed with `90/90` encoded and 0 drops.
 - MacBook Air virtual extended display smoke, `Virtual 16:9` at `1920x1080@30` HEVC 8Mbps over Tailscale: sender `90/28/28` over 3s, 0 failed frames, 0 send failures, 0 queue drops. Low submitted-frame count is expected for a mostly static extended display.
+- macOS internal alpha packaging now exists. `scripts/package_macos_alpha.sh` builds the sender and receiver, creates an ad-hoc signed `iBridge Receiver.app`, includes a package-local virtual-display sender launcher, and emits `dist/iBridge-0.1.0-alpha.zip`.
+- Current package verification passed script syntax, Swift release builds, zip generation, byte-identical sender copy, and app signature verification.
+- Current live sender smoke from this MacBook Pro is blocked because the active external display state changed to AirPlay `Gabriel의 iMac` 1080p and `ibridge-primary --list-displays` returned `capture_display_count=0`; reconnect BetterDisplay `Virtual 16:9` as an extended display before retrying the packaged sender.
 
 ## Files Likely Relevant Next
 

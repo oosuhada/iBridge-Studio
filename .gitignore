@@ -5,6 +5,7 @@ logs/ping_*.txt
 logs/iperf3_*.txt
 apps/primary-macos/.build/
 apps/receiver-macos/.build/
+dist/
 
 # Local display captures can contain private screen contents.
 benchmarks/runs/**/*display_*.png

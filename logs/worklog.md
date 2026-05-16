@@ -989,3 +989,25 @@ Result:
 - The virtual display smoke sent 28 frames over a mostly static 3s run with 0 failures and 0 sender drops.
 Next:
 - For actual use, move windows onto `Virtual 16:9`; static screens may produce few frames until something changes on that display.
+
+## 2026-05-17 04:35 — macOS alpha package
+
+Prompt: user asked to continue through app distribution.
+Changed files:
+- scripts/package_macos_alpha.sh
+- scripts/start_ibridge_virtual_capture.sh
+- docs/18_ALPHA_RELEASE.md
+- .gitignore
+Verification:
+- [x] `bash -n scripts/start_ibridge_virtual_capture.sh`
+- [x] `bash -n scripts/package_macos_alpha.sh`
+- [x] `scripts/package_macos_alpha.sh`
+- [x] `codesign --verify --deep --strict --verbose=2 dist/iBridge-0.1.0-alpha/iBridge Receiver.app`
+- [x] `cmp -s apps/primary-macos/.build/release/ibridge-primary dist/iBridge-0.1.0-alpha/bin/ibridge-primary`
+- [x] `DURATION=1 RECEIVER_IP=169.254.70.114 ./dist/iBridge-0.1.0-alpha/Start\ iBridge\ Virtual\ Capture.command` exits with the expected `capture_display_count=0` setup guard in the current AirPlay-only state.
+Result:
+- Added an internal alpha packaging script that builds the sender and receiver, creates `iBridge Receiver.app`, copies package-local sender scripts/docs, ad-hoc signs the app, and emits `dist/iBridge-0.1.0-alpha.zip`.
+- Added a package/repo-compatible virtual-display sender launcher. In repo mode it builds and runs `apps/primary-macos`; in package mode it runs `bin/ibridge-primary`.
+- Added a guard for `capture_display_count=0` so the packaged sender reports missing BetterDisplay/Screen Recording/display-awake setup instead of failing later with a vague capture-display-index error.
+Current blocker:
+- On the MacBook Pro at package time, `system_profiler` showed an AirPlay `Gabriel의 iMac` 1080p virtual device, not the BetterDisplay `Virtual 16:9`; `ibridge-primary --list-displays` returned `capture_display_count=0` in this context. Package generation and app signing are valid, but live sender smoke needs the BetterDisplay virtual display reconnected as an extended display.
