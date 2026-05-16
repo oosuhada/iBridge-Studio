@@ -10,10 +10,10 @@ Codex Cloud sessions share the same source of truth.
 
 | Role | Device | Memory | GPU / Media note | OS state | Current read |
 |---|---|---:|---|---|---|
-| Primary A | MacBook Pro 16-inch, M1 Max | 32 GB | M1 Max has stronger encode headroom than M1 Air in current iBridge probes | macOS | Preferred Primary for high-detail and tiled 5K experiments. |
-| Primary B | MacBook Air, M1 | 8 GB | Current repo measurements show only `2560x1440 @ 60` HEVC passes the p95 encode budget | macOS | Use as the conservative/mobile Primary path; do not chase Air 5K60 first. |
-| Receiver A | iMac 21.5-inch Retina 4K, 2017 | 8 GB | Radeon Pro 555 | macOS only for now | Best first receiver because Thunderbolt 3, Ethernet, and macOS receiver path are available. |
-| Receiver B | iMac 27-inch Retina 5K, Late 2015 | 8 GB | Radeon R9 M380 | macOS and Windows boot available | Target 5K receiver; Windows path exists, macOS path should be confirmed before boot switching. |
+| Primary A | MacBook Pro 16-inch, M1 Max | 32 GB | M1 Max has stronger encode headroom than M1 Air in current iBridge probes | macOS Tahoe 26 | Preferred Primary for high-detail and tiled 5K experiments. |
+| Primary B | MacBook Air, M1 | 8 GB | Current repo measurements show only `2560x1440 @ 60` HEVC passes the p95 encode budget | macOS Tahoe 26 | Use as the conservative/mobile Primary path; do not chase Air 5K60 first. |
+| Receiver A | iMac 21.5-inch Retina 4K, 2017 | 8 GB | Radeon Pro 555 | macOS Sequoia via OCLP | Best first receiver because Thunderbolt 3, Ethernet, and macOS receiver path are available. |
+| Receiver B | iMac 27-inch Retina 5K, Late 2015 | 8 GB | Radeon R9 M380 | macOS Sequoia via OCLP; Windows boot also available | Target 5K receiver; test macOS path first, keep Windows as receiver comparison path. |
 
 ## Hardware Interpretation
 
@@ -29,6 +29,20 @@ Codex Cloud sessions share the same source of truth.
   missing Thunderbolt 2 cable and Windows/macOS boot-state uncertainty.
 - Current Tailscale/Wi-Fi data is reachability evidence only. Do not use it to
   reject Ethernet or Thunderbolt paths.
+- AirPlay Receiver is not visible from the MacBook Pro to the iMacs in the
+  current OCLP/Sequoia setup. Keep AirPlay as a comparison-only path and proceed
+  with iBridge over Ethernet/Thunderbolt/Wi-Fi transport.
+
+## Current Measured Path: MBP To 2017 iMac
+
+| Path | iMac IP | Result | Read |
+|---|---|---|---|
+| Direct Ethernet | `169.254.63.68` | 100-packet ping `0.425/0.810/1.379/0.235 ms` min/avg/max/stddev | Excellent next test path |
+| 5GHz Wi-Fi | `192.168.31.249` | 100-packet ping `3.706/53.842/409.182/70.703 ms` min/avg/max/stddev | Reachable but too jittery for display-profile decisions |
+
+Blocked next step: SSH port `22` and iperf3 port `5201` are refused on the 2017
+iMac. Enable Remote Login and start `iperf3 -s` on the iMac before throughput
+testing.
 
 ## Ordered Test Matrix
 
@@ -37,7 +51,7 @@ Run in this exact order unless a physical cable or OS-state blocker changes:
 | Order | Source | Receiver | Connection | Status / blocker | First profile |
 |---:|---|---|---|---|---|
 | 1 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Wireless / Tailscale or local Wi-Fi | ready after receiver prep | `3200x1800@60` or `2560x1440@60` HEVC |
-| 2 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Ethernet | needs cable/hub and `iperf3` | `3840x2160@60` then `4096x2304@60` |
+| 2 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Ethernet | cable connected; waiting for iMac `iperf3 -s` / Remote Login | `3840x2160@60` then `4096x2304@60` |
 | 3 | MacBook Pro M1 Max | iMac 21.5 4K 2017 | Thunderbolt Bridge | needs TB3/USB-C cable and IP setup | `4096x2304@60`; then tiled 5K-style stress if useful |
 | 4 | MacBook Pro M1 Max | iMac 27 5K 2015 | Wireless / Tailscale or local Wi-Fi | Windows/macOS receiver state must be known | `3200x1800@60` then `2560x1440@60` |
 | 5 | MacBook Pro M1 Max | iMac 27 5K 2015 | Ethernet | needs cable/hub and `iperf3` | `3840x2160@60` then `4096x2304@60` |
@@ -78,6 +92,14 @@ Then:
   is blocked until it is installed.
 - Keep the receiver app or benchmark server visible in the logged-in desktop
   session when testing presentation.
+
+For the 2017 iMac right now:
+
+```bash
+sudo systemsetup -setremotelogin on
+brew install iperf3
+iperf3 -s
+```
 
 ### Receiver iMac Windows Setup
 
