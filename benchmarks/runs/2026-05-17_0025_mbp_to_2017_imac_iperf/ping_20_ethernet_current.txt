@@ -1,0 +1,25 @@
+PING 169.254.70.114 (169.254.70.114): 56 data bytes
+64 bytes from 169.254.70.114: icmp_seq=0 ttl=255 time=0.745 ms
+64 bytes from 169.254.70.114: icmp_seq=1 ttl=255 time=0.859 ms
+64 bytes from 169.254.70.114: icmp_seq=2 ttl=255 time=1.432 ms
+64 bytes from 169.254.70.114: icmp_seq=3 ttl=255 time=1.291 ms
+64 bytes from 169.254.70.114: icmp_seq=4 ttl=255 time=1.311 ms
+64 bytes from 169.254.70.114: icmp_seq=5 ttl=255 time=1.463 ms
+64 bytes from 169.254.70.114: icmp_seq=6 ttl=255 time=0.928 ms
+64 bytes from 169.254.70.114: icmp_seq=7 ttl=255 time=1.569 ms
+64 bytes from 169.254.70.114: icmp_seq=8 ttl=255 time=1.226 ms
+64 bytes from 169.254.70.114: icmp_seq=9 ttl=255 time=0.917 ms
+64 bytes from 169.254.70.114: icmp_seq=10 ttl=255 time=1.389 ms
+64 bytes from 169.254.70.114: icmp_seq=11 ttl=255 time=1.468 ms
+64 bytes from 169.254.70.114: icmp_seq=12 ttl=255 time=1.888 ms
+64 bytes from 169.254.70.114: icmp_seq=13 ttl=255 time=1.416 ms
+64 bytes from 169.254.70.114: icmp_seq=14 ttl=255 time=1.343 ms
+64 bytes from 169.254.70.114: icmp_seq=15 ttl=255 time=1.787 ms
+64 bytes from 169.254.70.114: icmp_seq=16 ttl=255 time=1.507 ms
+64 bytes from 169.254.70.114: icmp_seq=17 ttl=255 time=1.941 ms
+64 bytes from 169.254.70.114: icmp_seq=18 ttl=255 time=0.948 ms
+64 bytes from 169.254.70.114: icmp_seq=19 ttl=255 time=2.115 ms
+
+--- 169.254.70.114 ping statistics ---
+20 packets transmitted, 20 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = 0.745/1.377/2.115/0.365 ms

@@ -37,12 +37,12 @@ Codex Cloud sessions share the same source of truth.
 
 | Path | iMac IP | Result | Read |
 |---|---|---|---|
-| Direct Ethernet | `169.254.63.68` | 100-packet ping `0.425/0.810/1.379/0.235 ms` min/avg/max/stddev | Excellent next test path |
-| 5GHz Wi-Fi | `192.168.31.249` | 100-packet ping `3.706/53.842/409.182/70.703 ms` min/avg/max/stddev | Reachable but too jittery for display-profile decisions |
+| Direct Ethernet | `169.254.70.114` | ping `0.826/1.518/2.372/0.231 ms`; TCP `939.14 Mbps` to iMac / `937.50 Mbps` reverse; UDP 30/60/120 Mbps 0% loss | Excellent next test path |
+| 5GHz Wi-Fi | `192.168.31.249` | ping `3.663/56.773/261.386/70.416 ms`; TCP `86.54 Mbps` to iMac / `68.66 Mbps` reverse; UDP 120 Mbps had `8.202%` loss | Reachable but too jittery for display-profile decisions |
 
-Blocked next step: SSH port `22` and iperf3 port `5201` are refused on the 2017
-iMac. Enable Remote Login and start `iperf3 -s` on the iMac before throughput
-testing.
+Blocked next step: SSH port `22` is still refused on the 2017 iMac because
+`sshd` reports missing host keys. Generate host keys on the iMac before remote
+shell work.
 
 ## Ordered Test Matrix
 
@@ -96,8 +96,13 @@ Then:
 For the 2017 iMac right now:
 
 ```bash
+sudo ssh-keygen -A
+sudo /usr/sbin/sshd -t
 sudo systemsetup -setremotelogin on
-brew install iperf3
+sudo launchctl bootstrap system /System/Library/LaunchDaemons/ssh.plist 2>/dev/null || true
+sudo launchctl enable system/com.openssh.sshd
+sudo launchctl kickstart -k system/com.openssh.sshd
+sudo lsof -nP -iTCP:22 -sTCP:LISTEN
 iperf3 -s
 ```
 
