@@ -6,7 +6,9 @@ Date: 2026-05-17
 
 - Source: MacBook Pro M1 Max, macOS Tahoe 26.5.
 - Receiver: 2017 21.5-inch iMac, macOS Sequoia through OCLP.
-- Receiver `iperf3 -s` was started manually on the iMac.
+- Receiver `iperf3 -s` was started manually on the iMac for the first matrix.
+- Remote Login was repaired later by generating OpenSSH host keys and adding
+  the MacBook Pro public key to the iMac user's `authorized_keys`.
 - Direct Ethernet current iMac link-local IP: `169.254.70.114`.
 - Wi-Fi 5GHz iMac local IP: `192.168.31.249`.
 
@@ -28,11 +30,18 @@ Date: 2026-05-17
 
 ## SSH Status
 
-`iperf3` is working, but SSH is still closed:
+SSH is now working from the MacBook Pro to the 2017 iMac.
 
-- `100.89.104.119:22`: refused.
-- `192.168.31.249:22`: refused.
-- `169.254.70.114:22`: refused.
+- `100.89.104.119:22`: open and authenticated.
+- `192.168.31.249:22`: open.
+- `169.254.70.114:22`: open and authenticated.
 
-The iMac reported `sshd: no hostkeys available -- exiting`; generate host keys
-on the iMac before expecting remote shell access.
+The iMac's SSH non-login shell does not include Homebrew in `PATH`; use
+`/usr/local/bin/iperf3` explicitly when starting the server remotely.
+
+Follow-up remote prep completed:
+
+- `caffeinate -dimsu` is running to prevent system/display sleep during tests.
+- `/usr/local/bin/iperf3 -s` is listening on TCP `5201`.
+- A short post-repair 1GbE TCP check reached `937.86 Mbps` received over
+  `169.254.70.114`.
