@@ -55,6 +55,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - 2017 iMac SSH is now repaired: `sudo ssh-keygen -A` created host keys, the MacBook Pro public key is in `authorized_keys`, and SSH works over Tailscale and direct 1GbE.
 - 2017 iMac remote prep is active: `caffeinate -dimsu` prevents sleep, and `/usr/local/bin/iperf3 -s` is listening on TCP `5201`.
 - Post-repair direct 1GbE TCP spot check reached `937.86 Mbps` received over `169.254.70.114`.
+- Scope correction: the 2017 21.5-inch iMac is a 4K receiver target only. Run live receiver work up to `3840x2160@60` on it; reserve `4096x2304`, 5K, and tiled 5K-style profiles for the 2015 27-inch Retina 5K iMac.
 
 ## Key Results
 
@@ -217,10 +218,10 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 1. Use M1 Air `2560x1440 @ 60` HEVC as the realistic default candidate; only retest `3200x1800 @ 60` after profile tuning or thermal isolation.
 2. Continue MacBook Pro -> 2017 4K iMac over 1GbE as the primary receiver path; treat current 5GHz Wi-Fi as a degraded comparison path.
-3. Use the 1GbE result to choose the first live receiver display profile: start with single-stream `3840x2160@60` or `4096x2304@60`, then only later try tiled 5K-style paths.
+3. Use the 1GbE result to start the first live 2017 iMac receiver profile at single-stream `3840x2160@60`; do not run `4096x2304`, 5K, or tiled 5K-style profiles on the 2017 4K iMac.
 4. Use the repaired 2017 iMac SSH path to start receiver-side commands remotely instead of relying on screen sharing.
-5. Keep 4096x2304, 3840x2160, 3200x1800, and 2560x1440 as viable isolated single-stream fallback profiles; retest them on actual wired/wireless links after cables arrive.
-6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate, but do not carry that assumption to M1 Air; solve/reset-hide the reset spikes before calling it display-smooth.
+5. Keep `3840x2160`, `3200x1800`, and `2560x1440` as the 2017 iMac receiver profiles; keep `4096x2304` as a sender-only or 2015 5K iMac candidate.
+6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate for the 2015 27-inch Retina 5K iMac only; solve/reset-hide the reset spikes before calling it display-smooth.
 7. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
 8. Test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
 9. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.
