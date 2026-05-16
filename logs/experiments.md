@@ -2,6 +2,34 @@
 
 Summaries of benchmark runs.
 
+## 2026-05-17 02:30 — MacBook Pro to 2017 iMac live macOS receiver smoke
+
+Prompt: user request to continue until the MacBook screen can be extended to the 2017 4K iMac
+
+Summary:
+- Built the macOS receiver locally and on the Intel 2017 iMac.
+- Restarted `ibridge-receiver-macos` on the iMac over SSH.
+- Sent synthetic NV12 HEVC Annex-B protocol v0 streams from the MacBook Pro to the iMac over the measured direct 1GbE path at `169.254.70.114`.
+- Added runtime receiver logging under `~/ibridge-remote/receiver-macos-runtime.log` because SSH-launched GUI stdout was not enough for reliable receiver evidence.
+
+Measured results:
+
+| Mode | Frames encoded | Sender drops | Send failures | Avg encode ms | P95 encode ms | Avg send ms | Receiver result |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `1920x1080@60` HEVC | 300/300 | 0 | 0 | 13.325 | 19.448 | 0.074 | receiver logged 300 frames |
+| `3840x2160@60` HEVC | 720/720 | 0 | 0 | 56.705 | 73.049 | 0.047 | receiver logged frame receipt through frame 660 before sender disconnect |
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_ibridge_macos_receiver_live/summary.md`
+- `benchmarks/runs/2026-05-17_ibridge_macos_receiver_live/primary_1080p_hevc.csv`
+- `benchmarks/runs/2026-05-17_ibridge_macos_receiver_live/primary_4k_hevc_12s.csv`
+- `docs/17_BETTERDISPLAY_AND_2017_4K_RECEIVER.md`
+
+Decision:
+- The live 2017 iMac macOS receiver plumbing works and the user saw the iMac screen change.
+- Remote SSH `screencapture` did not reliably capture the AVSampleBufferDisplayLayer output, so do not use it as the deciding evidence for this path.
+- The current 4K run proves live plumbing, not final smooth 4K60. Add sender backpressure/frame dropping and retest `2560x1440`, `3200x1800`, and `3840x2160`.
+
 ## 2026-05-14 22:20 — Plan A 5K60 theory and pending receiver benchmark
 
 Prompt: `prompts/02_PLAN_A_5K60_FIRST_SPIKE.md`

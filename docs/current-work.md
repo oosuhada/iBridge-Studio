@@ -62,6 +62,11 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Air Homebrew was repaired enough to install `iperf3`, and the MacBook Air -> 2015 iMac Wi-Fi throughput matrix now exists. Ping remains jittery at min/avg/max/stddev `3.690/30.495/258.942/44.687 ms`, but throughput is usable for low-bandwidth smoke testing: TCP to receiver `154.09 Mbps`, TCP reverse `129.43 Mbps`, UDP 30Mbps `0%` loss, UDP 60Mbps `0.333%` loss, UDP 120Mbps `0.003%` loss.
 - MacBook Air SSH to the 2015 iMac is now fixed with the existing `~/.ssh/ibridge_imac_ed25519` key. The active macOS user is `oosu`, so use `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31`. Remote prep is active: `caffeinate -dimsu` and `iperf3 -s` are running, Wi-Fi is `en1`, and the local IP is `192.168.31.187`.
 - MacBook Air -> 2015 iMac macOS receiver visual smoke passed at conservative `2560x1440@60` HEVC over Wi-Fi. Sender encoded 1800/1800 frames over 30s with 0 send failures and p95 encode `9.730 ms`; receiver logged the handshake and `1798` received frames. Two sender queue drops matched two receiver missing-frame events, so this proves the path works but does not prove smooth display quality.
+- MacBook Pro -> 2017 4K iMac live macOS receiver plumbing now works over direct 1GbE. The remote Intel iMac builds `apps/receiver-macos`, receives HEVC Annex-B protocol v0 frames, and the user observed the iMac screen changing.
+- Live `1920x1080@60` HEVC smoke sent 300/300 frames with sender drop/send failure 0 and receiver logged 300 frames.
+- Live `3840x2160@60` HEVC smoke sent 720/720 frames with sender drop/send failure 0 and receiver logged frames through 660 before disconnect. This proves live 4K plumbing, but not final smooth 4K60 because encode callback latency was high in this run.
+- Remote SSH `screencapture` did not reliably capture the receiver's AVSampleBufferDisplayLayer/active Space, even when the user could see the iMac screen change. Treat receiver runtime logs plus direct visual observation as stronger evidence than SSH screenshots for this path.
+- BetterDisplay current app can likely solve the source-Mac virtual display / HiDPI setup piece, but it does not replace iBridge transport/receiver. `reference/BetterDisplay` is BetterDummy OpenSource Edition on the `opensource` branch; it is enough for CGVirtualDisplay clean-room study, not enough to fork the full current BetterDisplay v4 product.
 
 ## Key Results
 
@@ -78,6 +83,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Pro HEVC 5120x2880 @ 60, 120Mbps, forced `ave.hevc`, no low-latency RC, speed priority: 5s sustained avg 100.617 ms, p95 119.982 ms.
 - MacBook Pro synthetic NV12 HEVC 3840x2160 @ 60, forced `ave.hevc`, DataRateLimits: 3s avg 11.557 ms, p95 11.906 ms.
 - MacBook Pro synthetic NV12 HEVC 4096x2304 @ 60, forced `ave.hevc`, DataRateLimits: 3s avg 12.898 ms, p95 13.245 ms.
+- MacBook Pro -> 2017 iMac live `1920x1080@60` HEVC: frames requested/submitted/encoded `300/300/300`, sender drops `0`, send failures `0`, avg encode `13.325 ms`, p95 encode `19.448 ms`, avg send `0.074 ms`.
+- MacBook Pro -> 2017 iMac live `3840x2160@60` HEVC: frames requested/submitted/encoded `720/720/720`, sender drops `0`, send failures `0`, avg encode `56.705 ms`, p95 encode `73.049 ms`, avg send `0.047 ms`. Receiver logged protocol handshake and frame receipt; user-visible screen changed, but remote screenshot was not reliable.
 - MacBook Pro ScreenCaptureKit HEVC 3840x2160 @ 60, forced `ave.hevc`, DataRateLimits: 3s avg 16.363 ms, p95 18.412 ms.
 - MacBook Pro ScreenCaptureKit HEVC 5120x2880 @ 60, forced `ave.hevc`, DataRateLimits: 3s avg 302.354 ms, p95 360.042 ms.
 - MacBook Pro synthetic NV12 HEVC 5120x2880 @ 30, forced `ave.hevc`, DataRateLimits: 3s avg 19.296 ms, p95 19.824 ms.
@@ -227,6 +234,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - M1 Air tiled 5K60 is substantially below target in the current probe; do not spend receiver implementation time on Air-specific tiled 5K60 unless a new sender strategy changes this signal.
 - The 2017 21.5-inch iMac should be used before the 2015 27-inch iMac for wired Mac-to-Mac receiver prep because it already boots macOS and has Thunderbolt 3; the 2015 iMac Thunderbolt 2 cases remain blocked until a real Thunderbolt 2 data cable/adapter chain is available.
 - BetterDisplay is a submodule, so clones on the MacBook Air must run `git submodule update --init --recursive reference/BetterDisplay`.
+- BetterDisplay installation alone should not be described as a complete iMac external-display solution; it is a source-side virtual display / HiDPI helper unless paired with iBridge or another transport/receiver.
+- The current `reference/BetterDisplay` submodule is not the full modern BetterDisplay v4 codebase. Use it for `CGVirtualDisplay` patterns, and use `reference/SimpleDisplay` / `reference/FreeDisplay` as additional virtual-display references.
 - Compressed decode/render on Windows is not implemented.
 - UDP frame transport is specified but not implemented.
 - ScreenCaptureKit capture is implemented as a benchmark source, but not yet connected to live receiver transport/decode/render.
@@ -249,8 +258,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 
 1. Use M1 Air `2560x1440 @ 60` HEVC as the realistic default candidate; only retest `3200x1800 @ 60` after profile tuning or thermal isolation.
 2. Continue MacBook Pro -> 2017 4K iMac over 1GbE as the primary receiver path; treat current 5GHz Wi-Fi as a degraded comparison path.
-3. Use the 1GbE result to start the first live 2017 iMac receiver profile at single-stream `3840x2160@60`; do not run `4096x2304`, 5K, or tiled 5K-style profiles on the 2017 4K iMac.
-4. Use the repaired 2017 iMac SSH path to start receiver-side commands remotely instead of relying on screen sharing.
+3. Add sender backpressure/frame dropping for live 4K so encode latency stays bounded when VideoToolbox falls behind.
+4. Connect a real source virtual display path: BetterDisplay/BetterDisplayCLI first for practical setup, then a small clean-room `CGVirtualDisplay` helper if needed.
 5. Keep `3840x2160`, `3200x1800`, and `2560x1440` as the 2017 iMac receiver profiles; keep `4096x2304` as a sender-only or 2015 5K iMac candidate.
 6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate for the 2015 27-inch Retina 5K iMac only; solve/reset-hide the reset spikes before calling it display-smooth.
 7. For the MacBook Air -> 2015 iMac Wi-Fi path, repeat the conservative `2560x1440@60` HEVC smoke only if tuning the sender queue or reducing bitrate; keep 5K, tiled 5K, and high-detail fallback testing blocked on wired transport.
