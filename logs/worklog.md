@@ -852,3 +852,24 @@ Next:
 - Add the MacBook Air SSH key to the 2015 iMac so receiver commands can be started remotely.
 - After SSH works, run only a conservative `2560x1440@60` HEVC smoke on Wi-Fi.
 - Keep 5K/high-detail/tiled receiver work blocked on Ethernet or Thunderbolt.
+
+## 2026-05-17 02:24 — 2015 iMac SSH auth fixed
+
+Prompt: user added the MacBook Air iBridge public key to the 2015 iMac and asked to test.
+Changed files:
+- docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md
+- docs/current-work.md
+- logs/worklog.md
+Verification:
+- [x] `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'hostname; whoami; sw_vers'`
+- [x] `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'networksetup -listallhardwareports; ifconfig ...'`
+- [x] `iperf3 -c 192.168.31.187 -t 5 --json`
+Result:
+- SSH works with the active macOS account `oosu`.
+- 2015 iMac identity is `oosus-iMac`, macOS `15.7.7`.
+- Receiver Wi-Fi is `en1`, local IP `192.168.31.187`, Tailscale IP `100.84.32.31`.
+- `caffeinate -dimsu` and `iperf3 -s` are running on the receiver.
+- TCP spot check to receiver reached `173.85 Mbps` received.
+Next:
+- Use `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31` for receiver-side commands.
+- Run only a conservative MacBook Air `2560x1440@60` HEVC smoke on this Wi-Fi path.
