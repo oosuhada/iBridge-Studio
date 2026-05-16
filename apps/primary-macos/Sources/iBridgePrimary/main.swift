@@ -47,6 +47,7 @@ struct Options {
     var warmupFrames = 0
     var senderQueueDepth = 4
     var listEncoders = false
+    var listDisplays = false
     var printSupportedProperties = false
     var encoderID = ""
 }
@@ -592,6 +593,7 @@ func usage() {
     ibridge-primary --synthetic --source synthetic-bgra --resolution 2560x1440 --fps 60 --duration 2 --codec h264 --csv diagnostics.csv [--bitrate-mbps 120] [--no-realtime] [--send-host host --send-port 48320] [--sender-queue-depth 4] [--encoder-id com.apple.videotoolbox.videoencoder.ave.hevc]
     ibridge-primary --screen-capture --source screen-capture --resolution 3840x2160 --fps 60 --duration 5 --codec hevc --csv diagnostics.csv
     ibridge-primary --list-encoders
+    ibridge-primary --list-displays
 
     Sources:
       --source synthetic-bgra
@@ -806,6 +808,8 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.encoderID = String(arg.dropFirst("--encoder-id=".count))
         } else if arg == "--list-encoders" {
             options.listEncoders = true
+        } else if arg == "--list-displays" {
+            options.listDisplays = true
         } else if arg == "--print-supported-properties" {
             options.printSupportedProperties = true
         } else if arg == "--no-realtime" {
@@ -816,7 +820,7 @@ func parseOptions(_ args: [String]) throws -> Options {
         index += 1
     }
 
-    if options.listEncoders {
+    if options.listEncoders || options.listDisplays {
         return options
     }
     let validSources = ["synthetic-bgra", "synthetic-nv12", "synthetic-static-skip", "synthetic-nv12-tiled", "screen-capture"]
@@ -1087,6 +1091,41 @@ func printVideoEncoderList() throws {
         throw RuntimeError("VTCopyVideoEncoderList failed: \(status)")
     }
     print("video_encoder_list=\(String(describing: encoderList))")
+}
+
+@available(macOS 14.0, *)
+func printCaptureDisplayList() throws {
+    let semaphore = DispatchSemaphore(value: 0)
+    nonisolated(unsafe) var output: Result<[String], Error>?
+
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(
+                false,
+                onScreenWindowsOnly: true
+            )
+            let lines = content.displays.enumerated().map { index, display in
+                "display_index=\(index) display_id=\(display.displayID) width=\(display.width) height=\(display.height) frame=\(display.frame)"
+            }
+            output = .success(lines)
+        } catch {
+            output = .failure(error)
+        }
+        semaphore.signal()
+    }
+
+    semaphore.wait()
+    switch output {
+    case .success(let lines):
+        print("capture_display_count=\(lines.count)")
+        for line in lines {
+            print(line)
+        }
+    case .failure(let error):
+        throw error
+    case .none:
+        throw RuntimeError("display listing did not return a result")
+    }
 }
 
 func writeCSV(path: String, frames: [EncodedFrame]) throws {
@@ -1872,6 +1911,11 @@ do {
     let options = try parseOptions(CommandLine.arguments)
     if options.listEncoders {
         try printVideoEncoderList()
+    } else if options.listDisplays {
+        guard #available(macOS 14.0, *) else {
+            throw RuntimeError("--list-displays requires macOS 14 or newer")
+        }
+        try printCaptureDisplayList()
     } else if options.source == "synthetic-nv12-tiled" {
         try runSyntheticTiled(options: options)
     } else if options.screenCapture {

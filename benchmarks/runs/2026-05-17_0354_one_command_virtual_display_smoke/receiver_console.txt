@@ -1,0 +1,6 @@
+2026-05-16 18:54:48 +0000 iBridge macOS receiver listening on TCP 48320
+2026-05-16 18:54:53 +0000 primary connected
+2026-05-16 18:54:53 +0000 handshake={"magic":"IBRIDGE","version":0,"role":"primary","session_id":7695179064377875486,"selected_codec":"hevc","width":1920,"height":1080,"fps":30,"frame_transport":"tcp"}
+2026-05-16 18:54:54 +0000 received_frame=0 size=1920x1080 payload=5867 keyframe=true
+2026-05-16 18:54:57 +0000 client disconnected_or_failed frames=27 error=connection closed
+2026-05-16 18:54:57 +0000 receiver_frames_total=27

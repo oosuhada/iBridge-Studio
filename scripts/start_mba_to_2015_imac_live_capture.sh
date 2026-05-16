@@ -16,6 +16,7 @@ RUN_ROOT="${RUN_ROOT:-benchmarks/runs/$(date +%Y-%m-%d_%H%M)_mba_to_2015_imac_li
 
 mkdir -p "$RUN_ROOT"
 swift build --package-path apps/primary-macos -c release
+apps/primary-macos/.build/release/ibridge-primary --list-displays | tee "$RUN_ROOT/capture_displays.txt"
 
 cat <<EOF
 iBridge live capture sender
