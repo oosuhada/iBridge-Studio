@@ -67,6 +67,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Live `3840x2160@60` HEVC smoke sent 720/720 frames with sender drop/send failure 0 and receiver logged frames through 660 before disconnect. This proves live 4K plumbing, but not final smooth 4K60 because encode callback latency was high in this run.
 - Remote SSH `screencapture` did not reliably capture the receiver's AVSampleBufferDisplayLayer/active Space, even when the user could see the iMac screen change. Treat receiver runtime logs plus direct visual observation as stronger evidence than SSH screenshots for this path.
 - BetterDisplay current app can likely solve the source-Mac virtual display / HiDPI setup piece, but it does not replace iBridge transport/receiver. `reference/BetterDisplay` is BetterDummy OpenSource Edition on the `opensource` branch; it is enough for CGVirtualDisplay clean-room study, not enough to fork the full current BetterDisplay v4 product.
+- MacBook Air -> 2015 iMac live screen-capture smoke also works at `2560x1440@30` HEVC 15Mbps over Wi-Fi. This is a mirror/live-capture path, not yet a true macOS extended desktop. Added helper scripts to start/stop the 2015 iMac receiver and start a long-running MacBook Air live capture session.
 
 ## Key Results
 
@@ -110,6 +111,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Air to 2015 iMac local Wi-Fi/Tailscale-direct spot check: `tailscale ping` reached `gabriels-imac27-2015` via `192.168.31.187:41641`; 100-packet local ping min/avg/max/stddev `3.819/51.446/420.666/88.334 ms`.
 - MacBook Air to 2015 iMac Wi-Fi iperf matrix: TCP to receiver `154.09 Mbps`, TCP reverse `129.43 Mbps`; UDP 30/60/120Mbps received `29.99/59.78/119.95 Mbps` with `0/0.333/0.003%` loss. ICMP latency spikes remain too high for smooth-display confidence.
 - MacBook Air to 2015 iMac macOS receiver smoke, `2560x1440@60` HEVC 25Mbps TCP over Wi-Fi for 30s: sender `1800/1800` encoded, 0 send failures, 2 sender queue drops, p95 encode `9.730 ms`, receiver `1798` frames with two 1-frame missing events. User visually confirmed the iMac panel changed during the smoke.
+- MacBook Air to 2015 iMac live capture smoke, `2560x1440@30` HEVC 15Mbps TCP over Wi-Fi for 10s: sender `300/300` encoded, 0 send failures, 1 sender queue drop, receiver `299` frames. A 3s script validation run then passed with `90/90` encoded and 0 drops.
 
 ## Files Likely Relevant Next
 
@@ -140,6 +142,9 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/summary.md`
 - `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/summary.md`
 - `benchmarks/runs/2026-05-17_0235_mba_to_2015_imac_1440p60_hevc_wifi_30s_visual/summary.md`
+- `scripts/start_2015_imac_receiver_macos.sh`
+- `scripts/start_mba_to_2015_imac_live_capture.sh`
+- `scripts/stop_2015_imac_receiver_macos.sh`
 - `benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/aggregate.md`
 - `benchmarks/runs/2026-05-15_1333_single_stream_stability_speed_on/aggregate.md`
 - `benchmarks/runs/2026-05-15_1358_encoder_service_restart_probe/`
@@ -221,6 +226,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'cd ~/development && git clone https://github.com/oosuhada/iBridge.git ... && swift build --package-path apps/receiver-macos -c release'`
 - `ssh -i ~/.ssh/ibridge_imac_ed25519 oosu@100.84.32.31 'nohup ~/development/iBridge/apps/receiver-macos/.build/release/ibridge-receiver-macos --port 48320 --fullscreen ... &'`
 - `apps/primary-macos/.build/release/ibridge-primary --synthetic --source synthetic-nv12 --resolution 2560x1440 --fps 60 --duration 30 --codec hevc --bitrate-mbps 25 --data-rate-limit-mbps 25 --disable-low-latency-rate-control --encoder-id com.apple.videotoolbox.videoencoder.ave.hevc --disable-frame-reordering --disable-open-gop --payload-format annex-b --send-host 192.168.31.187 --send-port 48320`
+- `apps/primary-macos/.build/release/ibridge-primary --screen-capture --source screen-capture --capture-display-index 0 --resolution 2560x1440 --fps 30 --duration 10 --codec hevc --bitrate-mbps 15 --send-host 192.168.31.187 --send-port 48320`
+- `DURATION=3 scripts/start_mba_to_2015_imac_live_capture.sh`
 
 ## Known Issues
 
@@ -247,6 +254,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Current 5GHz Wi-Fi to the 2017 iMac has severe jitter and should not be used to select high-detail display profiles.
 - Current 5GHz/local Wi-Fi from MacBook Air to the 2015 iMac has enough throughput for low-bandwidth smoke testing, but ICMP latency spikes remain severe. Use only `2560x1440@60` HEVC-class experiments on this path; do not use it to validate smooth 5K/high-detail behavior.
 - MacBook Air -> 2015 iMac Wi-Fi receiver smoke had 2 drops/missing frames in 30 seconds. Treat it as functional reachability/visual proof, not a smooth-display pass.
+- Current MacBook Air -> 2015 iMac path is mirror/live-capture only. True extended desktop still needs a virtual display source on the MacBook Air, then ScreenCaptureKit can capture that virtual display.
 - MacBook Air SSH auth to the 2015 iMac works for user `oosu`; prior `gabrieljang`/`gabriel` attempts failed because those were not the active account for this receiver.
 - MacBook Air local Homebrew cannot currently install `iperf3`; do not reset `/opt/homebrew` without user approval.
 - Windows compressed file decode/render code needs MSVC build/run validation on the iMac.
@@ -262,7 +270,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 4. Connect a real source virtual display path: BetterDisplay/BetterDisplayCLI first for practical setup, then a small clean-room `CGVirtualDisplay` helper if needed.
 5. Keep `3840x2160`, `3200x1800`, and `2560x1440` as the 2017 iMac receiver profiles; keep `4096x2304` as a sender-only or 2015 5K iMac candidate.
 6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate for the 2015 27-inch Retina 5K iMac only; solve/reset-hide the reset spikes before calling it display-smooth.
-7. For the MacBook Air -> 2015 iMac Wi-Fi path, repeat the conservative `2560x1440@60` HEVC smoke only if tuning the sender queue or reducing bitrate; keep 5K, tiled 5K, and high-detail fallback testing blocked on wired transport.
+7. For immediate use, run `scripts/start_2015_imac_receiver_macos.sh` and then `scripts/start_mba_to_2015_imac_live_capture.sh`; stop with `scripts/stop_2015_imac_receiver_macos.sh`.
 8. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
 9. Test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
 10. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.

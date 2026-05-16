@@ -924,3 +924,28 @@ Result:
 Next:
 - For Wi-Fi-only follow-up, test lower bitrate or deeper sender queue to see whether the two drops disappear.
 - Keep 5K/high-detail/tiled tests blocked on Ethernet or Thunderbolt.
+
+## 2026-05-17 02:53 — Add live capture run scripts
+
+Prompt: user asked whether any-quality external-monitor-style use is possible and asked to complete the app path.
+Changed files:
+- scripts/start_2015_imac_receiver_macos.sh
+- scripts/start_mba_to_2015_imac_live_capture.sh
+- scripts/stop_2015_imac_receiver_macos.sh
+- benchmarks/runs/2026-05-17_0248_mba_to_2015_imac_live_capture_1440p30_wifi/*
+- benchmarks/runs/2026-05-17_0253_script_live_capture_smoke/*
+- docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `bash -n scripts/start_2015_imac_receiver_macos.sh scripts/start_mba_to_2015_imac_live_capture.sh scripts/stop_2015_imac_receiver_macos.sh`
+- [x] `scripts/start_2015_imac_receiver_macos.sh`
+- [x] `DURATION=3 scripts/start_mba_to_2015_imac_live_capture.sh`
+Result:
+- Added a one-command receiver launcher for the 2015 iMac macOS receiver.
+- Added a one-command MacBook Air live capture sender using `2560x1440@30`, HEVC, 15Mbps, and a 1-hour default duration.
+- Added a receiver stop script.
+- Direct 10s live-capture smoke had 1 sender drop; 3s script validation had 0 drops.
+Next:
+- For true extended-desktop behavior, implement or integrate a MacBook Air virtual display source and point `--capture-display-index` at that virtual display.
