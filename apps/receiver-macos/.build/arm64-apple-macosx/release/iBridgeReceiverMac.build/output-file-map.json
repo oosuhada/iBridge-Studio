@@ -1,0 +1,12 @@
+{
+  "": {
+    "dependencies": "/Users/gabriel/Development/iBridge/apps/receiver-macos/.build/arm64-apple-macosx/release/iBridgeReceiverMac.build/iBridgeReceiverMac.d",
+    "object": "/Users/gabriel/Development/iBridge/apps/receiver-macos/.build/arm64-apple-macosx/release/iBridgeReceiverMac.build/iBridgeReceiverMac.o",
+    "swift-dependencies": "/Users/gabriel/Development/iBridge/apps/receiver-macos/.build/arm64-apple-macosx/release/iBridgeReceiverMac.build/master.swiftdeps"
+  },
+  "/Users/gabriel/Development/iBridge/apps/receiver-macos/Sources/iBridgeReceiverMac/main.swift": {
+    "object": "/Users/gabriel/Development/iBridge/apps/receiver-macos/.build/arm64-apple-macosx/release/iBridgeReceiverMac.build/main.swift.o",
+    "swiftmodule": "/Users/gabriel/Development/iBridge/apps/receiver-macos/.build/arm64-apple-macosx/release/iBridgeReceiverMac.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/gabriel/Development/iBridge/apps/receiver-macos/.build/arm64-apple-macosx/release/iBridgeReceiverMac.build/main.swiftdeps"
+  }
+}
