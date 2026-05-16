@@ -62,6 +62,13 @@ has `caffeinate -dimsu` and `iperf3 -s` running. Keep this Wi-Fi path limited
 to `2560x1440@60` HEVC-class smoke tests until jitter improves or Ethernet is
 connected.
 
+First visual smoke result: MacBook Air sent `2560x1440@60` HEVC at 25Mbps for
+30 seconds over Wi-Fi to the 2015 iMac macOS receiver. Sender encoded
+`1800/1800` frames with 0 send failures, but dropped 2 frames from the sender
+queue. Receiver logged `1798` frames and two 1-frame missing events. The user
+reported visible change on the iMac panel. Treat this as a functional smoke,
+not a smooth-display pass.
+
 ## Ordered Test Matrix
 
 Run in this exact order unless a physical cable or OS-state blocker changes:
