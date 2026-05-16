@@ -7,10 +7,16 @@ REMOTE_REPO="${REMOTE_REPO:-/Users/oosu/development/iBridge}"
 PORT="${PORT:-48320}"
 TITLE="${TITLE:-iBridge 2015 Receiver}"
 FULLSCREEN="${FULLSCREEN:-1}"
+SHOW_STATUS="${SHOW_STATUS:-0}"
 
 fullscreen_arg=()
 if [[ "$FULLSCREEN" == "1" || "$FULLSCREEN" == "true" ]]; then
   fullscreen_arg=(--fullscreen)
+fi
+
+status_arg=()
+if [[ "$SHOW_STATUS" == "0" || "$SHOW_STATUS" == "false" ]]; then
+  status_arg=(--hide-status)
 fi
 
 ssh -i "$RECEIVER_KEY" "$RECEIVER_SSH" "
@@ -25,7 +31,7 @@ ssh -i "$RECEIVER_KEY" "$RECEIVER_SSH" "
   pgrep -fl 'caffeinate -dimsu' >/dev/null || nohup caffeinate -dimsu > ~/ibridge-remote/caffeinate.log 2>&1 &
   pgrep -fl 'iperf3 -s' >/dev/null || nohup /usr/local/bin/iperf3 -s > ~/ibridge-remote/iperf3-server.log 2>&1 &
   : > ~/ibridge-remote/receiver-macos-${PORT}.log
-  nohup apps/receiver-macos/.build/release/ibridge-receiver-macos --port '$PORT' ${fullscreen_arg[*]} --title '$TITLE' > ~/ibridge-remote/receiver-macos-${PORT}.log 2>&1 &
+  nohup apps/receiver-macos/.build/release/ibridge-receiver-macos --port '$PORT' ${fullscreen_arg[*]} ${status_arg[*]} --title '$TITLE' > ~/ibridge-remote/receiver-macos-${PORT}.log 2>&1 &
   echo \$! > ~/ibridge-remote/receiver-macos-${PORT}.pid
   sleep 3
   pgrep -fl ibridge-receiver-macos || true

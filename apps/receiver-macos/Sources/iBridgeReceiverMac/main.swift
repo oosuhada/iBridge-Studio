@@ -7,6 +7,7 @@ import Foundation
 struct Options {
     var port = 48320
     var fullscreen = false
+    var showStatus = true
     var title = "iBridge Receiver"
 }
 
@@ -60,7 +61,7 @@ func logLine(_ message: String) {
 
 func usage() {
     print("""
-    ibridge-receiver-macos [--port 48320] [--fullscreen] [--title "iBridge Receiver"]
+    ibridge-receiver-macos [--port 48320] [--fullscreen] [--hide-status] [--title "iBridge Receiver"]
 
     Receives protocol v0 TCP frames with Annex-B H.264/HEVC payloads and displays
     them with AVSampleBufferDisplayLayer.
@@ -89,6 +90,8 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.port = Int(arg.dropFirst("--port=".count)) ?? options.port
         } else if arg == "--fullscreen" {
             options.fullscreen = true
+        } else if arg == "--hide-status" || arg == "--no-hud" {
+            options.showStatus = false
         } else if arg == "--title" {
             options.title = try value()
         } else if arg.hasPrefix("--title=") {
@@ -401,7 +404,18 @@ func makeSampleBuffer(
 final class ReceiverViewController: NSViewController {
     let displayLayer = AVSampleBufferDisplayLayer()
     private let statusLabel = NSTextField(labelWithString: "Waiting for iBridge stream")
+    private let showStatus: Bool
     private var displayedFrames: UInt64 = 0
+
+    init(showStatus: Bool) {
+        self.showStatus = showStatus
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        self.showStatus = true
+        super.init(coder: coder)
+    }
 
     override func loadView() {
         view = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 720))
@@ -418,13 +432,17 @@ final class ReceiverViewController: NSViewController {
         statusLabel.drawsBackground = true
         statusLabel.isBezeled = false
         statusLabel.lineBreakMode = .byTruncatingTail
-        view.addSubview(statusLabel)
+        if showStatus {
+            view.addSubview(statusLabel)
+        }
     }
 
     override func viewDidLayout() {
         super.viewDidLayout()
         displayLayer.frame = view.bounds
-        statusLabel.frame = NSRect(x: 16, y: view.bounds.height - 44, width: min(760, view.bounds.width - 32), height: 24)
+        if showStatus {
+            statusLabel.frame = NSRect(x: 16, y: view.bounds.height - 44, width: min(760, view.bounds.width - 32), height: 24)
+        }
     }
 
     nonisolated func enqueue(_ sampleBuffer: CMSampleBuffer, header: FrameHeader) {
@@ -436,7 +454,7 @@ final class ReceiverViewController: NSViewController {
             }
             self.displayLayer.enqueue(sendableSampleBuffer.value)
             self.displayedFrames += 1
-            if self.displayedFrames % 30 == 1 {
+            if self.showStatus, self.displayedFrames % 30 == 1 {
                 self.statusLabel.stringValue = "iBridge \(header.width)x\(header.height)@\(header.fps) frame \(header.frameID) dropped_before \(header.droppedBefore)"
             }
         }
@@ -444,7 +462,9 @@ final class ReceiverViewController: NSViewController {
 
     nonisolated func setStatus(_ text: String) {
         DispatchQueue.main.async {
-            self.statusLabel.stringValue = text
+            if self.showStatus {
+                self.statusLabel.stringValue = text
+            }
         }
     }
 }
@@ -452,12 +472,13 @@ final class ReceiverViewController: NSViewController {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let options: Options
-    private let receiver = ReceiverViewController()
+    private let receiver: ReceiverViewController
     private var window: NSWindow?
     private var server: TCPReceiver?
 
     init(options: Options) {
         self.options = options
+        self.receiver = ReceiverViewController(showStatus: options.showStatus)
     }
 
     func applicationDidFinishLaunching(_: Notification) {
