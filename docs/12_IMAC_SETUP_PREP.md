@@ -1,9 +1,22 @@
 # iMac Setup Prep
 
-Date: 2026-05-15
+Date: 2026-05-16
 
 Scope: what can be prepared before physical access to the iMac, now that both
 Windows and Mac-to-Mac routes are in scope.
+
+## Receiver Inventory Update
+
+The current receiver pool has two iMacs:
+
+- iMac 21.5-inch Retina 4K, 2017: 8 GB RAM, Radeon Pro 555, macOS boot
+  available now. Treat this as the first wired Mac-to-Mac receiver target.
+- iMac 27-inch Retina 5K, Late 2015: 8 GB RAM, Radeon R9 M380, macOS and
+  Windows boot possible. Treat this as the long-term 5K receiver, but keep
+  boot-state and Thunderbolt 2 cable availability as explicit blockers.
+
+The updated ordered test plan lives in
+`docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md`.
 
 ## Current Remote State
 
@@ -75,6 +88,20 @@ When physically near the iMac:
    not start from remote-only assumptions.
 5. If staying on Windows tonight, start the iBridge receiver and open port
    `48320` for the MBP forced-HEVC TCP smoke test.
+
+## 2017 4K iMac First Checklist
+
+Use the 2017 iMac before the 2015 5K iMac for the next physical loop:
+
+1. Boot the 2017 iMac into macOS and keep it on AC power.
+2. Disable sleep with the macOS commands in
+   `docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md`.
+3. Install/sign in to Tailscale if remote reachability is needed.
+4. Enable Remote Login so the MacBook Pro and MacBook Air can run receiver-side
+   checks without screen sharing.
+5. Install `iperf3` if possible.
+6. Run wireless first, then Ethernet, then Thunderbolt Bridge only after the
+   wired network identity is clear.
 
 ## Suggested Remote Command
 
