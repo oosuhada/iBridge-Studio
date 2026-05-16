@@ -68,6 +68,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Remote SSH `screencapture` did not reliably capture the receiver's AVSampleBufferDisplayLayer/active Space, even when the user could see the iMac screen change. Treat receiver runtime logs plus direct visual observation as stronger evidence than SSH screenshots for this path.
 - BetterDisplay current app can likely solve the source-Mac virtual display / HiDPI setup piece, but it does not replace iBridge transport/receiver. `reference/BetterDisplay` is BetterDummy OpenSource Edition on the `opensource` branch; it is enough for CGVirtualDisplay clean-room study, not enough to fork the full current BetterDisplay v4 product.
 - MacBook Air -> 2015 iMac live screen-capture smoke also works at `2560x1440@30` HEVC 15Mbps over Wi-Fi. This is a mirror/live-capture path, not yet a true macOS extended desktop. Added helper scripts to start/stop the 2015 iMac receiver and start a long-running MacBook Air live capture session.
+- User configured a macOS `Virtual 16:9` extended display at `1920x1080`. `scripts/start_mba_to_2015_imac_live_capture.sh` now defaults to capture display index `1`, `1920x1080@30`, HEVC 8Mbps, and receiver `100.84.32.31`, so the helper path targets the virtual extended display instead of the built-in display.
 
 ## Key Results
 
@@ -112,6 +113,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - MacBook Air to 2015 iMac Wi-Fi iperf matrix: TCP to receiver `154.09 Mbps`, TCP reverse `129.43 Mbps`; UDP 30/60/120Mbps received `29.99/59.78/119.95 Mbps` with `0/0.333/0.003%` loss. ICMP latency spikes remain too high for smooth-display confidence.
 - MacBook Air to 2015 iMac macOS receiver smoke, `2560x1440@60` HEVC 25Mbps TCP over Wi-Fi for 30s: sender `1800/1800` encoded, 0 send failures, 2 sender queue drops, p95 encode `9.730 ms`, receiver `1798` frames with two 1-frame missing events. User visually confirmed the iMac panel changed during the smoke.
 - MacBook Air to 2015 iMac live capture smoke, `2560x1440@30` HEVC 15Mbps TCP over Wi-Fi for 10s: sender `300/300` encoded, 0 send failures, 1 sender queue drop, receiver `299` frames. A 3s script validation run then passed with `90/90` encoded and 0 drops.
+- MacBook Air virtual extended display smoke, `Virtual 16:9` at `1920x1080@30` HEVC 8Mbps over Tailscale: sender `90/28/28` over 3s, 0 failed frames, 0 send failures, 0 queue drops. Low submitted-frame count is expected for a mostly static extended display.
 
 ## Files Likely Relevant Next
 
@@ -270,7 +272,7 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 4. Connect a real source virtual display path: BetterDisplay/BetterDisplayCLI first for practical setup, then a small clean-room `CGVirtualDisplay` helper if needed.
 5. Keep `3840x2160`, `3200x1800`, and `2560x1440` as the 2017 iMac receiver profiles; keep `4096x2304` as a sender-only or 2015 5K iMac candidate.
 6. Keep 2x2 tiled HEVC 5K60 as the top full-resolution M1 Max + best-wired candidate for the 2015 27-inch Retina 5K iMac only; solve/reset-hide the reset spikes before calling it display-smooth.
-7. For immediate use, run `scripts/start_2015_imac_receiver_macos.sh` and then `scripts/start_mba_to_2015_imac_live_capture.sh`; stop with `scripts/stop_2015_imac_receiver_macos.sh`.
+7. For immediate extended-display-style use, keep `Virtual 16:9` set to `1920x1080`, run `scripts/start_2015_imac_receiver_macos.sh`, move windows onto `Virtual 16:9`, then run `scripts/start_mba_to_2015_imac_live_capture.sh`; stop with `scripts/stop_2015_imac_receiver_macos.sh`.
 8. After a reboot/login, run `scripts/mac_clean_session_encoder_probe.sh` within 15 minutes. If both the first clean run and an immediate repeat pass 4096x2304/3200x1800 p95 <=16.67 ms, high-detail fallback switching can be reconsidered; otherwise keep product fallback limited to 2560x1440.
 9. Test receiver decode separately on iMac Windows and iMac macOS: Media Foundation/D3D11 versus VideoToolbox/Metal.
 10. Only after sender profiles and OS-specific decode candidates are settled, build tiled protocol metadata and receiver recomposition.

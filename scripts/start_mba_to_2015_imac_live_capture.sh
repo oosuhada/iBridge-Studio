@@ -1,21 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RECEIVER_IP="${RECEIVER_IP:-192.168.31.187}"
+RECEIVER_IP="${RECEIVER_IP:-100.84.32.31}"
 RECEIVER_PORT="${RECEIVER_PORT:-48320}"
 RECEIVER_SSH="${RECEIVER_SSH:-oosu@100.84.32.31}"
 RECEIVER_KEY="${RECEIVER_KEY:-$HOME/.ssh/ibridge_imac_ed25519}"
-RESOLUTION="${RESOLUTION:-2560x1440}"
+RESOLUTION="${RESOLUTION:-1920x1080}"
 FPS="${FPS:-30}"
 DURATION="${DURATION:-3600}"
-BITRATE_MBPS="${BITRATE_MBPS:-15}"
+BITRATE_MBPS="${BITRATE_MBPS:-8}"
 SENDER_QUEUE_DEPTH="${SENDER_QUEUE_DEPTH:-8}"
-CAPTURE_DISPLAY_INDEX="${CAPTURE_DISPLAY_INDEX:-0}"
+CAPTURE_DISPLAY_INDEX="${CAPTURE_DISPLAY_INDEX:-1}"
 CAPTURE_QUEUE_DEPTH="${CAPTURE_QUEUE_DEPTH:-4}"
 RUN_ROOT="${RUN_ROOT:-benchmarks/runs/$(date +%Y-%m-%d_%H%M)_mba_to_2015_imac_live_capture}"
 
 mkdir -p "$RUN_ROOT"
 swift build --package-path apps/primary-macos -c release
+
+cat <<EOF
+iBridge live capture sender
+- Receiver: $RECEIVER_IP:$RECEIVER_PORT
+- Capture display index: $CAPTURE_DISPLAY_INDEX
+- Resolution/FPS: $RESOLUTION @ $FPS
+- Bitrate: ${BITRATE_MBPS}Mbps
+- Duration: ${DURATION}s
+
+Tip: put windows on the macOS "Virtual 16:9" extended display. Static screens
+may emit few frames; move the cursor or a window on that display to force
+visible updates.
+EOF
 
 apps/primary-macos/.build/release/ibridge-primary \
   --screen-capture \

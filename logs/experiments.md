@@ -842,3 +842,22 @@ Artifacts:
 - `scripts/start_2015_imac_receiver_macos.sh`
 - `scripts/start_mba_to_2015_imac_live_capture.sh`
 - `scripts/stop_2015_imac_receiver_macos.sh`
+
+## 2026-05-17 03:36 — Virtual 16:9 extended display target
+
+Prompt: user configured macOS `Virtual 16:9` as an extended display at `1920x1080`.
+
+Results:
+- Local Wi-Fi IP `192.168.31.187` was temporarily unreachable from the MacBook Air, but Tailscale `100.84.32.31` reached the same receiver.
+- `capture-display-index 1` successfully sent a `1920x1080@30` HEVC stream to the 2015 iMac receiver.
+- Receiver logged protocol v0 handshake for `width=1920`, `height=1080`, `fps=30`.
+- Default helper script profile changed to `Virtual 16:9`: display index `1`, `1920x1080@30`, HEVC 8Mbps, receiver `100.84.32.31`.
+- 3s helper-script validation: requested/submitted/encoded `90/28/28`, failed frames `0`, send failures `0`, sender queue drops `0`.
+
+Interpretation:
+- iBridge now has an immediate extended-display-style workflow when the virtual display is already created by macOS/BetterDisplay/OCLP tooling: move windows to `Virtual 16:9`, then run the iBridge sender to show that virtual display on the iMac.
+- Low submitted-frame count is expected when the virtual display is mostly static; move the cursor or a window on that display to force visible updates.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_0333_mba_virtual_1080p30_to_2015_imac_tailscale/`
+- `benchmarks/runs/2026-05-17_0336_virtual_16_9_script_default_smoke/`
