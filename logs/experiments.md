@@ -722,3 +722,34 @@ Artifacts:
 - `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/ping_100.txt`
 - `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/port_probe.txt`
 - `benchmarks/runs/2026-05-17_0135_mba_to_2015_imac_wifi5/wifi5-2015-imac/tailscale_ping_10.txt`
+
+## 2026-05-17 02:08 — MacBook Air to 2015 iMac Wi-Fi throughput
+
+Prompt: user repaired Homebrew enough to install `iperf3`, then ran the MacBook Air -> 2015 iMac Wi-Fi network matrix.
+
+Command:
+
+```bash
+DURATION=20 RUN_ROOT=benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf scripts/mac_network_matrix.sh --case wifi5-2015-imac --receiver-ip 192.168.31.187 --tailscale-name 100.84.32.31
+```
+
+Results:
+- Ping: 100/100 received, min/avg/max/stddev `3.690/30.495/258.942/44.687 ms`.
+- TCP to receiver: `154.09 Mbps` received.
+- TCP reverse from receiver: `129.43 Mbps` received.
+- UDP 30Mbps: `29.99 Mbps` received, `0%` loss.
+- UDP 60Mbps: `59.78 Mbps` received, `0.333%` loss.
+- UDP 120Mbps: `119.95 Mbps` received, `0.003%` loss.
+
+Interpretation:
+- Throughput is adequate for conservative low-bitrate smoke tests such as the MacBook Air's `2560x1440@60` HEVC candidate.
+- ICMP still has repeated 100-250ms latency spikes, so do not treat this Wi-Fi path as smooth-display evidence.
+- Keep 5K, tiled 5K, and high-detail fallback decisions blocked on wired transport.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/summary.md`
+- `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/iperf3_tcp_to_receiver.json`
+- `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/iperf3_tcp_from_receiver_reverse.json`
+- `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/iperf3_udp_30mbps.json`
+- `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/iperf3_udp_60mbps.json`
+- `benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/iperf3_udp_120mbps.json`

@@ -831,3 +831,24 @@ Next:
 - Authorize the MacBook Air SSH key on the 2015 iMac.
 - Repair/install a local throughput tool or use another prepared host for `iperf3`.
 - Keep `2560x1440@60` as the only realistic MacBook Air display candidate once receiver transport is stable.
+
+## 2026-05-17 02:08 — MBA to 2015 iMac Wi-Fi throughput
+
+Prompt: user installed `iperf3` after Homebrew repair and ran the MacBook Air to 2015 iMac Wi-Fi matrix.
+Changed files:
+- benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf/wifi5-2015-imac/*
+- docs/16_DEVICE_AND_TEST_PLAN_2026-05-16.md
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `iperf3 --version`
+- [x] `DURATION=20 RUN_ROOT=benchmarks/runs/2026-05-17_0208_mba_to_2015_imac_iperf scripts/mac_network_matrix.sh --case wifi5-2015-imac --receiver-ip 192.168.31.187 --tailscale-name 100.84.32.31`
+Result:
+- Ping remains jittery: min/avg/max/stddev `3.690/30.495/258.942/44.687 ms`.
+- TCP throughput is `154.09 Mbps` to receiver and `129.43 Mbps` reverse.
+- UDP 30/60/120Mbps loss is `0/0.333/0.003%`.
+Next:
+- Add the MacBook Air SSH key to the 2015 iMac so receiver commands can be started remotely.
+- After SSH works, run only a conservative `2560x1440@60` HEVC smoke on Wi-Fi.
+- Keep 5K/high-detail/tiled receiver work blocked on Ethernet or Thunderbolt.
