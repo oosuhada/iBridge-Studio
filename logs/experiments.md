@@ -921,3 +921,35 @@ Results:
 Interpretation:
 - Internal alpha packaging is working.
 - Live virtual-display sender smoke is blocked until the BetterDisplay virtual screen is reconnected as an extended display and visible to ScreenCaptureKit.
+
+## 2026-05-17 04:43 — wired high-quality profile smoke
+
+Prompt: user asked to continue toward commercial quality and use the current wired LAN for better image quality.
+
+Commands:
+
+```bash
+ssh gabrieljang@100.89.104.119 'nohup apps/receiver-macos/.build/release/ibridge-receiver-macos --port 48320 --fullscreen --title "iBridge LAN Receiver" ... &'
+apps/primary-macos/.build/release/ibridge-primary --synthetic --source synthetic-nv12 --resolution 3200x1800 --fps 60 --duration 5 --codec hevc --bitrate-mbps 60 --data-rate-limit-mbps 60 --send-host 169.254.70.114 --send-port 48320 ...
+apps/primary-macos/.build/release/ibridge-primary --synthetic --source synthetic-nv12 --resolution 2560x1440 --fps 60 --duration 5 --codec hevc --bitrate-mbps 45 --data-rate-limit-mbps 45 --send-host 169.254.70.114 --send-port 48320 ...
+apps/primary-macos/.build/release/ibridge-primary --synthetic --source synthetic-nv12 --resolution 2560x1440 --fps 30 --duration 5 --codec hevc --bitrate-mbps 35 --data-rate-limit-mbps 35 --send-host 169.254.70.114 --send-port 48320 ...
+scripts/package_macos_alpha.sh
+DURATION=1 PROFILE=lan-readable RECEIVER_IP=169.254.70.114 ./dist/iBridge-0.1.0-alpha/Start\ iBridge\ LAN\ High\ Quality.command
+```
+
+Results:
+- Direct 1GbE receiver reachability remained strong; earlier spot ping was approximately `0.528/1.118/1.517 ms` min/avg/max.
+- `2560x1440@30 35Mbps`: requested/submitted/encoded `150/150/150`, sender drops `0`, send failures `0`, avg encode `14.516 ms`, p95 encode `25.772 ms`, avg send `0.060 ms`, p95 send `0.098 ms`.
+- `2560x1440@60 45Mbps`: requested/submitted/encoded `300/300/300`, sender drops `0`, send failures `0`, p95 encode `41.191 ms`.
+- `3200x1800@60 60Mbps`: requested/submitted/encoded `300/300/300`, sender drops `0`, send failures `0`, p95 encode `39.214 ms`.
+- `3200x1800@30 50Mbps` was run during a parallel encoder check and showed heavy sender drops, so treat it as invalid for product default selection and experimental only.
+- The package now includes `Start iBridge LAN High Quality.command`, and the app signature still verifies.
+- Packaged live capture still exits with the expected `capture_display_count=0` setup guard in the current AirPlay-only state.
+
+Interpretation:
+- Transport is no longer the limiting factor on the current direct LAN path.
+- The current alpha should default wired readability to `PROFILE=lan-readable` (`2560x1440@30`, HEVC, 35Mbps).
+- Higher-resolution or 60Hz profiles should remain explicit experimental modes until encoder slow-state/backpressure handling is improved.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_lan_high_quality_synthetic_smoke/summary.md`

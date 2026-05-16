@@ -1011,3 +1011,28 @@ Result:
 - Added a guard for `capture_display_count=0` so the packaged sender reports missing BetterDisplay/Screen Recording/display-awake setup instead of failing later with a vague capture-display-index error.
 Current blocker:
 - On the MacBook Pro at package time, `system_profiler` showed an AirPlay `Gabriel의 iMac` 1080p virtual device, not the BetterDisplay `Virtual 16:9`; `ibridge-primary --list-displays` returned `capture_display_count=0` in this context. Package generation and app signing are valid, but live sender smoke needs the BetterDisplay virtual display reconnected as an extended display.
+
+## 2026-05-17 04:43 — wired high-quality alpha profile
+
+Prompt: user asked to continue toward commercial quality and use the current wired LAN for better image quality.
+Changed files:
+- scripts/start_ibridge_virtual_capture.sh
+- scripts/package_macos_alpha.sh
+- docs/18_ALPHA_RELEASE.md
+- benchmarks/runs/2026-05-17_lan_high_quality_synthetic_smoke/*
+- docs/current-work.md
+- logs/experiments.md
+- logs/worklog.md
+Verification:
+- [x] `bash -n scripts/start_ibridge_virtual_capture.sh`
+- [x] `bash -n scripts/package_macos_alpha.sh`
+- [x] `scripts/package_macos_alpha.sh`
+- [x] `codesign --verify --deep --strict --verbose=1 dist/iBridge-0.1.0-alpha/iBridge Receiver.app`
+- [x] Remote receiver launched on 2017 iMac over direct 1GbE at `169.254.70.114:48320`
+- [x] Synthetic `2560x1440@30` HEVC 35Mbps LAN smoke: `150/150` encoded, `0` sender drops, `0` send failures, p95 send `0.098 ms`
+Result:
+- Added profile support to the virtual-display sender: `balanced`, `lan-readable`, `lan-60hz`, `lan-sharp`, and `lan-4k`.
+- Added `Start iBridge LAN High Quality.command` to the alpha package. It defaults to `PROFILE=lan-readable`.
+- Current wired readability default is `2560x1440@30`, HEVC, 35Mbps. This improves detail over 1080p while keeping the current encoder state inside a 30fps budget.
+Current blocker:
+- Live package capture is still blocked in this MacBook Pro state because BetterDisplay `Virtual 16:9` is not currently exposed to ScreenCaptureKit; the packaged command correctly exits with the setup guard.
