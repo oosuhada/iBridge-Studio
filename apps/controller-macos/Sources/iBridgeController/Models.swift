@@ -299,6 +299,12 @@ let durationOptions = [
     ValueOption(id: "custom", title: "Custom", value: "")
 ]
 
+let cursorOptions = [
+    ValueOption(id: "universal-control", title: "Universal Control Cursor", value: "0"),
+    ValueOption(id: "captured", title: "Show Captured Cursor", value: "1"),
+    ValueOption(id: "hidden", title: "Hide Cursor", value: "0")
+]
+
 @MainActor
 final class DisplaySession: ObservableObject, Identifiable {
     let id = UUID()
@@ -315,6 +321,7 @@ final class DisplaySession: ObservableObject, Identifiable {
     @Published var signalOptionID: String
     @Published var bitrateOptionID: String
     @Published var durationOptionID: String
+    @Published var cursorModeID: String
 
     init(preset: ReceiverPreset) {
         name = preset.name
@@ -330,6 +337,7 @@ final class DisplaySession: ObservableObject, Identifiable {
         signalOptionID = signalOptions.first { $0.value == preset.resolution }?.id ?? "custom"
         bitrateOptionID = bitrateOptions.first { $0.value == preset.bitrateMbps }?.id ?? "custom"
         durationOptionID = durationOptions.first { $0.value == preset.duration }?.id ?? "custom"
+        cursorModeID = "universal-control"
     }
 
     init(stored: StoredDisplaySession) {
@@ -350,6 +358,7 @@ final class DisplaySession: ObservableObject, Identifiable {
         signalOptionID = signalOptions.first { $0.value == stored.resolution }?.id ?? "custom"
         bitrateOptionID = bitrateOptions.first { $0.value == stored.bitrateMbps }?.id ?? "custom"
         durationOptionID = durationOptions.first { $0.value == stored.duration }?.id ?? "custom"
+        cursorModeID = stored.cursorModeID ?? "universal-control"
     }
 
     func apply(_ preset: ReceiverPreset) {
@@ -391,8 +400,13 @@ final class DisplaySession: ObservableObject, Identifiable {
             bitrateMbps: bitrateMbps,
             duration: duration,
             receiverScript: receiverScript,
-            receiverKey: receiverKey
+            receiverKey: receiverKey,
+            cursorModeID: cursorModeID
         )
+    }
+
+    var captureShowCursor: String {
+        cursorOptions.first { $0.id == cursorModeID }?.value ?? "0"
     }
 }
 
@@ -407,6 +421,7 @@ struct StoredDisplaySession: Codable {
     let duration: String
     let receiverScript: String
     let receiverKey: String
+    let cursorModeID: String?
 }
 
 struct StoredControllerState: Codable {
