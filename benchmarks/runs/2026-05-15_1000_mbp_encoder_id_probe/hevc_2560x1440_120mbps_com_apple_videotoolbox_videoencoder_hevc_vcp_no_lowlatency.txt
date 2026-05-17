@@ -1,0 +1,26 @@
+iBridge Primary synthetic encoder
+resolution=2560x1440
+target_fps=60
+duration_seconds=2
+codec=hevc
+encoder_id=com.apple.videotoolbox.videoencoder.hevc.vcp
+bitrate_mbps=120
+low_latency_rate_control=off
+max_keyframe_interval=60
+max_keyframe_interval_duration=2.000
+sender_queue_depth=4
+frames_requested=120
+frames_encoded=120
+failed_frames=0
+sender_dropped_frames=0
+send_failed_frames=0
+avg_generate_ms=4.650
+avg_encode_latency_ms=643.025
+p95_encode_latency_ms=706.557
+max_encode_latency_ms=726.675
+avg_send_ms=0.000
+p95_send_ms=0.000
+payload_bytes=7050668
+bytes_sent=0
+send_target=none
+csv=benchmarks/runs/2026-05-15_1000_mbp_encoder_id_probe/hevc_2560x1440_120mbps_com_apple_videotoolbox_videoencoder_hevc_vcp_no_lowlatency.csv

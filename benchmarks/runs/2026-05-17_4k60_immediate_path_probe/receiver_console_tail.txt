@@ -1,0 +1,28 @@
+2026-05-17 01:11:48 +0000 iBridge macOS receiver listening on TCP 48320
+2026-05-17 01:11:49 +0000 primary connected
+2026-05-17 01:11:49 +0000 client disconnected_or_failed frames=0 error=connection closed while reading handshake
+2026-05-17 01:11:49 +0000 receiver_frames_total=0
+2026-05-17 01:12:56 +0000 primary connected
+2026-05-17 01:12:56 +0000 handshake={"magic":"IBRIDGE","version":0,"role":"primary","session_id":824075004777834264,"selected_codec":"hevc","width":3840,"height":2160,"fps":60,"frame_transport":"tcp"}
+2026-05-17 01:12:56 +0000 received_frame=0 size=3840x2160 payload=146503 keyframe=true
+2026-05-17 01:12:56 +0000 receiver_missing_frames=3 before=4
+2026-05-17 01:12:56 +0000 receiver_missing_frames=1 before=7
+2026-05-17 01:12:56 +0000 receiver_missing_frames=1 before=9
+2026-05-17 01:12:56 +0000 receiver_missing_frames=1 before=11
+2026-05-17 01:12:56 +0000 receiver_missing_frames=1 before=13
+2026-05-17 01:12:56 +0000 receiver_missing_frames=1 before=15
+2026-05-17 01:12:56 +0000 receiver_missing_frames=1 before=17
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=19
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=21
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=23
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=26
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=29
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=31
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=33
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=36
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=39
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=41
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=43
+2026-05-17 01:12:57 +0000 receiver_missing_frames=1 before=45
+2026-05-17 01:12:59 +0000 client disconnected_or_failed frames=26 error=connection closed
+2026-05-17 01:12:59 +0000 receiver_frames_total=26

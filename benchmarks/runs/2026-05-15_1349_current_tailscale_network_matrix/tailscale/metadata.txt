@@ -1,0 +1,7 @@
+case=tailscale
+receiver_ip=100.86.52.88
+duration_seconds=10
+timestamp=2026-05-15_1349
+hostname=Gabriels-MacBook-Pro.local
+whoami=gabriel
+pwd=/Users/gabriel/development/iBridge

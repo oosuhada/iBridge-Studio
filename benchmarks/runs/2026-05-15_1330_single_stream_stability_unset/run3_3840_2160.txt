@@ -1,0 +1,49 @@
+run_index=3
+resolution=3840x2160
+started_at=2026-05-15 13:09:09 KST
+Now drawing from 'AC Power'  -InternalBattery-0 (id=20578403)	100%; charged; 0:00 remaining present: true
+--- encoder output ---
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+iBridge Primary encoder
+run_label=synthetic
+source=synthetic-nv12
+resolution=3840x2160
+target_fps=60
+duration_seconds=5
+codec=hevc
+encoder_id=com.apple.videotoolbox.videoencoder.ave.hevc
+bitrate_mbps=120
+data_rate_limit_mbps=120
+data_rate_window_seconds=1.000
+low_latency_rate_control=off
+realtime=on
+allow_temporal_compression=on
+allow_frame_reordering=off
+allow_open_gop=off
+prioritize_speed=unset
+max_frame_delay_count=0
+payload_format=length-prefixed
+static_change_every=1
+max_keyframe_interval=60
+max_keyframe_interval_duration=2.000
+sender_queue_depth=4
+frames_requested=300
+frames_submitted=300
+frames_skipped=0
+frames_encoded=300
+failed_frames=0
+sender_dropped_frames=0
+send_failed_frames=0
+avg_generate_ms=7.191
+avg_encode_latency_ms=11.328
+p95_encode_latency_ms=11.669
+max_encode_latency_ms=31.615
+avg_send_ms=0.000
+p95_send_ms=0.000
+payload_bytes=4153682
+bytes_sent=0
+send_target=none
+csv=benchmarks/runs/2026-05-15_1330_single_stream_stability_unset/run3_3840_2160.csv
+--- run footer ---
+finished_at=2026-05-15 13:09:14 KST
+exit_code=0

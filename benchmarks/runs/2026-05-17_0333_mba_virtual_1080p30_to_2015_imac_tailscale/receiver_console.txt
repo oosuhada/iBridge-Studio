@@ -1,0 +1,6 @@
+iBridge macOS receiver listening on TCP 48320
+primary connected
+handshake={"magic":"IBRIDGE","version":0,"role":"primary","session_id":12225268950727963176,"selected_codec":"hevc","width":1920,"height":1080,"fps":30,"frame_transport":"tcp"}
+received_frame=0 size=1920x1080 payload=5809 keyframe=true
+client disconnected or failed: connection closed
+receiver_frames_total=33

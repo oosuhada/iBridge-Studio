@@ -1,0 +1,8 @@
+suite_started
+2026-05-15  1:26:08.76
+running dynamic_5k60
+running static_once_upload_5k60
+running gpu_pattern_5k60
+running gpu_pattern_uncapped_5k60
+suite_finished
+2026-05-15  1:29:25.35

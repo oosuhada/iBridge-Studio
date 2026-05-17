@@ -1,0 +1,2 @@
+codec,resolution,bitrate_mbps,max_keyframe_interval,max_keyframe_interval_duration,frames_requested,frames_encoded,failed_frames,avg_encode_latency_ms,p95_encode_latency_ms,max_encode_latency_ms,payload_bytes,csv,log
+hevc,2560x1440,20,60,1,60,60,0,23.149,77.912,117.222,2361360,benchmarks/runs/2026-05-15_encoder_matrix_smoke/hevc_2560x1440_20mbps_kfi60_kfd1.csv,benchmarks/runs/2026-05-15_encoder_matrix_smoke/hevc_2560x1440_20mbps_kfi60_kfd1.txt

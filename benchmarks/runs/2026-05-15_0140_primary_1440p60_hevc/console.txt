@@ -1,0 +1,14 @@
+iBridge Primary synthetic encoder
+resolution=2560x1440
+target_fps=60
+duration_seconds=2
+codec=hevc
+frames_requested=120
+frames_encoded=120
+failed_frames=0
+avg_generate_ms=4.892
+avg_encode_latency_ms=133.649
+p95_encode_latency_ms=162.608
+max_encode_latency_ms=169.744
+payload_bytes=43277169
+csv=benchmarks/runs/2026-05-15_0140_primary_1440p60_hevc/primary_stats.csv

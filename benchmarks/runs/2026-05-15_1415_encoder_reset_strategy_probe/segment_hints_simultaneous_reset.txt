@@ -1,0 +1,68 @@
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+warning: VTSessionSetProperty MaxFrameDelayCount failed: -12900
+iBridge Primary encoder
+run_label=synthetic-tiled
+source=synthetic-nv12-tiled
+resolution=5120x2880
+tile_columns=2
+tile_rows=2
+tile_resolution=2560x1440
+tile_reuse_buffers=on
+tile_max_inflight_logical_frames=1
+tile_reset_every_frames=180
+tile_reset_stagger_frames=0
+tile_segment_hints=on
+warmup_frames=30
+target_fps=60
+duration_seconds=6
+codec=hevc
+encoder_id=com.apple.videotoolbox.videoencoder.ave.hevc
+bitrate_mbps=30
+data_rate_limit_mbps=30
+data_rate_window_seconds=1.000
+low_latency_rate_control=off
+realtime=on
+allow_temporal_compression=on
+allow_frame_reordering=off
+allow_open_gop=off
+prioritize_speed=on
+more_frames_before_start=auto
+more_frames_after_end=auto
+source_frame_count=auto
+max_frame_delay_count=0
+payload_format=length-prefixed
+max_keyframe_interval=60
+max_keyframe_interval_duration=2.000
+frames_requested=360
+frames_submitted=360
+frames_skipped=0
+frames_encoded=360
+failed_frames=0
+steady_frames_encoded=330
+elapsed_seconds=6.002
+effective_logical_fps=59.980
+tile_frames_requested=1440
+tile_frames_encoded=1440
+failed_tile_frames=0
+avg_encode_latency_ms=13.468
+p95_encode_latency_ms=14.309
+max_encode_latency_ms=116.770
+avg_steady_encode_latency_ms=13.352
+p95_steady_encode_latency_ms=14.313
+max_steady_encode_latency_ms=116.770
+avg_tile_encode_latency_ms=8.957
+p95_tile_encode_latency_ms=11.639
+avg_max_tile_encode_latency_ms=11.232
+p95_max_tile_encode_latency_ms=12.174
+avg_steady_max_tile_encode_latency_ms=11.211
+p95_steady_max_tile_encode_latency_ms=12.040
+payload_bytes=4713117
+send_target=none
+csv=benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe/segment_hints_simultaneous_reset.csv
+logical_csv=/Users/gabriel/Development/iBridge/benchmarks/runs/2026-05-15_1415_encoder_reset_strategy_probe/segment_hints_simultaneous_reset_logical.csv
