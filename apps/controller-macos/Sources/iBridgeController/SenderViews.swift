@@ -125,6 +125,10 @@ struct SenderSessionCard: View {
                 cursorField
                 durationSecondsField
             }
+
+            GridRow {
+                wakeFields
+            }
         }
         .frame(minWidth: 860, alignment: .leading)
     }
@@ -141,6 +145,7 @@ struct SenderSessionCard: View {
             durationField
             cursorField
             durationSecondsField
+            wakeFields
         }
     }
 
@@ -267,8 +272,50 @@ struct SenderSessionCard: View {
         }
     }
 
+    private var wakeFields: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .bottom, spacing: 10) {
+                wakeMACField
+                wakeBroadcastField
+                autoWakeToggle
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                wakeMACField
+                wakeBroadcastField
+                autoWakeToggle
+            }
+        }
+    }
+
+    private var wakeMACField: some View {
+        LabeledField("Wake MAC") {
+            TextField("AA:BB:CC:DD:EE:FF", text: $session.wakeMAC)
+                .frame(minWidth: 190)
+        }
+    }
+
+    private var wakeBroadcastField: some View {
+        LabeledField("Wake broadcast") {
+            TextField("Broadcast IPs", text: $session.wakeBroadcast)
+                .frame(minWidth: 220)
+        }
+    }
+
+    private var autoWakeToggle: some View {
+        Toggle("Auto wake", isOn: $session.autoWake)
+            .toggleStyle(.checkbox)
+            .padding(.bottom, 4)
+    }
+
     private var actionRow: some View {
         HStack(spacing: 8) {
+            Button {
+                model.wakeReceiver(session)
+            } label: {
+                Label("Wake", systemImage: "power")
+            }
+            .disabled(session.wakeMAC.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
             Button {
                 model.startSender(session)
             } label: {

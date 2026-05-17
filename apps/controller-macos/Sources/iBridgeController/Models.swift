@@ -32,6 +32,8 @@ struct ReceiverPreset: Identifiable, Hashable {
     let duration: String
     let receiverScript: String
     let receiverKey: String
+    let wakeMAC: String = ""
+    let wakeBroadcast: String = "255.255.255.255"
 }
 
 struct ValueOption: Identifiable, Hashable {
@@ -89,7 +91,7 @@ let presets: [ReceiverPreset] = [
         id: "imac-2017-quality",
         name: "2017 iMac 4K Quality",
         category: "Lab",
-        receiverIP: "169.254.70.114",
+        receiverIP: "169.254.164.193",
         discoveryHost: "gabrieljang@100.89.104.119",
         displayName: "iMac 21.5inch 2017",
         profile: "imac4k-quality",
@@ -318,6 +320,9 @@ final class DisplaySession: ObservableObject, Identifiable {
     @Published var duration: String
     @Published var receiverScript: String
     @Published var receiverKey: String
+    @Published var wakeMAC: String
+    @Published var wakeBroadcast: String
+    @Published var autoWake: Bool
     @Published var signalOptionID: String
     @Published var bitrateOptionID: String
     @Published var durationOptionID: String
@@ -325,7 +330,7 @@ final class DisplaySession: ObservableObject, Identifiable {
 
     init(preset: ReceiverPreset) {
         name = preset.name
-        receiverIP = preset.receiverIP
+        receiverIP = resolvedReceiverIP(displayName: preset.displayName, receiverIP: preset.receiverIP)
         discoveryHost = preset.discoveryHost
         displayName = preset.displayName
         profile = preset.profile
@@ -334,6 +339,10 @@ final class DisplaySession: ObservableObject, Identifiable {
         duration = preset.duration
         receiverScript = preset.receiverScript
         receiverKey = preset.receiverKey
+        let resolvedWakeMAC = preset.wakeMAC.isEmpty ? defaultWakeMAC(displayName: preset.displayName) : preset.wakeMAC
+        wakeMAC = resolvedWakeMAC
+        wakeBroadcast = preset.wakeBroadcast == "255.255.255.255" ? defaultWakeBroadcast(displayName: preset.displayName) : preset.wakeBroadcast
+        autoWake = !resolvedWakeMAC.isEmpty
         signalOptionID = signalOptions.first { $0.value == preset.resolution }?.id ?? "custom"
         bitrateOptionID = bitrateOptions.first { $0.value == preset.bitrateMbps }?.id ?? "custom"
         durationOptionID = durationOptions.first { $0.value == preset.duration }?.id ?? "custom"
@@ -342,7 +351,7 @@ final class DisplaySession: ObservableObject, Identifiable {
 
     init(stored: StoredDisplaySession) {
         name = stored.name
-        receiverIP = stored.receiverIP
+        receiverIP = resolvedReceiverIP(displayName: stored.displayName, receiverIP: stored.receiverIP)
         discoveryHost = stored.discoveryHost ?? defaultDiscoveryHost(
             displayName: stored.displayName,
             receiverIP: stored.receiverIP,
@@ -355,6 +364,10 @@ final class DisplaySession: ObservableObject, Identifiable {
         duration = stored.duration
         receiverScript = stored.receiverScript
         receiverKey = stored.receiverKey
+        let resolvedWakeMAC = stored.wakeMAC ?? defaultWakeMAC(displayName: stored.displayName)
+        wakeMAC = resolvedWakeMAC
+        wakeBroadcast = stored.wakeBroadcast ?? defaultWakeBroadcast(displayName: stored.displayName)
+        autoWake = stored.autoWake ?? !resolvedWakeMAC.isEmpty
         signalOptionID = signalOptions.first { $0.value == stored.resolution }?.id ?? "custom"
         bitrateOptionID = bitrateOptions.first { $0.value == stored.bitrateMbps }?.id ?? "custom"
         durationOptionID = durationOptions.first { $0.value == stored.duration }?.id ?? "custom"
@@ -363,12 +376,15 @@ final class DisplaySession: ObservableObject, Identifiable {
 
     func apply(_ preset: ReceiverPreset) {
         name = preset.name
-        receiverIP = preset.receiverIP
+        receiverIP = resolvedReceiverIP(displayName: preset.displayName, receiverIP: preset.receiverIP)
         discoveryHost = preset.discoveryHost
         displayName = preset.displayName
         profile = preset.profile
         receiverScript = preset.receiverScript
         receiverKey = preset.receiverKey
+        wakeMAC = preset.wakeMAC.isEmpty ? defaultWakeMAC(displayName: preset.displayName) : preset.wakeMAC
+        wakeBroadcast = preset.wakeBroadcast == "255.255.255.255" ? defaultWakeBroadcast(displayName: preset.displayName) : preset.wakeBroadcast
+        autoWake = !wakeMAC.isEmpty
         setResolution(preset.resolution)
         setBitrate(preset.bitrateMbps)
         setDuration(preset.duration)
@@ -401,7 +417,10 @@ final class DisplaySession: ObservableObject, Identifiable {
             duration: duration,
             receiverScript: receiverScript,
             receiverKey: receiverKey,
-            cursorModeID: cursorModeID
+            cursorModeID: cursorModeID,
+            wakeMAC: wakeMAC,
+            wakeBroadcast: wakeBroadcast,
+            autoWake: autoWake
         )
     }
 
@@ -422,6 +441,9 @@ struct StoredDisplaySession: Codable {
     let receiverScript: String
     let receiverKey: String
     let cursorModeID: String?
+    let wakeMAC: String?
+    let wakeBroadcast: String?
+    let autoWake: Bool?
 }
 
 struct StoredControllerState: Codable {
@@ -441,4 +463,33 @@ private func defaultDiscoveryHost(displayName: String, receiverIP: String, recei
         return receiverIP.isEmpty ? "" : "oosu@\(receiverIP)"
     }
     return ""
+}
+
+private func resolvedReceiverIP(displayName: String, receiverIP: String) -> String {
+    if displayName.lowercased().contains("2017"), receiverIP == "169.254.70.114" {
+        return "169.254.164.193"
+    }
+    return receiverIP
+}
+
+private func defaultWakeMAC(displayName: String) -> String {
+    let lowerDisplay = displayName.lowercased()
+    if lowerDisplay.contains("2017") {
+        return "a8:be:27:c1:7c:56"
+    }
+    if lowerDisplay.contains("2015") {
+        return "a8:60:b6:1f:a9:be"
+    }
+    return ""
+}
+
+private func defaultWakeBroadcast(displayName: String) -> String {
+    let lowerDisplay = displayName.lowercased()
+    if lowerDisplay.contains("2017") {
+        return "192.168.31.255 169.254.255.255"
+    }
+    if lowerDisplay.contains("2015") {
+        return "169.254.255.255 192.168.31.255"
+    }
+    return "255.255.255.255"
 }

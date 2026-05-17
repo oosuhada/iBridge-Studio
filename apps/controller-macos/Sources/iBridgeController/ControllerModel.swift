@@ -116,6 +116,20 @@ final class ControllerModel: ObservableObject {
         }
     }
 
+    func wakeReceiver(_ session: DisplaySession) {
+        guard !session.wakeMAC.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            append("Wake skipped for \(session.name): no Wake MAC configured.")
+            return
+        }
+        let command = """
+        WAKE_MAC='\(shellEscape(session.wakeMAC))' \
+        WAKE_BROADCAST='\(shellEscape(session.wakeBroadcast))' \
+        scripts/wake_receiver.sh
+        """
+        append("Sending Wake-on-LAN packet: \(session.name)")
+        runOneShot(command: command, label: "\(session.name) Wake")
+    }
+
     func startLocalReceiver() {
         saveState()
         let command = """
@@ -133,6 +147,7 @@ final class ControllerModel: ObservableObject {
         saveState()
         stopSender(session)
         let command = """
+        \(wakeCommandPrefix(for: session))
         RESOLVED_RECEIVER_IP="$(RECEIVER_IP='\(shellEscape(session.receiverIP))' \
         RECEIVER_DISCOVERY_HOST='\(shellEscape(session.discoveryHost))' \
         RECEIVER_KEY='\(shellEscape(expandedPath(session.receiverKey)))' \
@@ -243,6 +258,19 @@ final class ControllerModel: ObservableObject {
 
     private func shellEscape(_ value: String) -> String {
         value.replacingOccurrences(of: "'", with: "'\\''")
+    }
+
+    private func wakeCommandPrefix(for session: DisplaySession) -> String {
+        guard session.autoWake,
+              !session.wakeMAC.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return ""
+        }
+        return """
+        WAKE_MAC='\(shellEscape(session.wakeMAC))' \
+        WAKE_BROADCAST='\(shellEscape(session.wakeBroadcast))' \
+        scripts/wake_receiver.sh || true;
+        sleep 2;
+        """
     }
 
     private func expandedPath(_ value: String) -> String {
