@@ -1,0 +1,149 @@
+import AppKit
+import SwiftUI
+
+struct ContentView: View {
+    @EnvironmentObject private var model: ControllerModel
+
+    var body: some View {
+        ZStack {
+            StudioBackdrop()
+            VStack(spacing: 0) {
+                HeaderView()
+                Divider().opacity(0.6)
+                StudioTabPicker()
+                Divider().opacity(0.45)
+                Group {
+                    switch model.selectedTab {
+                    case .sender:
+                        SenderTab()
+                    case .receiver:
+                        ReceiverTab()
+                    case .logs:
+                        LogTab()
+                    }
+                }
+            }
+        }
+        .background(WindowChromeConfigurator())
+        .frame(minWidth: 1120, minHeight: 720)
+    }
+}
+
+struct StudioTabPicker: View {
+    @EnvironmentObject private var model: ControllerModel
+
+    var body: some View {
+        HStack {
+            Picker("Mode", selection: $model.selectedTab) {
+                ForEach(StudioTab.allCases) { tab in
+                    Label(tab.rawValue, systemImage: tab.systemImage)
+                        .tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 360)
+            .labelsHidden()
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(.thinMaterial)
+    }
+}
+
+struct HeaderView: View {
+    @EnvironmentObject private var model: ControllerModel
+
+    var body: some View {
+        HStack(spacing: 14) {
+            LogoMark()
+                .frame(width: 46, height: 46)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("iBridge Studio")
+                    .font(.title3.weight(.semibold))
+                Text("Turn retired iMacs into Retina monitors")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            HeaderButton("Refresh Displays", systemImage: "display.2") {
+                model.listDisplays()
+            }
+            .disabled(model.isListingDisplays)
+
+            HeaderButton("Restore Windows", systemImage: "rectangle.on.rectangle") {
+                model.restoreWindowsToMacBook()
+            }
+
+            HeaderButton("Stop All", systemImage: "stop.fill", role: .destructive) {
+                model.stopAllSenders()
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.12),
+                            Color.white.opacity(0.03),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+    }
+}
+
+struct MenuBarView: View {
+    @EnvironmentObject private var model: ControllerModel
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Show iBridge Studio") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+
+        Divider()
+
+        Button("Refresh Displays") {
+            model.listDisplays()
+        }
+
+        Button("Restore Windows to MacBook") {
+            model.restoreWindowsToMacBook()
+        }
+
+        Divider()
+
+        Menu("Add Sender") {
+            ForEach(presets) { preset in
+                Button(preset.name) {
+                    model.addSession(preset: preset)
+                    openWindow(id: "main")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
+        }
+
+        Button("Stop All Senders") {
+            model.stopAllSenders()
+        }
+
+        Divider()
+
+        Button("Quit iBridge Studio") {
+            NSApp.terminate(nil)
+        }
+    }
+}

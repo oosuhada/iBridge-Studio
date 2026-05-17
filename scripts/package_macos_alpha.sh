@@ -5,7 +5,7 @@ VERSION="${VERSION:-0.1.0-alpha}"
 DIST_ROOT="${DIST_ROOT:-dist}"
 PACKAGE_ROOT="$DIST_ROOT/iBridge-$VERSION"
 RECEIVER_APP="$PACKAGE_ROOT/iBridge Receiver.app"
-CONTROL_APP="$PACKAGE_ROOT/iBridge Control.app"
+CONTROL_APP="$PACKAGE_ROOT/iBridge Studio.app"
 PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
 CONTROL_BIN="apps/controller-macos/.build/release/iBridgeController"
 RECEIVER_ARM64_BIN="apps/receiver-macos/.build/arm64-apple-macosx/release/ibridge-receiver-macos"
@@ -122,6 +122,8 @@ cat > "$RECEIVER_APP/Contents/Info.plist" <<PLIST
   <string>iBridgeReceiver</string>
   <key>CFBundleIconFile</key>
   <string>iBridgeReceiver</string>
+  <key>CFBundleDisplayName</key>
+  <string>iBridge Receiver</string>
   <key>CFBundleIdentifier</key>
   <string>dev.oosu.iBridge.receiver</string>
   <key>CFBundleInfoDictionaryVersion</key>
@@ -162,12 +164,14 @@ cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
   <string>iBridgeControl</string>
   <key>CFBundleIconFile</key>
   <string>iBridgeControl</string>
+  <key>CFBundleDisplayName</key>
+  <string>iBridge Studio</string>
   <key>CFBundleIdentifier</key>
   <string>dev.oosu.iBridge.control</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>iBridge Control</string>
+  <string>iBridge Studio</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
