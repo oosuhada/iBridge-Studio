@@ -67,7 +67,7 @@ final class ControllerModel: ObservableObject {
     func listDisplays() {
         isListingDisplays = true
         runOneShot(
-            command: "apps/primary-macos/.build/release/ibridge-primary --list-displays",
+            command: "\(primaryCommand()) --list-displays",
             label: "Displays"
         ) { [weak self] in
             self?.isListingDisplays = false
@@ -119,7 +119,7 @@ final class ControllerModel: ObservableObject {
     func startLocalReceiver() {
         saveState()
         let command = """
-        apps/receiver-macos/.build/release/ibridge-receiver-macos \
+        \(receiverCommand()) \
         --port '\(shellEscape(receiverPort))' \
         --fullscreen \
         --hide-status \
@@ -237,6 +237,20 @@ final class ControllerModel: ObservableObject {
 
     private func shellEscape(_ value: String) -> String {
         value.replacingOccurrences(of: "'", with: "'\\''")
+    }
+
+    private func primaryCommand() -> String {
+        if FileManager.default.isExecutableFile(atPath: repoRoot.appendingPathComponent("bin/ibridge-primary").path) {
+            return "bin/ibridge-primary"
+        }
+        return "apps/primary-macos/.build/release/ibridge-primary"
+    }
+
+    private func receiverCommand() -> String {
+        if FileManager.default.isExecutableFile(atPath: repoRoot.appendingPathComponent("bin/ibridge-receiver-macos-universal").path) {
+            return "bin/ibridge-receiver-macos-universal"
+        }
+        return "apps/receiver-macos/.build/release/ibridge-receiver-macos"
     }
 
     private func refreshSessionObservers() {

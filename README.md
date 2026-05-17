@@ -88,7 +88,6 @@ dist/iBridge-Studio-0.1.0-alpha.zip
 패키지 안에는 다음이 들어갑니다.
 
 - `iBridge Studio.app`
-- `iBridge Studio Receiver.app`
 - `bin/ibridge-primary`
 - receiver/sender helper scripts
 - 배포용 README
@@ -204,7 +203,7 @@ Router/DNS: blank
 
 ## 입력 릴레이
 
-iBridge Studio Receiver는 receiver window 위의 pointer/key 이벤트를 Sender로 보내고, Sender는 MacBook의 captured virtual display 좌표에 `CGEvent`로 재주입합니다.
+Receiver 탭은 receiver window 위의 pointer/key 이벤트를 Sender로 보내고, Sender는 MacBook의 captured virtual display 좌표에 `CGEvent`로 재주입합니다.
 
 현재 지원:
 
@@ -251,7 +250,6 @@ swift build --package-path apps/controller-macos -c release
 python3 apps/shared-protocol/test_protocol_v0.py
 scripts/package_macos_alpha.sh
 codesign --verify --deep --strict "dist/iBridge-Studio-0.1.0-alpha/iBridge Studio.app"
-codesign --verify --deep --strict "dist/iBridge-Studio-0.1.0-alpha/iBridge Studio Receiver.app"
 ```
 
 ## 현재 한계
