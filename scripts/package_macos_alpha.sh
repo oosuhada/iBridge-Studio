@@ -5,7 +5,10 @@ VERSION="${VERSION:-0.1.0-alpha}"
 DIST_ROOT="${DIST_ROOT:-dist}"
 PACKAGE_ROOT="$DIST_ROOT/iBridge-Studio-$VERSION"
 CONTROL_APP="$PACKAGE_ROOT/iBridge Studio.app"
-PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
+CONTROL_RESOURCES="$CONTROL_APP/Contents/Resources"
+PRIMARY_ARM64_BIN="apps/primary-macos/.build/arm64-apple-macosx/release/ibridge-primary"
+PRIMARY_X86_64_BIN="apps/primary-macos/.build/x86_64-apple-macosx/release/ibridge-primary"
+PRIMARY_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/ibridge-primary-universal"
 CONTROL_ARM64_BIN="apps/controller-macos/.build/arm64-apple-macosx/release/iBridgeController"
 CONTROL_X86_64_BIN="apps/controller-macos/.build/x86_64-apple-macosx/release/iBridgeController"
 CONTROL_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/iBridgeController-universal"
@@ -14,7 +17,7 @@ RECEIVER_X86_64_BIN="apps/receiver-macos/.build/x86_64-apple-macosx/release/ibri
 RECEIVER_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/ibridge-receiver-macos-universal"
 
 rm -rf "$PACKAGE_ROOT"
-mkdir -p "$CONTROL_APP/Contents/MacOS" "$CONTROL_APP/Contents/Resources"
+mkdir -p "$CONTROL_APP/Contents/MacOS" "$CONTROL_RESOURCES/bin" "$CONTROL_RESOURCES/scripts" "$CONTROL_RESOURCES/docs"
 mkdir -p "$PACKAGE_ROOT/bin" "$PACKAGE_ROOT/scripts" "$PACKAGE_ROOT/docs"
 
 make_icon() {
@@ -94,23 +97,33 @@ PY
 
 make_icon "iBridgeControl" "$CONTROL_APP/Contents/Resources"
 
-swift build --package-path apps/primary-macos -c release
+swift build --package-path apps/primary-macos -c release --arch arm64
+swift build --package-path apps/primary-macos -c release --arch x86_64
 swift build --package-path apps/controller-macos -c release --arch arm64
 swift build --package-path apps/controller-macos -c release --arch x86_64
 swift build --package-path apps/receiver-macos -c release --arch arm64
 swift build --package-path apps/receiver-macos -c release --arch x86_64
 
+lipo -create "$PRIMARY_ARM64_BIN" "$PRIMARY_X86_64_BIN" -output "$PRIMARY_UNIVERSAL_BIN"
 lipo -create "$CONTROL_ARM64_BIN" "$CONTROL_X86_64_BIN" -output "$CONTROL_UNIVERSAL_BIN"
 lipo -create "$RECEIVER_ARM64_BIN" "$RECEIVER_X86_64_BIN" -output "$RECEIVER_UNIVERSAL_BIN"
 cp "$CONTROL_UNIVERSAL_BIN" "$CONTROL_APP/Contents/MacOS/iBridgeControl"
-cp "$PRIMARY_BIN" "$PACKAGE_ROOT/bin/ibridge-primary"
+cp "$PRIMARY_UNIVERSAL_BIN" "$PACKAGE_ROOT/bin/ibridge-primary"
+cp "$PRIMARY_UNIVERSAL_BIN" "$CONTROL_RESOURCES/bin/ibridge-primary"
+cp "$RECEIVER_UNIVERSAL_BIN" "$CONTROL_RESOURCES/bin/ibridge-receiver-macos-universal"
 cp scripts/start_ibridge_virtual_capture.sh "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh"
 cp scripts/start_2017_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2017_imac_receiver_macos.sh"
 cp scripts/start_mbp_to_2017_imac_4k60.sh "$PACKAGE_ROOT/scripts/start_mbp_to_2017_imac_4k60.sh"
 cp scripts/start_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2015_imac_receiver_macos.sh"
 cp scripts/stop_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh"
+cp scripts/start_ibridge_virtual_capture.sh "$CONTROL_RESOURCES/scripts/start_ibridge_virtual_capture.sh"
+cp scripts/start_2017_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/start_2017_imac_receiver_macos.sh"
+cp scripts/start_mbp_to_2017_imac_4k60.sh "$CONTROL_RESOURCES/scripts/start_mbp_to_2017_imac_4k60.sh"
+cp scripts/start_2015_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/start_2015_imac_receiver_macos.sh"
+cp scripts/stop_2015_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/stop_2015_imac_receiver_macos.sh"
 if [[ -f docs/18_ALPHA_RELEASE.md ]]; then
   cp docs/18_ALPHA_RELEASE.md "$PACKAGE_ROOT/docs/18_ALPHA_RELEASE.md"
+  cp docs/18_ALPHA_RELEASE.md "$CONTROL_RESOURCES/docs/18_ALPHA_RELEASE.md"
 fi
 
 cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
@@ -173,17 +186,26 @@ exec scripts/start_ibridge_virtual_capture.sh
 SCRIPT
 
 cp README.md "$PACKAGE_ROOT/README.md"
+cp README.md "$CONTROL_RESOURCES/README.md"
 
 chmod +x \
   "$CONTROL_APP/Contents/MacOS/iBridgeControl" \
   "$PACKAGE_ROOT/bin/iBridgeController-universal" \
+  "$PACKAGE_ROOT/bin/ibridge-primary-universal" \
   "$PACKAGE_ROOT/bin/ibridge-primary" \
   "$PACKAGE_ROOT/bin/ibridge-receiver-macos-universal" \
+  "$CONTROL_RESOURCES/bin/ibridge-primary" \
+  "$CONTROL_RESOURCES/bin/ibridge-receiver-macos-universal" \
   "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh" \
   "$PACKAGE_ROOT/scripts/start_2017_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/scripts/start_mbp_to_2017_imac_4k60.sh" \
   "$PACKAGE_ROOT/scripts/start_2015_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh" \
+  "$CONTROL_RESOURCES/scripts/start_ibridge_virtual_capture.sh" \
+  "$CONTROL_RESOURCES/scripts/start_2017_imac_receiver_macos.sh" \
+  "$CONTROL_RESOURCES/scripts/start_mbp_to_2017_imac_4k60.sh" \
+  "$CONTROL_RESOURCES/scripts/start_2015_imac_receiver_macos.sh" \
+  "$CONTROL_RESOURCES/scripts/stop_2015_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/Start iBridge Studio Virtual Capture.command" \
   "$PACKAGE_ROOT/Start iBridge Studio LAN High Quality.command" \
   "$PACKAGE_ROOT/Start iBridge Studio 4K60.command"
