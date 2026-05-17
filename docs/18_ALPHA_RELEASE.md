@@ -50,15 +50,19 @@ xattr -dr com.apple.quarantine "iBridge Receiver.app"
 
 ## Source Mac
 
-Open `iBridge Control.app` on the source Mac for the current lab GUI. It can
-list capturable displays, start the remote receiver, start the selected sender
-profile, stop the sender, and show command output in one window.
+Open `iBridge Control.app` on the source Mac for the current lab GUI. The app
+is branded as `iBridge Studio` and is organized around display sessions rather
+than one global sender form. Each session card has receiver setup fields,
+sender signal/profile fields, and independent start/stop controls.
 
 Current built-in presets:
 
 - `2015 iMac 5K Quality`: `iMac 27inch 2015`, `5120x2880`, 280Mbps.
 - `2015 iMac Smooth`: `iMac 27inch 2015`, `2560x1440`, 80Mbps.
 - `2017 iMac 4K Quality`: `iMac 21.5inch 2017`, `4096x2304`, 220Mbps.
+
+Use `Add Session` to create a second iMac session before running two receivers
+at once. This is the intended GUI path for the MacBook Pro plus two-iMac lab.
 
 The command helpers below remain useful for debugging and repeatable benchmark
 runs.
