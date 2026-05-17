@@ -39,6 +39,7 @@ struct Options {
     var captureDisplayIndex = 0
     var captureQueueDepth = 8
     var captureMaxInFlightFrames = 0
+    var showCapturedCursor = true
     var tileColumns = 2
     var tileRows = 2
     var tileReuseBuffers = false
@@ -725,7 +726,7 @@ func usage() {
       --source synthetic-nv12
       --source synthetic-static-skip --static-change-every 60
       --source synthetic-nv12-tiled --tile-columns 2 --tile-rows 2 [--tile-reuse-buffers] [--tile-max-inflight-logical-frames 1] [--tile-reset-every-frames 150]
-      --source screen-capture --capture-display-index 0 --capture-queue-depth 8 [--capture-max-in-flight-frames 1]
+      --source screen-capture --capture-display-index 0 --capture-queue-depth 8 [--capture-max-in-flight-frames 1] [--hide-captured-cursor]
       --warmup-frames 20
 
     Reference-informed VideoToolbox options:
@@ -906,6 +907,10 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.captureMaxInFlightFrames = try Int(value()) ?? options.captureMaxInFlightFrames
         } else if arg.hasPrefix("--capture-max-in-flight-frames=") {
             options.captureMaxInFlightFrames = Int(arg.dropFirst("--capture-max-in-flight-frames=".count)) ?? options.captureMaxInFlightFrames
+        } else if arg == "--show-captured-cursor" {
+            options.showCapturedCursor = true
+        } else if arg == "--hide-captured-cursor" {
+            options.showCapturedCursor = false
         } else if arg == "--tile-columns" {
             options.tileColumns = try Int(value()) ?? options.tileColumns
         } else if arg.hasPrefix("--tile-columns=") {
@@ -1425,6 +1430,7 @@ func printRunSummary(options: Options, state: EncoderState, frameCount: Int, sub
     print("sender_queue_depth=\(options.senderQueueDepth)")
     print("capture_queue_depth=\(options.captureQueueDepth)")
     print("capture_max_in_flight_frames=\(options.captureMaxInFlightFrames)")
+    print("show_captured_cursor=\(options.showCapturedCursor ? "on" : "off")")
     print("frames_requested=\(frameCount)")
     print("frames_submitted=\(submittedFrames)")
     print("frames_skipped=\(skippedFrames)")
@@ -1932,7 +1938,7 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
                 configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(options.fps))
                 configuration.queueDepth = options.captureQueueDepth
                 configuration.pixelFormat = kCVPixelFormatType_32BGRA
-                configuration.showsCursor = true
+                configuration.showsCursor = options.showCapturedCursor
                 configuration.capturesAudio = false
 
                 let stream = SCStream(filter: filter, configuration: configuration, delegate: self)

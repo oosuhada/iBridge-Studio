@@ -62,6 +62,13 @@ BITRATE_MBPS="${BITRATE_MBPS:-$DEFAULT_BITRATE_MBPS}"
 SENDER_QUEUE_DEPTH="${SENDER_QUEUE_DEPTH:-$DEFAULT_SENDER_QUEUE_DEPTH}"
 CAPTURE_QUEUE_DEPTH="${CAPTURE_QUEUE_DEPTH:-$DEFAULT_CAPTURE_QUEUE_DEPTH}"
 CAPTURE_MAX_IN_FLIGHT_FRAMES="${CAPTURE_MAX_IN_FLIGHT_FRAMES:-$DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES}"
+CAPTURE_SHOW_CURSOR="${CAPTURE_SHOW_CURSOR:-0}"
+CURSOR_ARGS=()
+if [[ "$CAPTURE_SHOW_CURSOR" == "1" || "$CAPTURE_SHOW_CURSOR" == "true" || "$CAPTURE_SHOW_CURSOR" == "on" ]]; then
+  CURSOR_ARGS=(--show-captured-cursor)
+else
+  CURSOR_ARGS=(--hide-captured-cursor)
+fi
 
 mkdir -p "$RUN_ROOT"
 
@@ -145,6 +152,7 @@ iBridge virtual display sender
 - Resolution/FPS: $RESOLUTION @ $FPS
 - Bitrate: ${BITRATE_MBPS}Mbps
 - Capture max in-flight frames: $CAPTURE_MAX_IN_FLIGHT_FRAMES
+- Captured cursor: $CAPTURE_SHOW_CURSOR
 - Duration: ${DURATION}s
 - Run root: $RUN_ROOT
 
@@ -158,6 +166,7 @@ EOF
   --capture-display-index "$CAPTURE_DISPLAY_INDEX" \
   --capture-queue-depth "$CAPTURE_QUEUE_DEPTH" \
   --capture-max-in-flight-frames "$CAPTURE_MAX_IN_FLIGHT_FRAMES" \
+  "${CURSOR_ARGS[@]}" \
   --resolution "$RESOLUTION" \
   --fps "$FPS" \
   --duration "$DURATION" \
