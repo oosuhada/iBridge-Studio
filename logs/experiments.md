@@ -1035,3 +1035,29 @@ Interpretation:
 
 Artifacts:
 - `benchmarks/runs/2026-05-17_4k60_virtual_motion_comparison.md`
+
+## 2026-05-17 10:12 — immediate 2017 iMac connection probe
+
+Prompt: user asked whether the iMac is immediately connectable and asked to keep working until quality testing is possible.
+
+Commands:
+
+```bash
+scripts/start_2017_imac_receiver_macos.sh
+DURATION=3 PROFILE=lan-4k RECEIVER_IP=169.254.70.114 RUN_ROOT=benchmarks/runs/2026-05-17_4k60_immediate_path_probe scripts/start_ibridge_virtual_capture.sh
+```
+
+Results:
+- Latest receiver was built for `x86_64`, copied to the 2017 iMac, started fullscreen with `--hide-status`, and verified listening on TCP `48320`.
+- Alpha package receiver app now verifies as a universal binary with `x86_64` and `arm64`.
+- BetterDisplay `Virtual 16:9` is visible as physical `3840x2160 @ 60Hz`; current HiDPI UI mode is `1920x1080`.
+- ScreenCaptureKit listed the virtual display as `display_index=1`, `1920x1080`; iBridge requested `3840x2160@60` encode for the stream.
+- Sender requested/submitted/encoded `180/26/26`, failed frames `0`, sender drops `0`, send failures `0`, p95 encode `24.576 ms`, p95 send `3.080 ms`.
+
+Interpretation:
+- The 2017 iMac is immediately connectable now.
+- This is a connection/readiness probe, not a final quality pass.
+- Manual quality testing can start by moving real windows onto BetterDisplay `Virtual 16:9`, while automated text/motion scene placement still needs hardening.
+
+Artifacts:
+- `benchmarks/runs/2026-05-17_4k60_immediate_path_probe/summary.md`

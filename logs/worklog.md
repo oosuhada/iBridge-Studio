@@ -1096,3 +1096,30 @@ Result:
 - With capture backpressure `1`, p95 encode was `19.090 ms`; with no capture backpressure, p95 encode was `52.175 ms`.
 Next:
 - Treat 4K60 as the target profile, but do not claim full smooth 60fps yet. The next product work is an in-app motion/readability test scene and a transport move from TCP correctness mode toward bounded UDP/RTP-style delivery.
+
+## 2026-05-17 10:06 — immediate 2017 iMac 4K60 connection path
+
+Prompt: user asked whether it is immediately connectable to the iMac and insisted work continue until quality testing is possible.
+Changed files:
+- scripts/package_macos_alpha.sh
+- scripts/start_2017_imac_receiver_macos.sh
+- scripts/start_mbp_to_2017_imac_4k60.sh
+- docs/18_ALPHA_RELEASE.md
+- docs/current-work.md
+- logs/worklog.md
+Verification:
+- [x] Built receiver for `x86_64`.
+- [x] Uploaded latest receiver to `gabrieljang@100.89.104.119:~/ibridge-remote/latest/ibridge-receiver-macos`.
+- [x] Started latest receiver fullscreen with `--hide-status`.
+- [x] Verified receiver TCP `48320` on the iMac.
+- [x] Rebuilt alpha package and verified `iBridge Receiver.app` is a universal binary with `x86_64` and `arm64`.
+- [x] `DURATION=3 PROFILE=lan-4k RECEIVER_IP=169.254.70.114 scripts/start_ibridge_virtual_capture.sh`
+Result:
+- The current 2017 iMac path no longer depends on pulling the dirty remote repo.
+- `scripts/start_2017_imac_receiver_macos.sh` deploys and starts the latest Intel receiver binary directly.
+- `scripts/start_mbp_to_2017_imac_4k60.sh` is now the one-command repo path for MBP -> 2017 iMac 4K60.
+Current status:
+- iMac receiver is running and connectable now.
+- BetterDisplay `Virtual 16:9` is visible as physical `3840x2160@60`, currently with HiDPI UI `1920x1080`; sender auto-selects it and requests `3840x2160@60` encode.
+- Short immediate-path probe sent `26/26` encoded frames with 0 send failures.
+- Automated test-window placement still needs more work; manual quality testing can start by moving real windows onto `Virtual 16:9`.
