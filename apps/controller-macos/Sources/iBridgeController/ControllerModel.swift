@@ -84,7 +84,7 @@ final class ControllerModel: ObservableObject {
 
     init() {
         if let state = Self.loadState() {
-            receiverPort = state.receiverPort
+            receiverPort = Self.normalizedReceiverPort(state.receiverPort)
             receiverTitle = state.receiverTitle
             selectedTab = StudioTab(rawValue: state.selectedTab) ?? .sender
             let restoredSessions = state.sessions.map { DisplaySession(stored: $0) }
@@ -667,7 +667,7 @@ final class ControllerModel: ObservableObject {
         return StoredControllerState(
             schemaVersion: StoredControllerState.currentSchemaVersion,
             selectedTab: state.selectedTab,
-            receiverPort: state.receiverPort,
+            receiverPort: normalizedReceiverPort(state.receiverPort),
             receiverTitle: state.receiverTitle,
             sessions: state.sessions
         )
@@ -675,6 +675,10 @@ final class ControllerModel: ObservableObject {
 
     deinit {
         saveStateTask?.cancel()
+    }
+
+    private static func normalizedReceiverPort(_ value: String) -> String {
+        isValidPort(value) ? value : "48320"
     }
 }
 
