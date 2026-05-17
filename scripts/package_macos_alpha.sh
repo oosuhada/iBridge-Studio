@@ -100,9 +100,10 @@ This is an internal alpha package for local testing.
 ## Receiver iMac
 
 Open `iBridge Receiver.app` on the receiver iMac. It listens on TCP `48320`,
-opens a fullscreen borderless receiver window, and hides the debug status
-overlay by default. The receiver app is a universal macOS binary for Apple
-Silicon and Intel iMac receivers.
+opens a standard macOS fullscreen receiver window, and hides the debug status
+overlay by default. Use `Command-F` to toggle fullscreen and `Esc` to leave
+fullscreen. The receiver app is a universal macOS binary for Apple Silicon and
+Intel iMac receivers.
 
 ## Source Mac
 
@@ -133,6 +134,10 @@ Wired high-quality profile:
 - HEVC
 - 80Mbps
 - `PROFILE=lan-4k`
+
+Input relay is enabled by default. The receiver sends mouse and keyboard events
+back to the source Mac over the same iBridge TCP connection. The source Mac may
+ask for Accessibility permission the first time input injection is used.
 
 Example:
 

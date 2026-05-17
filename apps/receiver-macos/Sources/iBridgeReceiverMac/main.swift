@@ -9,6 +9,7 @@ struct Options {
     var fullscreen = false
     var showStatus = true
     var title = "iBridge Receiver"
+    var enableInput = true
 }
 
 struct RuntimeError: Error, CustomStringConvertible {
@@ -61,7 +62,7 @@ func logLine(_ message: String) {
 
 func usage() {
     print("""
-    ibridge-receiver-macos [--port 48320] [--fullscreen] [--hide-status] [--title "iBridge Receiver"]
+    ibridge-receiver-macos [--port 48320] [--fullscreen] [--hide-status] [--disable-input] [--title "iBridge Receiver"]
 
     Receives protocol v0 TCP frames with Annex-B H.264/HEVC payloads and displays
     them with AVSampleBufferDisplayLayer.
@@ -92,6 +93,10 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.fullscreen = true
         } else if arg == "--hide-status" || arg == "--no-hud" {
             options.showStatus = false
+        } else if arg == "--enable-input" {
+            options.enableInput = true
+        } else if arg == "--disable-input" {
+            options.enableInput = false
         } else if arg == "--title" {
             options.title = try value()
         } else if arg.hasPrefix("--title=") {
@@ -401,24 +406,140 @@ func makeSampleBuffer(
     return sampleBuffer
 }
 
+final class ReceiverView: NSView {
+    var inputSink: ((String) -> Void)?
+    var commandSink: ((String) -> Void)?
+
+    override var acceptsFirstResponder: Bool { true }
+    override var canBecomeKeyView: Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.makeFirstResponder(self)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        sendPointer("move", event: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        sendPointer("drag", event: event)
+    }
+
+    override func rightMouseDragged(with event: NSEvent) {
+        sendPointer("drag", event: event)
+    }
+
+    override func otherMouseDragged(with event: NSEvent) {
+        sendPointer("drag", event: event)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        sendPointer("down", event: event)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        sendPointer("down", event: event)
+    }
+
+    override func otherMouseDown(with event: NSEvent) {
+        sendPointer("down", event: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        sendPointer("up", event: event)
+    }
+
+    override func rightMouseUp(with event: NSEvent) {
+        sendPointer("up", event: event)
+    }
+
+    override func otherMouseUp(with event: NSEvent) {
+        sendPointer("up", event: event)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if handleLocalCommand(event) {
+            return
+        }
+        sendKey("down", event: event)
+    }
+
+    override func keyUp(with event: NSEvent) {
+        sendKey("up", event: event)
+    }
+
+    private func sendPointer(_ phase: String, event: NSEvent) {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let local = convert(event.locationInWindow, from: nil)
+        let normalizedX = min(max(local.x / bounds.width, 0), 1)
+        let normalizedY = min(max(1 - (local.y / bounds.height), 0), 1)
+        let button = max(event.buttonNumber, 0)
+        let modifiers = event.modifierFlags.rawValue
+        inputSink?(
+            String(format: "IBRIDGE_INPUT pointer %@ %.6f %.6f %d %llu\n",
+                   phase,
+                   Double(normalizedX),
+                   Double(normalizedY),
+                   button,
+                   modifiers)
+        )
+    }
+
+    private func sendKey(_ phase: String, event: NSEvent) {
+        inputSink?("IBRIDGE_INPUT key \(phase) \(event.keyCode) \(event.modifierFlags.rawValue)\n")
+    }
+
+    private func handleLocalCommand(_ event: NSEvent) -> Bool {
+        let command = event.modifierFlags.contains(.command)
+        if command, event.charactersIgnoringModifiers?.lowercased() == "f" {
+            commandSink?("toggle-fullscreen")
+            return true
+        }
+        if event.keyCode == 53 {
+            commandSink?("exit-fullscreen")
+            return true
+        }
+        return false
+    }
+}
+
 final class ReceiverViewController: NSViewController {
     let displayLayer = AVSampleBufferDisplayLayer()
     private let statusLabel = NSTextField(labelWithString: "Waiting for iBridge stream")
     private let showStatus: Bool
+    private let enableInput: Bool
     private var displayedFrames: UInt64 = 0
+    var inputSink: ((String) -> Void)? {
+        didSet {
+            receiverView?.inputSink = enableInput ? inputSink : nil
+        }
+    }
+    var commandSink: ((String) -> Void)? {
+        didSet {
+            receiverView?.commandSink = commandSink
+        }
+    }
+    private weak var receiverView: ReceiverView?
 
-    init(showStatus: Bool) {
+    init(showStatus: Bool, enableInput: Bool) {
         self.showStatus = showStatus
+        self.enableInput = enableInput
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
         self.showStatus = true
+        self.enableInput = true
         super.init(coder: coder)
     }
 
     override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 720))
+        let receiverView = ReceiverView(frame: NSRect(x: 0, y: 0, width: 1280, height: 720))
+        receiverView.inputSink = enableInput ? inputSink : nil
+        receiverView.commandSink = commandSink
+        self.receiverView = receiverView
+        view = receiverView
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.black.cgColor
 
@@ -478,15 +599,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     init(options: Options) {
         self.options = options
-        self.receiver = ReceiverViewController(showStatus: options.showStatus)
+        self.receiver = ReceiverViewController(showStatus: options.showStatus, enableInput: options.enableInput)
     }
 
     func applicationDidFinishLaunching(_: Notification) {
         let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1280, height: 720)
-        let style: NSWindow.StyleMask = options.fullscreen ? [.borderless] : [.titled, .closable, .miniaturizable, .resizable]
-        let contentRect = options.fullscreen
-            ? screenFrame
-            : NSRect(x: 80, y: 80, width: min(1280, screenFrame.width), height: min(720, screenFrame.height))
+        let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        let contentRect = NSRect(x: 80, y: 80, width: min(1600, screenFrame.width * 0.8), height: min(900, screenFrame.height * 0.8))
         let window = NSWindow(
             contentRect: contentRect,
             styleMask: style,
@@ -495,18 +614,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         window.title = options.title
         window.contentViewController = receiver
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenPrimary]
         if options.fullscreen {
-            window.level = .mainMenu
-            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-            window.isMovable = false
+            DispatchQueue.main.async {
+                window.toggleFullScreen(nil)
+            }
+        } else {
+            window.center()
         }
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
+        window.acceptsMouseMovedEvents = true
         self.window = window
 
         let server = TCPReceiver(port: options.port, viewController: receiver)
         self.server = server
+        receiver.commandSink = { [weak self] command in
+            self?.handleReceiverCommand(command)
+        }
+        receiver.inputSink = { [weak server] line in
+            server?.sendInputLine(line)
+        }
         server.start()
+    }
+
+    private func handleReceiverCommand(_ command: String) {
+        guard let window else { return }
+        switch command {
+        case "toggle-fullscreen":
+            window.toggleFullScreen(nil)
+        case "exit-fullscreen":
+            if window.styleMask.contains(.fullScreen) {
+                window.toggleFullScreen(nil)
+            }
+        default:
+            break
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
@@ -518,6 +661,9 @@ final class TCPReceiver: @unchecked Sendable {
     private let port: Int
     private weak var viewController: ReceiverViewController?
     private let queue = DispatchQueue(label: "iBridgeReceiverMac.TCPReceiver")
+    private let sendQueue = DispatchQueue(label: "iBridgeReceiverMac.InputSender")
+    private let activeClientLock = NSLock()
+    private var activeClientFD: Int32?
 
     init(port: Int, viewController: ReceiverViewController) {
         self.port = port
@@ -532,6 +678,28 @@ final class TCPReceiver: @unchecked Sendable {
             } catch {
                 self.viewController?.setStatus("receiver error: \(error)")
                 logError("receiver error: \(error)")
+            }
+        }
+    }
+
+    func sendInputLine(_ line: String) {
+        activeClientLock.lock()
+        let fd = activeClientFD
+        activeClientLock.unlock()
+        guard let fd else { return }
+        let data = Data(line.utf8)
+        sendQueue.async {
+            data.withUnsafeBytes { rawBuffer in
+                guard let base = rawBuffer.baseAddress else { return }
+                var sent = 0
+                while sent < rawBuffer.count {
+                    let result = Darwin.send(fd, base.advanced(by: sent), rawBuffer.count - sent, 0)
+                    if result <= 0 {
+                        logLine("input_send_failed errno=\(errno)")
+                        return
+                    }
+                    sent += result
+                }
             }
         }
     }
@@ -573,7 +741,15 @@ final class TCPReceiver: @unchecked Sendable {
                 if errno == EINTR { continue }
                 throw RuntimeError("accept failed: errno \(errno)")
             }
+            activeClientLock.lock()
+            activeClientFD = clientFD
+            activeClientLock.unlock()
             handleClient(clientFD)
+            activeClientLock.lock()
+            if activeClientFD == clientFD {
+                activeClientFD = nil
+            }
+            activeClientLock.unlock()
             close(clientFD)
         }
     }

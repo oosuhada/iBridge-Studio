@@ -47,6 +47,7 @@ struct Options {
     var tileSegmentHints = false
     var warmupFrames = 0
     var senderQueueDepth = 4
+    var enableInput = true
     var listEncoders = false
     var listDisplays = false
     var printSupportedProperties = false
@@ -71,6 +72,79 @@ struct EncodedFrame {
     let status: OSStatus
 }
 
+final class InputEventInjector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var targetFrame = CGRect(origin: .zero, size: CGSize(width: 1, height: 1))
+
+    func setTargetDisplay(displayID: CGDirectDisplayID) {
+        lock.lock()
+        targetFrame = CGDisplayBounds(displayID)
+        lock.unlock()
+        fputs("input_target_display_id=\(displayID) frame=\(targetFrame)\n", stderr)
+    }
+
+    func handleLine(_ line: String) {
+        let parts = line.split(separator: " ")
+        guard parts.first == "IBRIDGE_INPUT", parts.count >= 3 else { return }
+        switch parts[1] {
+        case "pointer":
+            handlePointer(parts)
+        case "key":
+            handleKey(parts)
+        default:
+            return
+        }
+    }
+
+    private func handlePointer(_ parts: [Substring]) {
+        guard parts.count >= 7,
+              let x = Double(parts[3]),
+              let y = Double(parts[4]),
+              let button = Int(parts[5]) else {
+            return
+        }
+        let phase = parts[2]
+        let frame: CGRect = {
+            lock.lock()
+            defer { lock.unlock() }
+            return targetFrame
+        }()
+        let location = CGPoint(
+            x: frame.minX + frame.width * x,
+            y: frame.minY + frame.height * y
+        )
+        let eventType: CGEventType
+        let mouseButton: CGMouseButton
+        switch button {
+        case 1:
+            mouseButton = .right
+            eventType = phase == "down" ? .rightMouseDown : phase == "up" ? .rightMouseUp : .rightMouseDragged
+        case 2:
+            mouseButton = .center
+            eventType = phase == "down" ? .otherMouseDown : phase == "up" ? .otherMouseUp : .otherMouseDragged
+        default:
+            mouseButton = .left
+            eventType = phase == "down" ? .leftMouseDown : phase == "up" ? .leftMouseUp : phase == "move" ? .mouseMoved : .leftMouseDragged
+        }
+        guard let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: mouseButton) else {
+            return
+        }
+        event.post(tap: .cghidEventTap)
+    }
+
+    private func handleKey(_ parts: [Substring]) {
+        guard parts.count >= 5,
+              let keyCodeValue = UInt16(parts[3]) else {
+            return
+        }
+        let isDown = parts[2] == "down"
+        guard let event = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(keyCodeValue), keyDown: isDown) else {
+            return
+        }
+        event.post(tap: .cghidEventTap)
+    }
+}
+
 final class EncoderState {
     private let lock = NSLock()
     private var timings: [Int: FrameTiming] = [:]
@@ -79,6 +153,7 @@ final class EncoderState {
     let payloadFormat: String
     let onFrameFinished: ((EncodedFrame) -> Void)?
     var sender: AsyncTcpFrameSender?
+    var inputInjector: InputEventInjector?
 
     init(codec: String, payloadFormat: String, onFrameFinished: ((EncodedFrame) -> Void)? = nil) {
         self.codec = codec
@@ -260,6 +335,7 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
     private let workerGroup = DispatchGroup()
     private let onSent: (UInt64, Double, Int, Double, UInt32, Bool) -> Void
     private let onDropped: (UInt64) -> Void
+    private let inputInjector: InputEventInjector?
 
     init(
         host: String,
@@ -269,6 +345,7 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         fps: Int,
         codec: String,
         maxDepth: Int,
+        inputInjector: InputEventInjector?,
         onSent: @escaping (UInt64, Double, Int, Double, UInt32, Bool) -> Void,
         onDropped: @escaping (UInt64) -> Void
     ) throws {
@@ -280,6 +357,7 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         self.sessionID = UInt64.random(in: 1...UInt64.max)
         self.onSent = onSent
         self.onDropped = onDropped
+        self.inputInjector = inputInjector
 
         fd = socket(AF_INET, SOCK_STREAM, 0)
         guard fd >= 0 else {
@@ -329,6 +407,12 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         workerQueue.async { [weak self] in
             self?.runWorker()
             self?.workerGroup.leave()
+        }
+
+        if inputInjector != nil {
+            DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+                self?.runInputReader()
+            }
         }
     }
 
@@ -439,6 +523,30 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
                     throw RuntimeError("send failed")
                 }
                 sent += result
+            }
+        }
+    }
+
+    private func runInputReader() {
+        var data = Data()
+        var byte: UInt8 = 0
+        while true {
+            let count = Darwin.recv(fd, &byte, 1, 0)
+            if count == 0 {
+                return
+            }
+            if count < 0 {
+                if errno == EINTR { continue }
+                return
+            }
+            if byte == UInt8(ascii: "\n") {
+                let line = String(decoding: data, as: UTF8.self)
+                data.removeAll(keepingCapacity: true)
+                inputInjector?.handleLine(line)
+            } else if data.count < 4096 {
+                data.append(byte)
+            } else {
+                data.removeAll(keepingCapacity: true)
             }
         }
     }
@@ -625,6 +733,7 @@ func usage() {
       --payload-format length-prefixed|annex-b
       --tile-segment-hints
       --tile-reset-stagger-frames 30
+      --enable-input | --disable-input
     """)
 }
 
@@ -720,6 +829,10 @@ func parseOptions(_ args: [String]) throws -> Options {
             options.senderQueueDepth = try Int(value()) ?? options.senderQueueDepth
         } else if arg.hasPrefix("--sender-queue-depth=") {
             options.senderQueueDepth = Int(arg.dropFirst("--sender-queue-depth=".count)) ?? options.senderQueueDepth
+        } else if arg == "--enable-input" {
+            options.enableInput = true
+        } else if arg == "--disable-input" {
+            options.enableInput = false
         } else if arg == "--max-keyframe-interval" {
             options.maxKeyFrameInterval = try Int(value()) ?? options.maxKeyFrameInterval
         } else if arg.hasPrefix("--max-keyframe-interval=") {
@@ -1177,6 +1290,9 @@ func makeState(options: Options, onFrameFinished: ((EncodedFrame) -> Void)? = ni
         payloadFormat: options.payloadFormat,
         onFrameFinished: onFrameFinished
     )
+    if options.enableInput {
+        state.inputInjector = InputEventInjector()
+    }
     if !options.sendHost.isEmpty {
         state.sender = try AsyncTcpFrameSender(
             host: options.sendHost,
@@ -1186,6 +1302,7 @@ func makeState(options: Options, onFrameFinished: ((EncodedFrame) -> Void)? = ni
             fps: options.fps,
             codec: options.codec,
             maxDepth: options.senderQueueDepth,
+            inputInjector: state.inputInjector,
             onSent: { [weak state] frameID, sendMS, bytesSent, frameAgeAtSendMS, droppedBefore, failed in
                 state?.recordSend(
                     frameID: frameID,
@@ -1292,6 +1409,7 @@ func printRunSummary(options: Options, state: EncoderState, frameCount: Int, sub
     print("source_frame_count=\(options.sourceFrameCount.map(String.init) ?? "unset")")
     print("max_frame_delay_count=\(options.maxFrameDelayCount.map(String.init) ?? "unset")")
     print("payload_format=\(options.payloadFormat)")
+    print("input_relay=\(options.enableInput ? "on" : "off")")
     print("static_change_every=\(options.staticChangeEvery)")
     print("max_keyframe_interval=\(options.maxKeyFrameInterval)")
     print(String(format: "max_keyframe_interval_duration=%.3f", options.maxKeyFrameIntervalDuration))
@@ -1797,6 +1915,7 @@ final class ScreenCaptureEncodeRunner: NSObject, SCStreamOutput, SCStreamDelegat
                     throw RuntimeError("capture display index \(options.captureDisplayIndex) out of range; displays=\(content.displays.count)")
                 }
                 let display = content.displays[options.captureDisplayIndex]
+                self.state.inputInjector?.setTargetDisplay(displayID: display.displayID)
                 let filter = SCContentFilter(display: display, excludingWindows: [])
                 let configuration = SCStreamConfiguration()
                 configuration.width = options.width

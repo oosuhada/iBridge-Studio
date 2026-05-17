@@ -130,6 +130,8 @@ Build and measure the macOS Primary -> Windows iMac Receiver path for using a 20
 - Current one-command MBP -> 2017 iMac 4K60 path is `scripts/start_mbp_to_2017_imac_4k60.sh`.
 - Alpha package now builds `iBridge Receiver.app` as a universal macOS binary (`x86_64` + `arm64`) so it can run on Intel iMac receivers.
 - Current immediate 4K60 probe confirms the 2017 iMac receiver is connectable now. BetterDisplay `Virtual 16:9` is physical `3840x2160@60` with HiDPI UI `1920x1080`; ScreenCaptureKit lists it as `1920x1080`, and iBridge requests `3840x2160@60` encode for the stream.
+- Receiver UI/input MVP is now implemented. The macOS receiver uses a standard resizable/fullscreen window instead of a borderless-only window, supports `Command-F` fullscreen toggle and `Esc` fullscreen exit, and captures pointer/key events over the receiver surface. The primary sender listens for those events on the existing TCP connection and injects them into the captured display with `CGEvent`; source-side Accessibility permission is required for real input relay.
+- Latest 2017 iMac deployment/smoke after the input MVP passed: receiver restarted on TCP `48320`, `DURATION=3 scripts/start_mbp_to_2017_imac_4k60.sh` connected with `input_relay=on`, encoded `23/180` changed frames with 0 send failures, and receiver logged `23` frames. Physical click/key verification on the iMac is still pending.
 
 ## Files Likely Relevant Next
 
