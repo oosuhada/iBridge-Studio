@@ -5,7 +5,7 @@ let repoRoot: URL = {
     let fileManager = FileManager.default
 
     if Bundle.main.bundleURL.pathExtension == "app" {
-        return Bundle.main.bundleURL.deletingLastPathComponent()
+        return Bundle.main.resourceURL ?? Bundle.main.bundleURL.deletingLastPathComponent()
     }
 
     var candidate = URL(fileURLWithPath: fileManager.currentDirectoryPath, isDirectory: true)
