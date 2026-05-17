@@ -78,11 +78,13 @@ struct EncodedFrame {
 final class InputEventInjector: @unchecked Sendable {
     private let lock = NSLock()
     private var targetFrame = CGRect(origin: .zero, size: CGSize(width: 1, height: 1))
+    private var targetDisplayReady = false
     private var receivedEventCount = 0
 
     func setTargetDisplay(displayID: CGDirectDisplayID) {
         lock.lock()
         targetFrame = CGDisplayBounds(displayID)
+        targetDisplayReady = true
         lock.unlock()
         fputs("input_target_display_id=\(displayID) frame=\(targetFrame)\n", stderr)
         let promptOptions = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
@@ -146,6 +148,22 @@ final class InputEventInjector: @unchecked Sendable {
             event.flags = CGEventFlags(rawValue: modifierRaw)
         }
         event.post(tap: .cghidEventTap)
+    }
+
+    func cursorOverlayPayload() -> Data? {
+        let snapshot: (CGRect, Bool) = {
+            lock.lock()
+            defer { lock.unlock() }
+            return (targetFrame, targetDisplayReady)
+        }()
+        guard snapshot.1 else { return nil }
+        let frame = snapshot.0
+        guard frame.width > 0, frame.height > 0 else { return nil }
+        let location = CGEvent(source: nil)?.location ?? NSEvent.mouseLocation
+        let visible = frame.contains(location)
+        let normalizedX = visible ? min(max((location.x - frame.minX) / frame.width, 0), 1) : 0
+        let normalizedY = visible ? min(max((location.y - frame.minY) / frame.height, 0), 1) : 0
+        return Data(String(format: "%.6f %.6f %d\n", Double(normalizedX), Double(normalizedY), visible ? 1 : 0).utf8)
     }
 
     private func handleScroll(_ parts: [Substring]) {
@@ -345,8 +363,10 @@ enum ProtocolV0 {
     static let version = UInt16(0)
     static let headerLen = UInt16(80)
     static let colorNV12 = UInt8(1)
+    static let codecCursorOverlay = UInt8(250)
     static let flagKeyframe = UInt32(1 << 0)
     static let flagEndOfFrame = UInt32(1 << 2)
+    static let flagCursorOverlay = UInt32(1 << 8)
 }
 
 struct QueuedFrame {
@@ -389,9 +409,11 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
     private var stopping = false
     private let workerQueue = DispatchQueue(label: "iBridgePrimary.AsyncTcpFrameSender")
     private let workerGroup = DispatchGroup()
+    private let sendLock = NSLock()
     private let onSent: (UInt64, Double, Int, Double, UInt32, Bool) -> Void
     private let onDropped: (UInt64) -> Void
     private let inputInjector: InputEventInjector?
+    private let cursorOverlayEnabled: Bool
 
     init(
         host: String,
@@ -402,6 +424,7 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         codec: String,
         maxDepth: Int,
         inputInjector: InputEventInjector?,
+        cursorOverlayEnabled: Bool,
         onSent: @escaping (UInt64, Double, Int, Double, UInt32, Bool) -> Void,
         onDropped: @escaping (UInt64) -> Void
     ) throws {
@@ -414,6 +437,7 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         self.onSent = onSent
         self.onDropped = onDropped
         self.inputInjector = inputInjector
+        self.cursorOverlayEnabled = cursorOverlayEnabled
 
         fd = socket(AF_INET, SOCK_STREAM, 0)
         guard fd >= 0 else {
@@ -468,6 +492,11 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         if inputInjector != nil {
             DispatchQueue.global(qos: .userInteractive).async { [weak self] in
                 self?.runInputReader()
+            }
+        }
+        if cursorOverlayEnabled, inputInjector != nil {
+            DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+                self?.runCursorOverlayWorker()
             }
         }
     }
@@ -569,7 +598,36 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
         return packet.count
     }
 
+    private func sendCursorOverlayPacket(payload: Data) throws {
+        var packet = Data()
+        let now = DispatchTime.now().uptimeNanoseconds
+        appendLE(&packet, ProtocolV0.magic)
+        appendLE(&packet, ProtocolV0.version)
+        appendLE(&packet, ProtocolV0.headerLen)
+        appendLE(&packet, sessionID)
+        appendLE(&packet, UInt64(0))
+        appendLE(&packet, UInt16(0))
+        appendLE(&packet, UInt16(1))
+        appendLE(&packet, UInt16(max(1, min(width, Int(UInt16.max)))))
+        appendLE(&packet, UInt16(max(1, min(height, Int(UInt16.max)))))
+        appendLE(&packet, UInt16(max(1, min(fps, Int(UInt16.max)))))
+        packet.append(ProtocolV0.codecCursorOverlay)
+        packet.append(ProtocolV0.colorNV12)
+        appendLE(&packet, ProtocolV0.flagCursorOverlay | ProtocolV0.flagEndOfFrame)
+        appendLE(&packet, now)
+        appendLE(&packet, now)
+        appendLE(&packet, now)
+        appendLE(&packet, now)
+        appendLE(&packet, UInt32(payload.count))
+        appendLE(&packet, droppedFrameCount)
+        precondition(packet.count == Int(ProtocolV0.headerLen))
+        packet.append(payload)
+        try sendAll(packet)
+    }
+
     private func sendAll(_ data: Data) throws {
+        sendLock.lock()
+        defer { sendLock.unlock() }
         try data.withUnsafeBytes { rawBuffer in
             guard let base = rawBuffer.baseAddress else { return }
             var sent = 0
@@ -580,6 +638,29 @@ final class AsyncTcpFrameSender: @unchecked Sendable {
                 }
                 sent += result
             }
+        }
+    }
+
+    private func isStopping() -> Bool {
+        condition.lock()
+        let value = stopping
+        condition.unlock()
+        return value
+    }
+
+    private func runCursorOverlayWorker() {
+        var lastPayload = Data()
+        while !isStopping() {
+            if let payload = inputInjector?.cursorOverlayPayload(), payload != lastPayload {
+                do {
+                    try sendCursorOverlayPacket(payload: payload)
+                    lastPayload = payload
+                } catch {
+                    fputs("cursor overlay send failed: \(error)\n", stderr)
+                    return
+                }
+            }
+            usleep(8_333)
         }
     }
 
@@ -1376,6 +1457,7 @@ func makeState(options: Options, onFrameFinished: ((EncodedFrame) -> Void)? = ni
             codec: options.codec,
             maxDepth: options.senderQueueDepth,
             inputInjector: state.inputInjector,
+            cursorOverlayEnabled: options.screenCapture && !options.showCapturedCursor,
             onSent: { [weak state] frameID, sendMS, bytesSent, frameAgeAtSendMS, droppedBefore, failed in
                 state?.recordSend(
                     frameID: frameID,

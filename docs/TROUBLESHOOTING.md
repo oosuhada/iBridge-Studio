@@ -37,11 +37,10 @@ iMac Receiver may need:
 
 After changing permissions, quit and reopen iBridge Studio.
 
-## Universal Control cursor moves but clicks do not affect the virtual display
+## Cursor moves but clicks do not affect the virtual display
 
-- Use `Universal Control Relay` cursor mode on the Sender card.
+- Use `iBridge Cursor Overlay` cursor mode on the Sender card.
 - Keep the BetterDisplay virtual display arranged next to the MacBook display so MacBook windows can move onto it.
-- Keep the real iMac arranged for Universal Control so the local cursor can enter the iMac receiver window.
 - Grant Accessibility permission on both Macs:
   - MacBook: `iBridge Studio.app` posts the relayed click/drag/scroll/key events into the virtual display.
   - iMac: `iBridge Studio.app` observes receiver-window mouse events and sends them back to the MacBook.
