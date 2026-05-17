@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${VERSION:-0.1.0-alpha}"
+VERSION="${VERSION:-0.1.1-alpha}"
 DIST_ROOT="${DIST_ROOT:-dist}"
+CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}"
 PACKAGE_ROOT="$DIST_ROOT/iBridge-Studio-$VERSION"
 CONTROL_APP="$PACKAGE_ROOT/iBridge Studio.app"
 CONTROL_RESOURCES="$CONTROL_APP/Contents/Resources"
@@ -97,6 +98,25 @@ PY
 
 make_icon "iBridgeControl" "$CONTROL_APP/Contents/Resources"
 
+copy_if_present() {
+  local source="$1"
+  local destination="$2"
+  if [[ -f "$source" ]]; then
+    cp "$source" "$destination"
+  else
+    echo "warning: optional package file missing: $source" >&2
+  fi
+}
+
+chmod_if_present() {
+  local path
+  for path in "$@"; do
+    if [[ -e "$path" ]]; then
+      chmod +x "$path"
+    fi
+  done
+}
+
 swift build --package-path apps/primary-macos -c release --arch arm64
 swift build --package-path apps/primary-macos -c release --arch x86_64
 swift build --package-path apps/controller-macos -c release --arch arm64
@@ -111,22 +131,19 @@ cp "$CONTROL_UNIVERSAL_BIN" "$CONTROL_APP/Contents/MacOS/iBridgeControl"
 cp "$PRIMARY_UNIVERSAL_BIN" "$PACKAGE_ROOT/bin/ibridge-primary"
 cp "$PRIMARY_UNIVERSAL_BIN" "$CONTROL_RESOURCES/bin/ibridge-primary"
 cp "$RECEIVER_UNIVERSAL_BIN" "$CONTROL_RESOURCES/bin/ibridge-receiver-macos-universal"
-cp scripts/start_ibridge_virtual_capture.sh "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh"
-cp scripts/start_2017_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2017_imac_receiver_macos.sh"
-cp scripts/start_mbp_to_2017_imac_4k60.sh "$PACKAGE_ROOT/scripts/start_mbp_to_2017_imac_4k60.sh"
-cp scripts/start_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2015_imac_receiver_macos.sh"
-cp scripts/stop_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh"
-cp scripts/resolve_receiver_ip.sh "$PACKAGE_ROOT/scripts/resolve_receiver_ip.sh"
-cp scripts/wake_receiver.sh "$PACKAGE_ROOT/scripts/wake_receiver.sh"
-cp scripts/repair_system_settings.sh "$PACKAGE_ROOT/scripts/repair_system_settings.sh"
-cp scripts/start_ibridge_virtual_capture.sh "$CONTROL_RESOURCES/scripts/start_ibridge_virtual_capture.sh"
-cp scripts/start_2017_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/start_2017_imac_receiver_macos.sh"
-cp scripts/start_mbp_to_2017_imac_4k60.sh "$CONTROL_RESOURCES/scripts/start_mbp_to_2017_imac_4k60.sh"
-cp scripts/start_2015_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/start_2015_imac_receiver_macos.sh"
-cp scripts/stop_2015_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/stop_2015_imac_receiver_macos.sh"
-cp scripts/resolve_receiver_ip.sh "$CONTROL_RESOURCES/scripts/resolve_receiver_ip.sh"
-cp scripts/wake_receiver.sh "$CONTROL_RESOURCES/scripts/wake_receiver.sh"
-cp scripts/repair_system_settings.sh "$CONTROL_RESOURCES/scripts/repair_system_settings.sh"
+for script in \
+  start_ibridge_virtual_capture.sh \
+  start_2017_imac_receiver_macos.sh \
+  start_mbp_to_2017_imac_4k60.sh \
+  start_2015_imac_receiver_macos.sh \
+  stop_2015_imac_receiver_macos.sh \
+  resolve_receiver_ip.sh \
+  wake_receiver.sh \
+  repair_system_settings.sh
+do
+  copy_if_present "scripts/$script" "$PACKAGE_ROOT/scripts/$script"
+  copy_if_present "scripts/$script" "$CONTROL_RESOURCES/scripts/$script"
+done
 if [[ -f docs/18_ALPHA_RELEASE.md ]]; then
   cp docs/18_ALPHA_RELEASE.md "$PACKAGE_ROOT/docs/18_ALPHA_RELEASE.md"
   cp docs/18_ALPHA_RELEASE.md "$CONTROL_RESOURCES/docs/18_ALPHA_RELEASE.md"
@@ -159,6 +176,19 @@ cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
   <string>$VERSION</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>Copyright 2026 iBridge Studio contributors.</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>iBridge Studio captures the selected virtual display so it can stream that display to a receiver Mac.</string>
+  <key>NSAccessibilityUsageDescription</key>
+  <string>iBridge Studio uses accessibility access to restore windows and relay keyboard or pointer input between Macs.</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>iBridge Studio connects to receiver Macs on your local network.</string>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
   <key>NSHighResolutionCapable</key>
   <true/>
 </dict>
@@ -194,7 +224,7 @@ SCRIPT
 cp README.md "$PACKAGE_ROOT/README.md"
 cp README.md "$CONTROL_RESOURCES/README.md"
 
-chmod +x \
+chmod_if_present \
   "$CONTROL_APP/Contents/MacOS/iBridgeControl" \
   "$PACKAGE_ROOT/bin/iBridgeController-universal" \
   "$PACKAGE_ROOT/bin/ibridge-primary-universal" \
@@ -222,9 +252,21 @@ chmod +x \
   "$PACKAGE_ROOT/Start iBridge Studio LAN High Quality.command" \
   "$PACKAGE_ROOT/Start iBridge Studio 4K60.command"
 
-codesign --force --deep --sign - "$CONTROL_APP" >/dev/null 2>&1 || true
+if [[ "$CODE_SIGN_IDENTITY" == "-" ]]; then
+  codesign --force --deep --sign - "$CONTROL_APP"
+else
+  codesign --force --deep --options runtime --timestamp --sign "$CODE_SIGN_IDENTITY" "$CONTROL_APP"
+fi
 
 (cd "$DIST_ROOT" && ditto -c -k --sequesterRsrc --keepParent "iBridge-Studio-$VERSION" "iBridge-Studio-$VERSION.zip")
+
+if [[ "$CODE_SIGN_IDENTITY" != "-" ]]; then
+  cat <<EOF
+Signed with Developer ID identity: $CODE_SIGN_IDENTITY
+Submit the zip for notarization with:
+  xcrun notarytool submit "$DIST_ROOT/iBridge-Studio-$VERSION.zip" --keychain-profile <profile> --wait
+EOF
+fi
 
 echo "$PACKAGE_ROOT"
 echo "$DIST_ROOT/iBridge-Studio-$VERSION.zip"

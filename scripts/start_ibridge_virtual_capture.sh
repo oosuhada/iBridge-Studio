@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROFILE="${PROFILE:-balanced}"
-RECEIVER_IP="${RECEIVER_IP:-169.254.70.114}"
+RECEIVER_IP="${RECEIVER_IP:-}"
 RECEIVER_PORT="${RECEIVER_PORT:-48320}"
 DURATION="${DURATION:-3600}"
 CAPTURE_DISPLAY_INDEX="${CAPTURE_DISPLAY_INDEX:-auto}"
@@ -73,10 +73,22 @@ CAPTURE_QUEUE_DEPTH="${CAPTURE_QUEUE_DEPTH:-$DEFAULT_CAPTURE_QUEUE_DEPTH}"
 CAPTURE_MAX_IN_FLIGHT_FRAMES="${CAPTURE_MAX_IN_FLIGHT_FRAMES:-$DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES}"
 CAPTURE_SHOW_CURSOR="${CAPTURE_SHOW_CURSOR:-0}"
 CURSOR_ARGS=()
-if [[ "$CAPTURE_SHOW_CURSOR" == "1" || "$CAPTURE_SHOW_CURSOR" == "true" || "$CAPTURE_SHOW_CURSOR" == "on" ]]; then
-  CURSOR_ARGS=(--show-captured-cursor)
-else
-  CURSOR_ARGS=(--hide-captured-cursor)
+case "$CAPTURE_SHOW_CURSOR" in
+  1|true|on|captured)
+    CURSOR_ARGS=(--show-captured-cursor)
+    ;;
+  0|universal-control|2|hidden|false|off)
+    CURSOR_ARGS=(--hide-captured-cursor)
+    ;;
+  *)
+    echo "Unknown CAPTURE_SHOW_CURSOR=$CAPTURE_SHOW_CURSOR. Use 0/universal-control, 1/captured, or 2/hidden." >&2
+    exit 64
+    ;;
+esac
+
+if [[ -z "$RECEIVER_IP" ]]; then
+  echo "Set RECEIVER_IP to the receiver iMac IP, or configure Discovery host in iBridge Studio." >&2
+  exit 64
 fi
 
 mkdir -p "$RUN_ROOT"

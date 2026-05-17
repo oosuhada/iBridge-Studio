@@ -60,48 +60,6 @@ enum StudioTab: String, CaseIterable, Identifiable {
 
 let presets: [ReceiverPreset] = [
     ReceiverPreset(
-        id: "imac-2015-quality",
-        name: "2015 iMac 5K Quality",
-        category: "Lab",
-        receiverIP: "169.254.99.112",
-        discoveryHost: "oosu@169.254.99.112",
-        displayName: "iMac 27inch 2015",
-        profile: "lan-60hz",
-        resolution: "5120x2880",
-        bitrateMbps: "280",
-        duration: "600",
-        receiverScript: "scripts/start_2015_imac_receiver_macos.sh",
-        receiverKey: "$HOME/.ssh/id_ed25519"
-    ),
-    ReceiverPreset(
-        id: "imac-2015-smooth",
-        name: "2015 iMac Smooth",
-        category: "Lab",
-        receiverIP: "169.254.99.112",
-        discoveryHost: "oosu@169.254.99.112",
-        displayName: "iMac 27inch 2015",
-        profile: "lan-60hz",
-        resolution: "2560x1440",
-        bitrateMbps: "80",
-        duration: "600",
-        receiverScript: "scripts/start_2015_imac_receiver_macos.sh",
-        receiverKey: "$HOME/.ssh/id_ed25519"
-    ),
-    ReceiverPreset(
-        id: "imac-2017-quality",
-        name: "2017 iMac 4K Quality",
-        category: "Lab",
-        receiverIP: "169.254.164.193",
-        discoveryHost: "gabrieljang@100.89.104.119",
-        displayName: "iMac 21.5inch 2017",
-        profile: "imac4k-quality",
-        resolution: "4096x2304",
-        bitrateMbps: "220",
-        duration: "600",
-        receiverScript: "scripts/start_2017_imac_receiver_macos.sh",
-        receiverKey: ""
-    ),
-    ReceiverPreset(
         id: "imac-27-5k-2014",
         name: "iMac 27-inch 5K Late 2014",
         category: "Retina iMacs",
@@ -271,7 +229,7 @@ let presets: [ReceiverPreset] = [
     )
 ]
 
-let presetCategoryOrder = ["Lab", "Retina iMacs", "Apple Silicon iMacs"]
+let presetCategoryOrder = ["Retina iMacs", "Apple Silicon iMacs"]
 
 func presets(in category: String) -> [ReceiverPreset] {
     presets.filter { $0.category == category }
@@ -302,9 +260,9 @@ let durationOptions = [
 ]
 
 let cursorOptions = [
-    ValueOption(id: "universal-control", title: "Universal Control Relay", value: "1"),
+    ValueOption(id: "universal-control", title: "Universal Control Relay", value: "0"),
     ValueOption(id: "captured", title: "Show Captured Cursor", value: "1"),
-    ValueOption(id: "hidden", title: "Hide Captured Cursor", value: "0")
+    ValueOption(id: "hidden", title: "Hide Captured Cursor", value: "2")
 ]
 
 @MainActor
@@ -447,49 +405,58 @@ struct StoredDisplaySession: Codable {
 }
 
 struct StoredControllerState: Codable {
+    static let currentSchemaVersion = 2
+
+    let schemaVersion: Int
     let selectedTab: String
     let receiverPort: String
     let receiverTitle: String
     let sessions: [StoredDisplaySession]
+
+    init(
+        schemaVersion: Int = Self.currentSchemaVersion,
+        selectedTab: String,
+        receiverPort: String,
+        receiverTitle: String,
+        sessions: [StoredDisplaySession]
+    ) {
+        self.schemaVersion = schemaVersion
+        self.selectedTab = selectedTab
+        self.receiverPort = receiverPort
+        self.receiverTitle = receiverTitle
+        self.sessions = sessions
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case selectedTab
+        case receiverPort
+        case receiverTitle
+        case sessions
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        selectedTab = try container.decode(String.self, forKey: .selectedTab)
+        receiverPort = try container.decode(String.self, forKey: .receiverPort)
+        receiverTitle = try container.decode(String.self, forKey: .receiverTitle)
+        sessions = try container.decode([StoredDisplaySession].self, forKey: .sessions)
+    }
 }
 
 private func defaultDiscoveryHost(displayName: String, receiverIP: String, receiverScript: String) -> String {
-    let lowerDisplay = displayName.lowercased()
-    let lowerScript = receiverScript.lowercased()
-    if lowerDisplay.contains("2017") || lowerScript.contains("2017") {
-        return "gabrieljang@100.89.104.119"
-    }
-    if lowerDisplay.contains("2015") || lowerScript.contains("2015") {
-        return receiverIP.isEmpty ? "" : "oosu@\(receiverIP)"
-    }
     return ""
 }
 
 private func resolvedReceiverIP(displayName: String, receiverIP: String) -> String {
-    if displayName.lowercased().contains("2017"), receiverIP == "169.254.70.114" {
-        return "169.254.164.193"
-    }
     return receiverIP
 }
 
 private func defaultWakeMAC(displayName: String) -> String {
-    let lowerDisplay = displayName.lowercased()
-    if lowerDisplay.contains("2017") {
-        return "a8:be:27:c1:7c:56"
-    }
-    if lowerDisplay.contains("2015") {
-        return "a8:60:b6:1f:a9:be"
-    }
     return ""
 }
 
 private func defaultWakeBroadcast(displayName: String) -> String {
-    let lowerDisplay = displayName.lowercased()
-    if lowerDisplay.contains("2017") {
-        return "192.168.31.255 169.254.255.255"
-    }
-    if lowerDisplay.contains("2015") {
-        return "169.254.255.255 192.168.31.255"
-    }
     return "255.255.255.255"
 }

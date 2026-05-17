@@ -67,10 +67,25 @@ struct ReceiverTab: View {
                 }
                 .textFieldStyle(.roundedBorder)
 
-                Button {
-                    model.startLocalReceiver()
-                } label: {
-                    Label("Start Receiver on This Mac", systemImage: "play.rectangle")
+                HStack(spacing: 8) {
+                    StatusPill(
+                        title: model.localReceiverRunning ? "Listening on :\(model.receiverPort)" : "Stopped",
+                        color: model.localReceiverRunning ? .green : .gray
+                    )
+
+                    if model.localReceiverRunning {
+                        Button(role: .destructive) {
+                            model.stopLocalReceiver()
+                        } label: {
+                            Label("Stop Receiver", systemImage: "stop.fill")
+                        }
+                    } else {
+                        Button {
+                            model.startLocalReceiver()
+                        } label: {
+                            Label("Start Receiver on This Mac", systemImage: "play.rectangle")
+                        }
+                    }
                 }
 
                 Button {
@@ -88,6 +103,10 @@ struct ReceiverTab: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Remote iMacs")
                     .font(.headline)
+
+                Text("Remote targets currently reuse Sender sessions. TODO: split SenderConfig and ReceiverTarget when receiver-only options grow.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 ForEach(model.sessions) { session in
                     remoteReceiverRow(session)
@@ -141,6 +160,11 @@ struct ReceiverTab: View {
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
                 .truncationMode(.middle)
+            if let startedAt = model.remoteReceiverLastStartedAt[session.id] {
+                Text("Last start: \(startedAt.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

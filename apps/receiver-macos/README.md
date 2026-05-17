@@ -36,7 +36,7 @@ apps/primary-macos/.build/release/ibridge-primary \
   --disable-frame-reordering \
   --disable-open-gop \
   --payload-format annex-b \
-  --send-host 169.254.70.114 \
+  --send-host <receiver-ip> \
   --send-port 48320
 ```
 
