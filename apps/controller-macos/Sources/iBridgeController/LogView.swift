@@ -3,6 +3,8 @@ import SwiftUI
 
 struct LogTab: View {
     @EnvironmentObject private var model: ControllerModel
+    @State private var selectedLevel = "All"
+    @State private var selectedSession = "All"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -17,11 +19,35 @@ struct LogTab: View {
 
                 Spacer()
 
+                Picker("Level", selection: $selectedLevel) {
+                    Text("All Levels").tag("All")
+                    ForEach(LogLevel.allCases) { level in
+                        Text(level.rawValue).tag(level.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 130)
+
+                Picker("Session", selection: $selectedSession) {
+                    Text("All Sessions").tag("All")
+                    ForEach(model.sessions) { session in
+                        Text(session.name).tag(session.name)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 180)
+
                 Button {
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(model.logText, forType: .string)
+                    NSPasteboard.general.setString(filteredText, forType: .string)
                 } label: {
                     Label("Copy", systemImage: "doc.on.doc")
+                }
+
+                Button {
+                    model.exportSupportBundle()
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
                 }
 
                 Button {
@@ -31,7 +57,7 @@ struct LogTab: View {
                 }
             }
 
-            TextEditor(text: .constant(model.logText))
+            TextEditor(text: .constant(filteredText))
                 .font(.system(.caption, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
@@ -41,5 +67,11 @@ struct LogTab: View {
                 )
         }
         .padding(18)
+    }
+
+    private var filteredText: String {
+        let level = LogLevel.allCases.first { $0.rawValue == selectedLevel }
+        let session = selectedSession == "All" ? nil : selectedSession
+        return model.filteredLogText(level: level, sessionName: session)
     }
 }

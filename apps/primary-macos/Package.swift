@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "iBridgePrimary",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v13)
     ],
     products: [
         .executable(name: "ibridge-primary", targets: ["iBridgePrimary"])

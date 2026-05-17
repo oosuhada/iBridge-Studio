@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "iBridgeReceiverMac",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v13)
     ],
     products: [
         .executable(name: "ibridge-receiver-macos", targets: ["iBridgeReceiverMac"])

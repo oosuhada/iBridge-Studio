@@ -26,9 +26,7 @@ if [[ -n "$RECEIVER_IP" ]]; then
 fi
 
 if [[ -n "$RECEIVER_DISCOVERY_HOST" ]]; then
-  while IFS= read -r line; do
-    [[ -n "$line" ]] && candidate_lines+=("$line")
-  done < <(
+  discovery_output="$(
     "${ssh_base[@]}" "$RECEIVER_DISCOVERY_HOST" '
       ifconfig | awk "
         /^[a-z0-9]+:/ {
@@ -42,8 +40,14 @@ if [[ -n "$RECEIVER_DISCOVERY_HOST" ]]; then
           }
         }
       "
-    ' 2>/dev/null || true
-  )
+    ' 2>&1
+  )" || {
+    echo "Discovery SSH failed for $RECEIVER_DISCOVERY_HOST: $discovery_output" >&2
+    discovery_output=""
+  }
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && candidate_lines+=("$line")
+  done <<<"$discovery_output"
 fi
 
 if [[ "${#candidate_lines[@]}" -eq 0 ]]; then

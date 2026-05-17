@@ -42,6 +42,33 @@ struct ValueOption: Identifiable, Hashable {
     let value: String
 }
 
+struct ReceiverDevice: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var modelName: String
+    var receiverIP: String
+    var discoveryHost: String
+    var receiverScript: String
+    var receiverKey: String
+    var wake: WakeConfig?
+}
+
+struct WakeConfig: Codable, Hashable {
+    var macAddress: String
+    var broadcastTargets: String
+    var autoWake: Bool
+}
+
+struct SenderSessionConfig: Codable, Hashable {
+    var receiverID: UUID
+    var virtualDisplayName: String
+    var resolution: String
+    var bitrateMbps: Int
+    var durationSeconds: Int
+    var cursorModeID: String
+    var profile: String
+}
+
 enum StudioTab: String, CaseIterable, Identifiable {
     case sender = "Sender"
     case receiver = "Receiver"
@@ -378,7 +405,30 @@ final class DisplaySession: ObservableObject, Identifiable {
             cursorModeID: cursorModeID,
             wakeMAC: wakeMAC,
             wakeBroadcast: wakeBroadcast,
-            autoWake: autoWake
+            autoWake: autoWake,
+            receiverDevice: ReceiverDevice(
+                id: id,
+                name: name,
+                modelName: displayName,
+                receiverIP: receiverIP,
+                discoveryHost: discoveryHost,
+                receiverScript: receiverScript,
+                receiverKey: receiverKey,
+                wake: wakeMAC.isEmpty ? nil : WakeConfig(
+                    macAddress: wakeMAC,
+                    broadcastTargets: wakeBroadcast,
+                    autoWake: autoWake
+                )
+            ),
+            senderConfig: SenderSessionConfig(
+                receiverID: id,
+                virtualDisplayName: displayName,
+                resolution: resolution,
+                bitrateMbps: Int(bitrateMbps) ?? 0,
+                durationSeconds: Int(duration) ?? 0,
+                cursorModeID: cursorModeID,
+                profile: profile
+            )
         )
     }
 
@@ -402,6 +452,8 @@ struct StoredDisplaySession: Codable {
     let wakeMAC: String?
     let wakeBroadcast: String?
     let autoWake: Bool?
+    let receiverDevice: ReceiverDevice?
+    let senderConfig: SenderSessionConfig?
 }
 
 struct StoredControllerState: Codable {

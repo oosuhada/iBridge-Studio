@@ -7,8 +7,9 @@ RECEIVER_PORT="${RECEIVER_PORT:-48320}"
 DURATION="${DURATION:-3600}"
 CAPTURE_DISPLAY_INDEX="${CAPTURE_DISPLAY_INDEX:-auto}"
 CAPTURE_DISPLAY_NAME="${CAPTURE_DISPLAY_NAME:-}"
-RUN_ROOT="${RUN_ROOT:-benchmarks/runs/$(date +%Y-%m-%d_%H%M)_ibridge_virtual_capture}"
+RUN_ROOT="${RUN_ROOT:-benchmarks/runs/$(date +%Y-%m-%d_%H%M%S)_${IBRIDGE_SESSION_ID:-manual}_ibridge_virtual_capture}"
 PRIMARY_BIN="${PRIMARY_BIN:-}"
+ENCODER_ID="${ENCODER_ID:-com.apple.videotoolbox.videoencoder.ave.hevc}"
 
 case "$PROFILE" in
   balanced)
@@ -91,12 +92,32 @@ if [[ -z "$RECEIVER_IP" ]]; then
   exit 64
 fi
 
+ENCODER_ARGS=()
+if [[ -n "$ENCODER_ID" ]]; then
+  ENCODER_ARGS=(--encoder-id "$ENCODER_ID")
+fi
+
 mkdir -p "$RUN_ROOT"
+
+cleanup() {
+  local status=$?
+  trap - TERM INT EXIT
+  pkill -TERM -P $$ 2>/dev/null || true
+  exit "$status"
+}
+trap cleanup TERM INT EXIT
 
 if [[ -z "$PRIMARY_BIN" ]]; then
   if [[ -f "apps/primary-macos/Package.swift" ]]; then
-    swift build --package-path apps/primary-macos -c release
-    PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
+    if [[ -x "apps/primary-macos/.build/release/ibridge-primary" ]]; then
+      PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
+    elif [[ "${IBRIDGE_ALLOW_BUILD:-1}" == "1" ]]; then
+      swift build --package-path apps/primary-macos -c release
+      PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
+    else
+      echo "Primary binary is missing and IBRIDGE_ALLOW_BUILD=0." >&2
+      exit 1
+    fi
   elif [[ -x "bin/ibridge-primary" ]]; then
     PRIMARY_BIN="bin/ibridge-primary"
   else
@@ -222,7 +243,7 @@ EOF
   --bitrate-mbps "$BITRATE_MBPS" \
   --data-rate-limit-mbps "$BITRATE_MBPS" \
   --disable-low-latency-rate-control \
-  --encoder-id com.apple.videotoolbox.videoencoder.ave.hevc \
+  "${ENCODER_ARGS[@]}" \
   --disable-frame-reordering \
   --disable-open-gop \
   --payload-format annex-b \

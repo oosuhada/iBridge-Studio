@@ -4,6 +4,9 @@ set -euo pipefail
 VERSION="${VERSION:-0.1.1-alpha}"
 DIST_ROOT="${DIST_ROOT:-dist}"
 CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-}"
+BUILD_PKG="${BUILD_PKG:-1}"
+BUILD_DMG="${BUILD_DMG:-1}"
 PACKAGE_ROOT="$DIST_ROOT/iBridge-Studio-$VERSION"
 CONTROL_APP="$PACKAGE_ROOT/iBridge Studio.app"
 CONTROL_RESOURCES="$CONTROL_APP/Contents/Resources"
@@ -16,6 +19,7 @@ CONTROL_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/iBridgeController-universal"
 RECEIVER_ARM64_BIN="apps/receiver-macos/.build/arm64-apple-macosx/release/ibridge-receiver-macos"
 RECEIVER_X86_64_BIN="apps/receiver-macos/.build/x86_64-apple-macosx/release/ibridge-receiver-macos"
 RECEIVER_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/ibridge-receiver-macos-universal"
+ENTITLEMENTS_FILE="packaging/iBridgeStudio.entitlements"
 
 rm -rf "$PACKAGE_ROOT"
 mkdir -p "$CONTROL_APP/Contents/MacOS" "$CONTROL_RESOURCES/bin" "$CONTROL_RESOURCES/scripts" "$CONTROL_RESOURCES/docs"
@@ -148,6 +152,17 @@ if [[ -f docs/18_ALPHA_RELEASE.md ]]; then
   cp docs/18_ALPHA_RELEASE.md "$PACKAGE_ROOT/docs/18_ALPHA_RELEASE.md"
   cp docs/18_ALPHA_RELEASE.md "$CONTROL_RESOURCES/docs/18_ALPHA_RELEASE.md"
 fi
+for doc in docs/DEVELOPER.md docs/NETWORK_SETUP.md docs/TROUBLESHOOTING.md; do
+  if [[ -f "$doc" ]]; then
+    cp "$doc" "$PACKAGE_ROOT/docs/$(basename "$doc")"
+    cp "$doc" "$CONTROL_RESOURCES/docs/$(basename "$doc")"
+  fi
+done
+if [[ -d assets ]]; then
+  mkdir -p "$PACKAGE_ROOT/assets" "$CONTROL_RESOURCES/assets"
+  ditto assets "$PACKAGE_ROOT/assets"
+  ditto assets "$CONTROL_RESOURCES/assets"
+fi
 
 cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -175,7 +190,7 @@ cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key>
   <string>$VERSION</string>
   <key>LSMinimumSystemVersion</key>
-  <string>14.0</string>
+  <string>13.0</string>
   <key>NSHumanReadableCopyright</key>
   <string>Copyright 2026 iBridge Studio contributors.</string>
   <key>NSScreenCaptureUsageDescription</key>
@@ -252,13 +267,33 @@ chmod_if_present \
   "$PACKAGE_ROOT/Start iBridge Studio LAN High Quality.command" \
   "$PACKAGE_ROOT/Start iBridge Studio 4K60.command"
 
+xattr -cr "$CONTROL_APP" "$PACKAGE_ROOT" 2>/dev/null || true
+
 if [[ "$CODE_SIGN_IDENTITY" == "-" ]]; then
-  codesign --force --deep --sign - "$CONTROL_APP"
+  codesign --force --deep --entitlements "$ENTITLEMENTS_FILE" --sign - "$CONTROL_APP"
 else
-  codesign --force --deep --options runtime --timestamp --sign "$CODE_SIGN_IDENTITY" "$CONTROL_APP"
+  codesign --force --deep --options runtime --timestamp --entitlements "$ENTITLEMENTS_FILE" --sign "$CODE_SIGN_IDENTITY" "$CONTROL_APP"
 fi
 
 (cd "$DIST_ROOT" && ditto -c -k --sequesterRsrc --keepParent "iBridge-Studio-$VERSION" "iBridge-Studio-$VERSION.zip")
+
+if [[ "$BUILD_DMG" == "1" ]]; then
+  rm -f "$DIST_ROOT/iBridge-Studio-$VERSION.dmg"
+  hdiutil create \
+    -volname "iBridge Studio $VERSION" \
+    -srcfolder "$PACKAGE_ROOT" \
+    -ov \
+    -format UDZO \
+    "$DIST_ROOT/iBridge-Studio-$VERSION.dmg" >/dev/null
+fi
+
+if [[ "$BUILD_PKG" == "1" ]]; then
+  rm -f "$DIST_ROOT/iBridge-Studio-$VERSION.pkg"
+  pkgbuild \
+    --install-location "/Applications" \
+    --component "$CONTROL_APP" \
+    "$DIST_ROOT/iBridge-Studio-$VERSION.pkg" >/dev/null
+fi
 
 if [[ "$CODE_SIGN_IDENTITY" != "-" ]]; then
   cat <<EOF
@@ -266,7 +301,21 @@ Signed with Developer ID identity: $CODE_SIGN_IDENTITY
 Submit the zip for notarization with:
   xcrun notarytool submit "$DIST_ROOT/iBridge-Studio-$VERSION.zip" --keychain-profile <profile> --wait
 EOF
+  if [[ -n "$NOTARY_PROFILE" ]]; then
+    xcrun notarytool submit "$DIST_ROOT/iBridge-Studio-$VERSION.zip" --keychain-profile "$NOTARY_PROFILE" --wait
+    xcrun stapler staple "$CONTROL_APP"
+    if [[ -f "$DIST_ROOT/iBridge-Studio-$VERSION.dmg" ]]; then
+      xcrun notarytool submit "$DIST_ROOT/iBridge-Studio-$VERSION.dmg" --keychain-profile "$NOTARY_PROFILE" --wait
+      xcrun stapler staple "$DIST_ROOT/iBridge-Studio-$VERSION.dmg"
+    fi
+    if [[ -f "$DIST_ROOT/iBridge-Studio-$VERSION.pkg" ]]; then
+      xcrun notarytool submit "$DIST_ROOT/iBridge-Studio-$VERSION.pkg" --keychain-profile "$NOTARY_PROFILE" --wait
+      xcrun stapler staple "$DIST_ROOT/iBridge-Studio-$VERSION.pkg"
+    fi
+  fi
 fi
 
 echo "$PACKAGE_ROOT"
 echo "$DIST_ROOT/iBridge-Studio-$VERSION.zip"
+[[ -f "$DIST_ROOT/iBridge-Studio-$VERSION.dmg" ]] && echo "$DIST_ROOT/iBridge-Studio-$VERSION.dmg"
+[[ -f "$DIST_ROOT/iBridge-Studio-$VERSION.pkg" ]] && echo "$DIST_ROOT/iBridge-Studio-$VERSION.pkg"
