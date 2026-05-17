@@ -17,6 +17,84 @@ mkdir -p "$RECEIVER_APP/Contents/MacOS" "$RECEIVER_APP/Contents/Resources"
 mkdir -p "$CONTROL_APP/Contents/MacOS" "$CONTROL_APP/Contents/Resources"
 mkdir -p "$PACKAGE_ROOT/bin" "$PACKAGE_ROOT/scripts" "$PACKAGE_ROOT/docs"
 
+make_icon() {
+  local icon_name="$1"
+  local output_dir="$2"
+  local iconset="$output_dir/${icon_name}.iconset"
+  mkdir -p "$iconset"
+  ICONSET="$iconset" python3 - <<'PY'
+import os, struct, zlib
+
+iconset = os.environ["ICONSET"]
+sizes = {
+    "icon_16x16.png": 16,
+    "icon_16x16@2x.png": 32,
+    "icon_32x32.png": 32,
+    "icon_32x32@2x.png": 64,
+    "icon_128x128.png": 128,
+    "icon_128x128@2x.png": 256,
+    "icon_256x256.png": 256,
+    "icon_256x256@2x.png": 512,
+    "icon_512x512.png": 512,
+    "icon_512x512@2x.png": 1024,
+}
+
+def png_chunk(kind, data):
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+
+def write_png(path, size):
+    rows = []
+    for y in range(size):
+        row = bytearray()
+        for x in range(size):
+            nx = x / max(size - 1, 1)
+            ny = y / max(size - 1, 1)
+            margin = int(size * 0.11)
+            radius = int(size * 0.18)
+            inside = margin <= x < size - margin and margin <= y < size - margin
+            corner = False
+            for cx, cy in ((margin + radius, margin + radius), (size - margin - radius - 1, margin + radius), (margin + radius, size - margin - radius - 1), (size - margin - radius - 1, size - margin - radius - 1)):
+                if (x < margin + radius and cx < size / 2 or x > size - margin - radius and cx > size / 2) and (y < margin + radius and cy < size / 2 or y > size - margin - radius and cy > size / 2):
+                    corner = (x - cx) ** 2 + (y - cy) ** 2 > radius ** 2
+            if not inside or corner:
+                row += bytes((0, 0, 0, 0))
+                continue
+            r = int(16 + 20 * nx)
+            g = int(102 + 96 * ny)
+            b = int(205 + 35 * (1 - nx))
+            a = 255
+            # Two display outlines connected by a bridge.
+            lw = max(2, size // 42)
+            left = (int(size * 0.23), int(size * 0.35), int(size * 0.43), int(size * 0.58))
+            right = (int(size * 0.57), int(size * 0.35), int(size * 0.77), int(size * 0.58))
+            white = False
+            for rect in (left, right):
+                x1, y1, x2, y2 = rect
+                if x1 <= x <= x2 and y1 <= y <= y2 and (x - x1 < lw or x2 - x < lw or y - y1 < lw or y2 - y < lw):
+                    white = True
+            if int(size * 0.45) <= x <= int(size * 0.55) and abs(y - int(size * 0.47)) <= max(1, size // 70):
+                white = True
+            if white:
+                r, g, b, a = 245, 252, 255, 255
+            row += bytes((r, g, b, a))
+        rows.append(b"\x00" + bytes(row))
+    raw = b"".join(rows)
+    data = b"\x89PNG\r\n\x1a\n"
+    data += png_chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+    data += png_chunk(b"IDAT", zlib.compress(raw, 9))
+    data += png_chunk(b"IEND", b"")
+    with open(path, "wb") as f:
+        f.write(data)
+
+for name, size in sizes.items():
+    write_png(os.path.join(iconset, name), size)
+PY
+  iconutil -c icns "$iconset" -o "$output_dir/${icon_name}.icns"
+}
+
+make_icon "iBridgeControl" "$CONTROL_APP/Contents/Resources"
+make_icon "iBridgeReceiver" "$RECEIVER_APP/Contents/Resources"
+
 swift build --package-path apps/primary-macos -c release
 swift build --package-path apps/controller-macos -c release
 swift build --package-path apps/receiver-macos -c release --arch arm64
@@ -41,6 +119,8 @@ cat > "$RECEIVER_APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleExecutable</key>
+  <string>iBridgeReceiver</string>
+  <key>CFBundleIconFile</key>
   <string>iBridgeReceiver</string>
   <key>CFBundleIdentifier</key>
   <string>dev.oosu.iBridge.receiver</string>
@@ -79,6 +159,8 @@ cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleExecutable</key>
+  <string>iBridgeControl</string>
+  <key>CFBundleIconFile</key>
   <string>iBridgeControl</string>
   <key>CFBundleIdentifier</key>
   <string>dev.oosu.iBridge.control</string>

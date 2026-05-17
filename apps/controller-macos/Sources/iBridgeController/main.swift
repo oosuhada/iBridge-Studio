@@ -17,6 +17,12 @@ struct ReceiverPreset: Identifiable, Hashable {
     let receiverKey: String
 }
 
+struct ValueOption: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let value: String
+}
+
 private let presets: [ReceiverPreset] = [
     ReceiverPreset(
         id: "imac-2015-quality",
@@ -56,6 +62,29 @@ private let presets: [ReceiverPreset] = [
     )
 ]
 
+private let signalOptions = [
+    ValueOption(id: "5k", title: "5K Retina Quality", value: "5120x2880"),
+    ValueOption(id: "imac4k", title: "iMac 4K Native", value: "4096x2304"),
+    ValueOption(id: "uhd", title: "UHD Quality", value: "3840x2160"),
+    ValueOption(id: "qhd", title: "1440p Smooth", value: "2560x1440"),
+    ValueOption(id: "custom", title: "Custom", value: "")
+]
+
+private let bitrateOptions = [
+    ValueOption(id: "80", title: "80 Mbps Smooth", value: "80"),
+    ValueOption(id: "160", title: "160 Mbps Quality", value: "160"),
+    ValueOption(id: "220", title: "220 Mbps 4K Quality", value: "220"),
+    ValueOption(id: "280", title: "280 Mbps 5K Quality", value: "280"),
+    ValueOption(id: "custom", title: "Custom", value: "")
+]
+
+private let durationOptions = [
+    ValueOption(id: "10m", title: "10 min", value: "600"),
+    ValueOption(id: "30m", title: "30 min", value: "1800"),
+    ValueOption(id: "1h", title: "1 hour", value: "3600"),
+    ValueOption(id: "custom", title: "Custom", value: "")
+]
+
 @MainActor
 final class DisplaySession: ObservableObject, Identifiable {
     let id = UUID()
@@ -68,6 +97,9 @@ final class DisplaySession: ObservableObject, Identifiable {
     @Published var duration: String
     @Published var receiverScript: String
     @Published var receiverKey: String
+    @Published var signalOptionID: String
+    @Published var bitrateOptionID: String
+    @Published var durationOptionID: String
 
     init(preset: ReceiverPreset) {
         name = preset.name
@@ -79,6 +111,9 @@ final class DisplaySession: ObservableObject, Identifiable {
         duration = preset.duration
         receiverScript = preset.receiverScript
         receiverKey = preset.receiverKey
+        signalOptionID = signalOptions.first { $0.value == preset.resolution }?.id ?? "custom"
+        bitrateOptionID = bitrateOptions.first { $0.value == preset.bitrateMbps }?.id ?? "custom"
+        durationOptionID = durationOptions.first { $0.value == preset.duration }?.id ?? "custom"
     }
 
     func apply(_ preset: ReceiverPreset) {
@@ -86,11 +121,26 @@ final class DisplaySession: ObservableObject, Identifiable {
         receiverIP = preset.receiverIP
         displayName = preset.displayName
         profile = preset.profile
-        resolution = preset.resolution
-        bitrateMbps = preset.bitrateMbps
-        duration = preset.duration
         receiverScript = preset.receiverScript
         receiverKey = preset.receiverKey
+        setResolution(preset.resolution)
+        setBitrate(preset.bitrateMbps)
+        setDuration(preset.duration)
+    }
+
+    func setResolution(_ value: String) {
+        resolution = value
+        signalOptionID = signalOptions.first { $0.value == value }?.id ?? "custom"
+    }
+
+    func setBitrate(_ value: String) {
+        bitrateMbps = value
+        bitrateOptionID = bitrateOptions.first { $0.value == value }?.id ?? "custom"
+    }
+
+    func setDuration(_ value: String) {
+        duration = value
+        durationOptionID = durationOptions.first { $0.value == value }?.id ?? "custom"
     }
 }
 
@@ -99,6 +149,8 @@ final class ControllerModel: ObservableObject {
     @Published var sessions: [DisplaySession] = [
         DisplaySession(preset: presets[0])
     ]
+    @Published var receiverPort = "48320"
+    @Published var receiverTitle = "iBridge Receiver"
     @Published var log = "Ready.\n"
     @Published var runningSenderIDs = Set<UUID>()
     @Published var busyReceiverIDs = Set<UUID>()
@@ -110,7 +162,7 @@ final class ControllerModel: ObservableObject {
     func addSession(preset: ReceiverPreset = presets[2]) {
         let session = DisplaySession(preset: preset)
         sessions.append(session)
-        append("Added session: \(session.name)")
+        append("Added sender session: \(session.name)")
     }
 
     func removeSession(_ session: DisplaySession) {
@@ -118,24 +170,24 @@ final class ControllerModel: ObservableObject {
         receiverProcesses[session.id]?.terminate()
         receiverProcesses[session.id] = nil
         sessions.removeAll { $0.id == session.id }
-        append("Removed session: \(session.name)")
+        append("Removed sender session: \(session.name)")
     }
 
     func listDisplays() {
         isListingDisplays = true
         runOneShot(
             command: "apps/primary-macos/.build/release/ibridge-primary --list-displays",
-            label: "List Displays"
+            label: "Displays"
         ) { [weak self] in
             self?.isListingDisplays = false
         }
     }
 
-    func startReceiver(_ session: DisplaySession) {
+    func startRemoteReceiver(_ session: DisplaySession) {
         busyReceiverIDs.insert(session.id)
         let keyPrefix = session.receiverKey.isEmpty ? "" : "RECEIVER_KEY=\(session.receiverKey) "
         let command = "\(keyPrefix)\(session.receiverScript)"
-        append("Starting receiver: \(session.name)")
+        append("Starting remote receiver: \(session.name)")
         receiverProcesses[session.id] = runOneShot(
             command: command,
             label: "\(session.name) Receiver"
@@ -143,6 +195,18 @@ final class ControllerModel: ObservableObject {
             guard let session else { return }
             self?.busyReceiverIDs.remove(session.id)
         }
+    }
+
+    func startLocalReceiver() {
+        let command = """
+        apps/receiver-macos/.build/release/ibridge-receiver-macos \
+        --port '\(shellEscape(receiverPort))' \
+        --fullscreen \
+        --hide-status \
+        --title '\(shellEscape(receiverTitle))'
+        """
+        append("Starting local receiver.")
+        _ = runOneShot(command: command, label: "Local Receiver")
     }
 
     func startSender(_ session: DisplaySession) {
@@ -189,10 +253,6 @@ final class ControllerModel: ObservableObject {
         for session in sessions {
             stopSender(session)
         }
-    }
-
-    func openRepo() {
-        NSWorkspace.shared.open(repoRoot)
     }
 
     func isSenderRunning(_ session: DisplaySession) -> Bool {
@@ -261,36 +321,24 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             HeaderView(model: model)
-
             Divider()
-
-            HStack(alignment: .top, spacing: 0) {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(model.sessions) { session in
-                            SessionCard(session: session, model: model)
-                        }
+            TabView {
+                SenderTab(model: model)
+                    .tabItem {
+                        Label("Sender", systemImage: "macbook.and.iphone")
                     }
-                    .padding(16)
-                }
-                .frame(minWidth: 720)
-
-                Divider()
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Runtime Log")
-                        .font(.headline)
-                    TextEditor(text: $model.log)
-                        .font(.system(.caption, design: .monospaced))
-                        .scrollContentBackground(.hidden)
-                        .background(Color(nsColor: .textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                .padding(16)
-                .frame(minWidth: 420)
+                ReceiverTab(model: model)
+                    .tabItem {
+                        Label("Receiver", systemImage: "display")
+                    }
+                LogTab(model: model)
+                    .tabItem {
+                        Label("Logs", systemImage: "list.bullet.rectangle")
+                    }
             }
+            .padding(.top, 4)
         }
-        .frame(minWidth: 1180, minHeight: 720)
+        .frame(minWidth: 1100, minHeight: 720)
     }
 }
 
@@ -303,7 +351,7 @@ struct HeaderView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("iBridge Studio")
                     .font(.title3.weight(.semibold))
-                Text("Multi-iMac display sessions from one MacBook")
+                Text("Use retired iMacs as software Retina displays")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -317,16 +365,6 @@ struct HeaderView: View {
             }
             .disabled(model.isListingDisplays)
 
-            Menu {
-                ForEach(presets) { preset in
-                    Button(preset.name) {
-                        model.addSession(preset: preset)
-                    }
-                }
-            } label: {
-                Label("Add Session", systemImage: "plus")
-            }
-
             Button(role: .destructive) {
                 model.stopAllSenders()
             } label: {
@@ -337,34 +375,146 @@ struct HeaderView: View {
     }
 }
 
-struct LogoMark: View {
+struct SenderTab: View {
+    @ObservedObject var model: ControllerModel
+
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.blue.opacity(0.18))
-            HStack(spacing: 4) {
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(.blue, lineWidth: 2)
-                    .frame(width: 18, height: 13)
-                Capsule()
-                    .fill(.blue)
-                    .frame(width: 12, height: 3)
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(.teal, lineWidth: 2)
-                    .frame(width: 18, height: 13)
+        VStack(spacing: 12) {
+            HStack {
+                Text("Sender Sessions")
+                    .font(.title3.weight(.semibold))
+                Spacer()
+                Menu {
+                    ForEach(presets) { preset in
+                        Button(preset.name) {
+                            model.addSession(preset: preset)
+                        }
+                    }
+                } label: {
+                    Label("Add Sender", systemImage: "plus")
+                }
+            }
+
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(model.sessions) { session in
+                        SenderSessionCard(session: session, model: model)
+                    }
+                }
             }
         }
-        .frame(width: 58, height: 42)
+        .padding(16)
     }
 }
 
-struct SessionCard: View {
+struct ReceiverTab: View {
+    @ObservedObject var model: ControllerModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Receiver Setup")
+                .font(.title3.weight(.semibold))
+
+            GroupBox("This Mac as Receiver") {
+                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
+                    GridRow {
+                        Text("Port")
+                        TextField("Port", text: $model.receiverPort)
+                            .frame(width: 140)
+                    }
+                    GridRow {
+                        Text("Title")
+                        TextField("Window title", text: $model.receiverTitle)
+                            .frame(width: 280)
+                    }
+                }
+                .textFieldStyle(.roundedBorder)
+
+                Button {
+                    model.startLocalReceiver()
+                } label: {
+                    Label("Start Receiver on This Mac", systemImage: "play.rectangle")
+                }
+                .padding(.top, 8)
+            }
+
+            GroupBox("Remote Receiver Shortcuts") {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(model.sessions) { session in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(session.name)
+                                    .font(.headline)
+                                Text("\(session.receiverIP) / \(session.receiverScript)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button {
+                                model.startRemoteReceiver(session)
+                            } label: {
+                                Label("Start", systemImage: "play.fill")
+                            }
+                            .disabled(model.isReceiverBusy(session))
+                        }
+                        if session.id != model.sessions.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+        }
+        .padding(16)
+    }
+}
+
+struct LogTab: View {
+    @ObservedObject var model: ControllerModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Runtime Log")
+                .font(.title3.weight(.semibold))
+            TextEditor(text: $model.log)
+                .font(.system(.caption, design: .monospaced))
+                .scrollContentBackground(.hidden)
+                .background(Color(nsColor: .textBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .padding(16)
+    }
+}
+
+struct LogoMark: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(LinearGradient(colors: [.blue.opacity(0.95), .teal.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            HStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(.white, lineWidth: 2)
+                    .frame(width: 17, height: 12)
+                Capsule()
+                    .fill(.white)
+                    .frame(width: 12, height: 3)
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(.white, lineWidth: 2)
+                    .frame(width: 17, height: 12)
+            }
+        }
+        .frame(width: 48, height: 36)
+    }
+}
+
+struct SenderSessionCard: View {
     @ObservedObject var session: DisplaySession
     @ObservedObject var model: ControllerModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center) {
+            HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     TextField("Session name", text: $session.name)
                         .font(.headline)
@@ -399,82 +549,84 @@ struct SessionCard: View {
                 .disabled(model.sessions.count <= 1)
             }
 
-            HStack(alignment: .top, spacing: 12) {
-                GroupBox("Receiver") {
-                    Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 8) {
-                        GridRow {
-                            Text("IP")
-                            TextField("Receiver IP", text: $session.receiverIP)
-                        }
-                        GridRow {
-                            Text("Start")
-                            TextField("Receiver script", text: $session.receiverScript)
-                        }
-                        GridRow {
-                            Text("SSH key")
-                            TextField("Optional key", text: $session.receiverKey)
-                        }
-                    }
-                    .textFieldStyle(.roundedBorder)
-                    .font(.callout)
-
-                    HStack {
-                        Button {
-                            model.startReceiver(session)
-                        } label: {
-                            Label("Start Receiver", systemImage: "play.rectangle")
-                        }
-                        .disabled(model.isReceiverBusy(session))
-                        Spacer()
-                    }
-                    .padding(.top, 8)
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                GridRow {
+                    Text("Receiver")
+                    TextField("Receiver IP", text: $session.receiverIP)
+                    Text("Display")
+                    TextField("Virtual display name", text: $session.displayName)
                 }
-
-                GroupBox("Sender") {
-                    Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 8) {
-                        GridRow {
-                            Text("Display")
-                            TextField("Virtual display name", text: $session.displayName)
-                        }
-                        GridRow {
-                            Text("Profile")
-                            TextField("Profile", text: $session.profile)
-                        }
-                        GridRow {
-                            Text("Signal")
-                            TextField("Resolution", text: $session.resolution)
-                        }
-                        GridRow {
-                            Text("Mbps")
-                            TextField("Bitrate", text: $session.bitrateMbps)
-                        }
-                        GridRow {
-                            Text("Seconds")
-                            TextField("Duration", text: $session.duration)
+                GridRow {
+                    Text("Preset")
+                    Picker("Signal preset", selection: $session.signalOptionID) {
+                        ForEach(signalOptions) { option in
+                            Text(option.title).tag(option.id)
                         }
                     }
-                    .textFieldStyle(.roundedBorder)
-                    .font(.callout)
-
-                    HStack {
-                        Button {
-                            model.startSender(session)
-                        } label: {
-                            Label("Start Sender", systemImage: "play.fill")
+                    .onChange(of: session.signalOptionID) { _, newValue in
+                        if let option = signalOptions.first(where: { $0.id == newValue }), option.id != "custom" {
+                            session.resolution = option.value
                         }
-                        .disabled(model.isSenderRunning(session))
-
-                        Button {
-                            model.stopSender(session)
-                        } label: {
-                            Label("Stop", systemImage: "stop.fill")
-                        }
-                        .disabled(!model.isSenderRunning(session))
-
-                        Spacer()
                     }
-                    .padding(.top, 8)
+                    Text("Signal")
+                    TextField("Resolution", text: $session.resolution)
+                        .disabled(session.signalOptionID != "custom")
                 }
+                GridRow {
+                    Text("Profile")
+                    TextField("Profile", text: $session.profile)
+                    Text("Bitrate")
+                    HStack {
+                        Picker("Bitrate", selection: $session.bitrateOptionID) {
+                            ForEach(bitrateOptions) { option in
+                                Text(option.title).tag(option.id)
+                            }
+                        }
+                        .onChange(of: session.bitrateOptionID) { _, newValue in
+                            if let option = bitrateOptions.first(where: { $0.id == newValue }), option.id != "custom" {
+                                session.bitrateMbps = option.value
+                            }
+                        }
+                        TextField("Mbps", text: $session.bitrateMbps)
+                            .frame(width: 70)
+                            .disabled(session.bitrateOptionID != "custom")
+                    }
+                }
+                GridRow {
+                    Text("Duration")
+                    Picker("Duration", selection: $session.durationOptionID) {
+                        ForEach(durationOptions) { option in
+                            Text(option.title).tag(option.id)
+                        }
+                    }
+                    .onChange(of: session.durationOptionID) { _, newValue in
+                        if let option = durationOptions.first(where: { $0.id == newValue }), option.id != "custom" {
+                            session.duration = option.value
+                        }
+                    }
+                    Text("Seconds")
+                    TextField("Seconds", text: $session.duration)
+                        .disabled(session.durationOptionID != "custom")
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Button {
+                    model.startSender(session)
+                } label: {
+                    Label("Start Sender", systemImage: "play.fill")
+                }
+                .disabled(model.isSenderRunning(session))
+
+                Button {
+                    model.stopSender(session)
+                } label: {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+                .disabled(!model.isSenderRunning(session))
+
+                Spacer()
             }
         }
         .padding(14)
