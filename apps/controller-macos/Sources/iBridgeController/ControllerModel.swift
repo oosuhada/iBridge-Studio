@@ -116,6 +116,24 @@ final class ControllerModel: ObservableObject {
         }
     }
 
+    func repairLocalSystemSettings() {
+        append("Repairing System Settings on this Mac.")
+        runOneShot(command: "scripts/repair_system_settings.sh", label: "Repair Local System Settings")
+    }
+
+    func repairRemoteSystemSettings(_ session: DisplaySession) {
+        guard !session.discoveryHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            append("Repair skipped for \(session.name): no Discovery host configured.")
+            return
+        }
+        let keyOption = session.receiverKey.isEmpty ? "" : "-i '\(shellEscape(expandedPath(session.receiverKey)))' "
+        let command = """
+        ssh \(keyOption)'\(shellEscape(session.discoveryHost))' 'bash -s' < scripts/repair_system_settings.sh
+        """
+        append("Repairing System Settings on remote iMac: \(session.name)")
+        runOneShot(command: command, label: "\(session.name) Repair System Settings")
+    }
+
     func wakeReceiver(_ session: DisplaySession) {
         guard !session.wakeMAC.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             append("Wake skipped for \(session.name): no Wake MAC configured.")

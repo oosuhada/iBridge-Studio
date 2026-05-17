@@ -118,6 +118,7 @@ cp scripts/start_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2015_i
 cp scripts/stop_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh"
 cp scripts/resolve_receiver_ip.sh "$PACKAGE_ROOT/scripts/resolve_receiver_ip.sh"
 cp scripts/wake_receiver.sh "$PACKAGE_ROOT/scripts/wake_receiver.sh"
+cp scripts/repair_system_settings.sh "$PACKAGE_ROOT/scripts/repair_system_settings.sh"
 cp scripts/start_ibridge_virtual_capture.sh "$CONTROL_RESOURCES/scripts/start_ibridge_virtual_capture.sh"
 cp scripts/start_2017_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/start_2017_imac_receiver_macos.sh"
 cp scripts/start_mbp_to_2017_imac_4k60.sh "$CONTROL_RESOURCES/scripts/start_mbp_to_2017_imac_4k60.sh"
@@ -125,6 +126,7 @@ cp scripts/start_2015_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/start_2
 cp scripts/stop_2015_imac_receiver_macos.sh "$CONTROL_RESOURCES/scripts/stop_2015_imac_receiver_macos.sh"
 cp scripts/resolve_receiver_ip.sh "$CONTROL_RESOURCES/scripts/resolve_receiver_ip.sh"
 cp scripts/wake_receiver.sh "$CONTROL_RESOURCES/scripts/wake_receiver.sh"
+cp scripts/repair_system_settings.sh "$CONTROL_RESOURCES/scripts/repair_system_settings.sh"
 if [[ -f docs/18_ALPHA_RELEASE.md ]]; then
   cp docs/18_ALPHA_RELEASE.md "$PACKAGE_ROOT/docs/18_ALPHA_RELEASE.md"
   cp docs/18_ALPHA_RELEASE.md "$CONTROL_RESOURCES/docs/18_ALPHA_RELEASE.md"
@@ -207,6 +209,7 @@ chmod +x \
   "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/scripts/resolve_receiver_ip.sh" \
   "$PACKAGE_ROOT/scripts/wake_receiver.sh" \
+  "$PACKAGE_ROOT/scripts/repair_system_settings.sh" \
   "$CONTROL_RESOURCES/scripts/start_ibridge_virtual_capture.sh" \
   "$CONTROL_RESOURCES/scripts/start_2017_imac_receiver_macos.sh" \
   "$CONTROL_RESOURCES/scripts/start_mbp_to_2017_imac_4k60.sh" \
@@ -214,6 +217,7 @@ chmod +x \
   "$CONTROL_RESOURCES/scripts/stop_2015_imac_receiver_macos.sh" \
   "$CONTROL_RESOURCES/scripts/resolve_receiver_ip.sh" \
   "$CONTROL_RESOURCES/scripts/wake_receiver.sh" \
+  "$CONTROL_RESOURCES/scripts/repair_system_settings.sh" \
   "$PACKAGE_ROOT/Start iBridge Studio Virtual Capture.command" \
   "$PACKAGE_ROOT/Start iBridge Studio LAN High Quality.command" \
   "$PACKAGE_ROOT/Start iBridge Studio 4K60.command"
