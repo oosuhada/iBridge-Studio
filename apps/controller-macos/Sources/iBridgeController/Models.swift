@@ -24,6 +24,7 @@ struct ReceiverPreset: Identifiable, Hashable {
     let name: String
     let category: String
     let receiverIP: String
+    let discoveryHost: String
     let displayName: String
     let profile: String
     let resolution: String
@@ -61,6 +62,7 @@ let presets: [ReceiverPreset] = [
         name: "2015 iMac 5K Quality",
         category: "Lab",
         receiverIP: "169.254.99.112",
+        discoveryHost: "oosu@169.254.99.112",
         displayName: "iMac 27inch 2015",
         profile: "lan-60hz",
         resolution: "5120x2880",
@@ -74,6 +76,7 @@ let presets: [ReceiverPreset] = [
         name: "2015 iMac Smooth",
         category: "Lab",
         receiverIP: "169.254.99.112",
+        discoveryHost: "oosu@169.254.99.112",
         displayName: "iMac 27inch 2015",
         profile: "lan-60hz",
         resolution: "2560x1440",
@@ -87,6 +90,7 @@ let presets: [ReceiverPreset] = [
         name: "2017 iMac 4K Quality",
         category: "Lab",
         receiverIP: "169.254.70.114",
+        discoveryHost: "gabrieljang@100.89.104.119",
         displayName: "iMac 21.5inch 2017",
         profile: "imac4k-quality",
         resolution: "4096x2304",
@@ -100,6 +104,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 27-inch 5K Late 2014",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 27-inch 5K Late 2014",
         profile: "lan-60hz",
         resolution: "5120x2880",
@@ -113,6 +118,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 21.5-inch 4K Late 2015",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 21.5-inch 4K Late 2015",
         profile: "imac4k-quality",
         resolution: "4096x2304",
@@ -126,6 +132,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 27-inch 5K Late 2015",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 27-inch 5K Late 2015",
         profile: "lan-60hz",
         resolution: "5120x2880",
@@ -139,6 +146,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 21.5-inch 4K 2017",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 21.5-inch 4K 2017",
         profile: "imac4k-quality",
         resolution: "4096x2304",
@@ -152,6 +160,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 27-inch 5K 2017",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 27-inch 5K 2017",
         profile: "lan-60hz",
         resolution: "5120x2880",
@@ -165,6 +174,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 21.5-inch 4K 2019",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 21.5-inch 4K 2019",
         profile: "imac4k-quality",
         resolution: "4096x2304",
@@ -178,6 +188,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 27-inch 5K 2019",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 27-inch 5K 2019",
         profile: "lan-60hz",
         resolution: "5120x2880",
@@ -191,6 +202,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 27-inch 5K 2020",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 27-inch 5K 2020",
         profile: "lan-60hz",
         resolution: "5120x2880",
@@ -204,6 +216,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac Pro 27-inch 5K 2017",
         category: "Retina iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac Pro 27-inch 5K 2017",
         profile: "lan-60hz",
         resolution: "5120x2880",
@@ -217,6 +230,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 24-inch 4.5K M1 2021",
         category: "Apple Silicon iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 24-inch 4.5K M1 2021",
         profile: "lan-60hz",
         resolution: "4480x2520",
@@ -230,6 +244,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 24-inch 4.5K M3 2023",
         category: "Apple Silicon iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 24-inch 4.5K M3 2023",
         profile: "lan-60hz",
         resolution: "4480x2520",
@@ -243,6 +258,7 @@ let presets: [ReceiverPreset] = [
         name: "iMac 24-inch 4.5K M4 2024",
         category: "Apple Silicon iMacs",
         receiverIP: "",
+        discoveryHost: "",
         displayName: "iMac 24-inch 4.5K M4 2024",
         profile: "lan-60hz",
         resolution: "4480x2520",
@@ -288,6 +304,7 @@ final class DisplaySession: ObservableObject, Identifiable {
     let id = UUID()
     @Published var name: String
     @Published var receiverIP: String
+    @Published var discoveryHost: String
     @Published var displayName: String
     @Published var profile: String
     @Published var resolution: String
@@ -302,6 +319,7 @@ final class DisplaySession: ObservableObject, Identifiable {
     init(preset: ReceiverPreset) {
         name = preset.name
         receiverIP = preset.receiverIP
+        discoveryHost = preset.discoveryHost
         displayName = preset.displayName
         profile = preset.profile
         resolution = preset.resolution
@@ -317,6 +335,11 @@ final class DisplaySession: ObservableObject, Identifiable {
     init(stored: StoredDisplaySession) {
         name = stored.name
         receiverIP = stored.receiverIP
+        discoveryHost = stored.discoveryHost ?? defaultDiscoveryHost(
+            displayName: stored.displayName,
+            receiverIP: stored.receiverIP,
+            receiverScript: stored.receiverScript
+        )
         displayName = stored.displayName
         profile = stored.profile
         resolution = stored.resolution
@@ -332,6 +355,7 @@ final class DisplaySession: ObservableObject, Identifiable {
     func apply(_ preset: ReceiverPreset) {
         name = preset.name
         receiverIP = preset.receiverIP
+        discoveryHost = preset.discoveryHost
         displayName = preset.displayName
         profile = preset.profile
         receiverScript = preset.receiverScript
@@ -360,6 +384,7 @@ final class DisplaySession: ObservableObject, Identifiable {
         StoredDisplaySession(
             name: name,
             receiverIP: receiverIP,
+            discoveryHost: discoveryHost,
             displayName: displayName,
             profile: profile,
             resolution: resolution,
@@ -374,6 +399,7 @@ final class DisplaySession: ObservableObject, Identifiable {
 struct StoredDisplaySession: Codable {
     let name: String
     let receiverIP: String
+    let discoveryHost: String?
     let displayName: String
     let profile: String
     let resolution: String
@@ -388,4 +414,16 @@ struct StoredControllerState: Codable {
     let receiverPort: String
     let receiverTitle: String
     let sessions: [StoredDisplaySession]
+}
+
+private func defaultDiscoveryHost(displayName: String, receiverIP: String, receiverScript: String) -> String {
+    let lowerDisplay = displayName.lowercased()
+    let lowerScript = receiverScript.lowercased()
+    if lowerDisplay.contains("2017") || lowerScript.contains("2017") {
+        return "gabrieljang@100.89.104.119"
+    }
+    if lowerDisplay.contains("2015") || lowerScript.contains("2015") {
+        return receiverIP.isEmpty ? "" : "oosu@\(receiverIP)"
+    }
+    return ""
 }
