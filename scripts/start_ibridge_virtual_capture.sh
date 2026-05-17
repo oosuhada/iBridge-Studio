@@ -16,6 +16,7 @@ case "$PROFILE" in
     DEFAULT_BITRATE_MBPS="25"
     DEFAULT_SENDER_QUEUE_DEPTH="8"
     DEFAULT_CAPTURE_QUEUE_DEPTH="4"
+    DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES="2"
     ;;
   lan-readable)
     DEFAULT_RESOLUTION="2560x1440"
@@ -23,6 +24,7 @@ case "$PROFILE" in
     DEFAULT_BITRATE_MBPS="35"
     DEFAULT_SENDER_QUEUE_DEPTH="12"
     DEFAULT_CAPTURE_QUEUE_DEPTH="6"
+    DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES="1"
     ;;
   lan-60hz)
     DEFAULT_RESOLUTION="2560x1440"
@@ -30,6 +32,7 @@ case "$PROFILE" in
     DEFAULT_BITRATE_MBPS="45"
     DEFAULT_SENDER_QUEUE_DEPTH="12"
     DEFAULT_CAPTURE_QUEUE_DEPTH="6"
+    DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES="1"
     ;;
   lan-sharp)
     DEFAULT_RESOLUTION="3200x1800"
@@ -37,6 +40,7 @@ case "$PROFILE" in
     DEFAULT_BITRATE_MBPS="50"
     DEFAULT_SENDER_QUEUE_DEPTH="12"
     DEFAULT_CAPTURE_QUEUE_DEPTH="6"
+    DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES="1"
     ;;
   lan-4k)
     DEFAULT_RESOLUTION="3840x2160"
@@ -44,6 +48,7 @@ case "$PROFILE" in
     DEFAULT_BITRATE_MBPS="60"
     DEFAULT_SENDER_QUEUE_DEPTH="12"
     DEFAULT_CAPTURE_QUEUE_DEPTH="6"
+    DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES="1"
     ;;
   *)
     echo "Unknown PROFILE=$PROFILE. Use balanced, lan-readable, lan-60hz, lan-sharp, or lan-4k." >&2
@@ -56,6 +61,7 @@ FPS="${FPS:-$DEFAULT_FPS}"
 BITRATE_MBPS="${BITRATE_MBPS:-$DEFAULT_BITRATE_MBPS}"
 SENDER_QUEUE_DEPTH="${SENDER_QUEUE_DEPTH:-$DEFAULT_SENDER_QUEUE_DEPTH}"
 CAPTURE_QUEUE_DEPTH="${CAPTURE_QUEUE_DEPTH:-$DEFAULT_CAPTURE_QUEUE_DEPTH}"
+CAPTURE_MAX_IN_FLIGHT_FRAMES="${CAPTURE_MAX_IN_FLIGHT_FRAMES:-$DEFAULT_CAPTURE_MAX_IN_FLIGHT_FRAMES}"
 
 mkdir -p "$RUN_ROOT"
 
@@ -105,7 +111,7 @@ if [[ "$CAPTURE_DISPLAY_INDEX" == "auto" ]]; then
             frame = substr($0, index($0, "frame="))
           }
         }
-        if (idx != "" && frame !~ /frame=\\(0\\.0, 0\\.0,/) {
+        if (idx != "" && index(frame, "frame=(0.0, 0.0,") != 1) {
           print idx
           exit
         }
@@ -124,6 +130,7 @@ iBridge virtual display sender
 - Capture display index: $CAPTURE_DISPLAY_INDEX
 - Resolution/FPS: $RESOLUTION @ $FPS
 - Bitrate: ${BITRATE_MBPS}Mbps
+- Capture max in-flight frames: $CAPTURE_MAX_IN_FLIGHT_FRAMES
 - Duration: ${DURATION}s
 - Run root: $RUN_ROOT
 
@@ -136,6 +143,7 @@ EOF
   --source screen-capture \
   --capture-display-index "$CAPTURE_DISPLAY_INDEX" \
   --capture-queue-depth "$CAPTURE_QUEUE_DEPTH" \
+  --capture-max-in-flight-frames "$CAPTURE_MAX_IN_FLIGHT_FRAMES" \
   --resolution "$RESOLUTION" \
   --fps "$FPS" \
   --duration "$DURATION" \
