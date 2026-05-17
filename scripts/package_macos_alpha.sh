@@ -4,7 +4,6 @@ set -euo pipefail
 VERSION="${VERSION:-0.1.0-alpha}"
 DIST_ROOT="${DIST_ROOT:-dist}"
 PACKAGE_ROOT="$DIST_ROOT/iBridge-Studio-$VERSION"
-RECEIVER_APP="$PACKAGE_ROOT/iBridge Studio Receiver.app"
 CONTROL_APP="$PACKAGE_ROOT/iBridge Studio.app"
 PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
 CONTROL_BIN="apps/controller-macos/.build/release/iBridgeController"
@@ -13,7 +12,6 @@ RECEIVER_X86_64_BIN="apps/receiver-macos/.build/x86_64-apple-macosx/release/ibri
 RECEIVER_UNIVERSAL_BIN="$PACKAGE_ROOT/bin/ibridge-receiver-macos-universal"
 
 rm -rf "$PACKAGE_ROOT"
-mkdir -p "$RECEIVER_APP/Contents/MacOS" "$RECEIVER_APP/Contents/Resources"
 mkdir -p "$CONTROL_APP/Contents/MacOS" "$CONTROL_APP/Contents/Resources"
 mkdir -p "$PACKAGE_ROOT/bin" "$PACKAGE_ROOT/scripts" "$PACKAGE_ROOT/docs"
 
@@ -93,7 +91,6 @@ PY
 }
 
 make_icon "iBridgeControl" "$CONTROL_APP/Contents/Resources"
-make_icon "iBridgeReceiver" "$RECEIVER_APP/Contents/Resources"
 
 swift build --package-path apps/primary-macos -c release
 swift build --package-path apps/controller-macos -c release
@@ -101,7 +98,6 @@ swift build --package-path apps/receiver-macos -c release --arch arm64
 swift build --package-path apps/receiver-macos -c release --arch x86_64
 
 lipo -create "$RECEIVER_ARM64_BIN" "$RECEIVER_X86_64_BIN" -output "$RECEIVER_UNIVERSAL_BIN"
-cp "$RECEIVER_UNIVERSAL_BIN" "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver"
 cp "$CONTROL_BIN" "$CONTROL_APP/Contents/MacOS/iBridgeControl"
 cp "$PRIMARY_BIN" "$PACKAGE_ROOT/bin/ibridge-primary"
 cp scripts/start_ibridge_virtual_capture.sh "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh"
@@ -112,41 +108,6 @@ cp scripts/stop_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/stop_2015_ima
 if [[ -f docs/18_ALPHA_RELEASE.md ]]; then
   cp docs/18_ALPHA_RELEASE.md "$PACKAGE_ROOT/docs/18_ALPHA_RELEASE.md"
 fi
-
-cat > "$RECEIVER_APP/Contents/Info.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleDevelopmentRegion</key>
-  <string>en</string>
-  <key>CFBundleExecutable</key>
-  <string>iBridgeReceiver</string>
-  <key>CFBundleIconFile</key>
-  <string>iBridgeReceiver</string>
-  <key>CFBundleDisplayName</key>
-  <string>iBridge Studio Receiver</string>
-  <key>CFBundleIdentifier</key>
-  <string>dev.oosu.iBridgeStudio.receiver</string>
-  <key>CFBundleInfoDictionaryVersion</key>
-  <string>6.0</string>
-  <key>CFBundleName</key>
-  <string>iBridge Studio Receiver</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleShortVersionString</key>
-  <string>$VERSION</string>
-  <key>CFBundleVersion</key>
-  <string>$VERSION</string>
-  <key>LSMinimumSystemVersion</key>
-  <string>14.0</string>
-  <key>NSHighResolutionCapable</key>
-  <true/>
-  <key>NSSupportsAutomaticGraphicsSwitching</key>
-  <true/>
-</dict>
-</plist>
-PLIST
 
 cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -211,8 +172,8 @@ cp README.md "$PACKAGE_ROOT/README.md"
 
 chmod +x \
   "$CONTROL_APP/Contents/MacOS/iBridgeControl" \
-  "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver" \
   "$PACKAGE_ROOT/bin/ibridge-primary" \
+  "$PACKAGE_ROOT/bin/ibridge-receiver-macos-universal" \
   "$PACKAGE_ROOT/scripts/start_ibridge_virtual_capture.sh" \
   "$PACKAGE_ROOT/scripts/start_2017_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/scripts/start_mbp_to_2017_imac_4k60.sh" \
@@ -223,7 +184,6 @@ chmod +x \
   "$PACKAGE_ROOT/Start iBridge Studio 4K60.command"
 
 codesign --force --deep --sign - "$CONTROL_APP" >/dev/null 2>&1 || true
-codesign --force --deep --sign - "$RECEIVER_APP" >/dev/null 2>&1 || true
 
 (cd "$DIST_ROOT" && ditto -c -k --sequesterRsrc --keepParent "iBridge-Studio-$VERSION" "iBridge-Studio-$VERSION.zip")
 
