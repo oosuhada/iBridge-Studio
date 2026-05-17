@@ -239,6 +239,7 @@ final class ControllerModel: ObservableObject {
         --port '\(shellEscape(receiverPort))' \
         --fullscreen \
         --hide-status \
+        --enable-input \
         --title '\(shellEscape(receiverTitle))'
         """
         append("Starting local receiver.")

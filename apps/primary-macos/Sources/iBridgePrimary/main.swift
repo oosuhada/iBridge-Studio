@@ -100,6 +100,8 @@ final class InputEventInjector: @unchecked Sendable {
         switch parts[1] {
         case "pointer":
             handlePointer(parts)
+        case "scroll":
+            handleScroll(parts)
         case "key":
             handleKey(parts)
         default:
@@ -140,6 +142,43 @@ final class InputEventInjector: @unchecked Sendable {
         guard let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: mouseButton) else {
             return
         }
+        if parts.count >= 7, let modifierRaw = UInt64(parts[6]) {
+            event.flags = CGEventFlags(rawValue: modifierRaw)
+        }
+        event.post(tap: .cghidEventTap)
+    }
+
+    private func handleScroll(_ parts: [Substring]) {
+        guard parts.count >= 7,
+              let x = Double(parts[2]),
+              let y = Double(parts[3]),
+              let deltaX = Int32(parts[4]),
+              let deltaY = Int32(parts[5]) else {
+            return
+        }
+        let frame: CGRect = {
+            lock.lock()
+            defer { lock.unlock() }
+            return targetFrame
+        }()
+        let location = CGPoint(
+            x: frame.minX + frame.width * x,
+            y: frame.minY + frame.height * y
+        )
+        guard let event = CGEvent(
+            scrollWheelEvent2Source: nil,
+            units: .pixel,
+            wheelCount: 2,
+            wheel1: deltaY,
+            wheel2: deltaX,
+            wheel3: 0
+        ) else {
+            return
+        }
+        if let modifierRaw = UInt64(parts[6]) {
+            event.flags = CGEventFlags(rawValue: modifierRaw)
+        }
+        event.location = location
         event.post(tap: .cghidEventTap)
     }
 

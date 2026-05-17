@@ -248,6 +248,7 @@ EOF
   --disable-open-gop \
   --payload-format annex-b \
   --sender-queue-depth "$SENDER_QUEUE_DEPTH" \
+  --enable-input \
   --send-host "$RECEIVER_IP" \
   --send-port "$RECEIVER_PORT" \
   --csv "$RUN_ROOT/primary_stats.csv" 2>&1 | tee "$RUN_ROOT/primary_console.txt"
