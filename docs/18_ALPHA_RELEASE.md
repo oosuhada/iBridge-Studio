@@ -50,7 +50,13 @@ xattr -dr com.apple.quarantine "iBridge Receiver.app"
 
 1. In BetterDisplay, keep `Virtual 16:9` connected as an extended display.
 2. In macOS Displays, keep it as `Extended display`.
-3. For wired use, run:
+3. When BetterDisplay `Virtual 16:9` is set to 4K60, run:
+
+```bash
+RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ 4K60.command
+```
+
+For the safer wired readability profile, run:
 
 ```bash
 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ LAN\ High\ Quality.command
@@ -70,10 +76,10 @@ Profiles:
 | `lan-readable` | `2560x1440` | 30 | 35Mbps | wired text/readability default |
 | `lan-60hz` | `2560x1440` | 60 | 45Mbps | experimental motion-first wired mode |
 | `lan-sharp` | `3200x1800` | 30 | 50Mbps | experimental sharper wired mode |
-| `lan-4k` | `3840x2160` | 30 | 60Mbps | experimental 4K wired mode |
+| `lan-4k` | `3840x2160` | 60 | 80Mbps | 4K60 wired mode |
 
-All profiles use HEVC Annex-B protocol v0 and auto-select the first non-origin
-extended display unless `CAPTURE_DISPLAY_INDEX` is provided.
+All profiles use HEVC Annex-B protocol v0. Auto-selection chooses the largest
+non-origin extended display unless `CAPTURE_DISPLAY_INDEX` is provided.
 
 The wired profiles also enable capture-side backpressure with
 `CAPTURE_MAX_IN_FLIGHT_FRAMES=1`, so the sender prefers newer frames over
@@ -88,7 +94,7 @@ CAPTURE_DISPLAY_INDEX=1 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Virtual\ Ca
 Run a short smoke:
 
 ```bash
-DURATION=3 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ LAN\ High\ Quality.command
+DURATION=3 RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ 4K60.command
 ```
 
 If the sender prints `capture_display_count=0`, macOS is not exposing a

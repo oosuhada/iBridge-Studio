@@ -1,0 +1,4 @@
+capture_display_count=3
+display_index=0 display_id=12 width=3840 height=2160 frame=(2472.0, 0.0, 3840.0, 2160.0)
+display_index=1 display_id=1 width=1512 height=982 frame=(0.0, 0.0, 1512.0, 982.0)
+display_index=2 display_id=11 width=960 height=540 frame=(1512.0, 0.0, 960.0, 540.0)
