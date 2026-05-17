@@ -4,7 +4,7 @@ set -euo pipefail
 REMOTE_HOST="${REMOTE_HOST:-gabrieljang@100.89.104.119}"
 REMOTE_DIR="${REMOTE_DIR:-~/ibridge-remote/latest}"
 PORT="${PORT:-48320}"
-TITLE="${TITLE:-iBridge 4K60 Receiver}"
+TITLE="${TITLE:-iBridge Studio 4K60 Receiver}"
 LOCAL_BIN="${LOCAL_BIN:-apps/receiver-macos/.build/x86_64-apple-macosx/release/ibridge-receiver-macos}"
 
 if [[ ! -x "$LOCAL_BIN" ]]; then

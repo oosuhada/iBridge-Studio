@@ -145,12 +145,18 @@ final class InputEventInjector: @unchecked Sendable {
 
     private func handleKey(_ parts: [Substring]) {
         guard parts.count >= 5,
-              let keyCodeValue = UInt16(parts[3]) else {
+              let keyCodeValue = UInt16(parts[3]),
+              let modifierRaw = UInt64(parts[4]) else {
             return
         }
-        let isDown = parts[2] == "down"
+        let phase = parts[2]
+        let isDown = phase != "up"
         guard let event = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(keyCodeValue), keyDown: isDown) else {
             return
+        }
+        event.flags = CGEventFlags(rawValue: modifierRaw)
+        if phase == "flags" || phase == "flagsChanged" {
+            event.type = .flagsChanged
         }
         event.post(tap: .cghidEventTap)
     }
@@ -1415,7 +1421,7 @@ func printRunSummary(options: Options, state: EncoderState, frameCount: Int, sub
     let senderDropped = frames.filter(\.senderDropped).count
     let sendFailed = frames.filter(\.sendFailed).count
 
-    print("iBridge Primary encoder")
+    print("iBridge Studio Primary encoder")
     print("run_label=\(label)")
     print("source=\(options.source)")
     print("resolution=\(options.width)x\(options.height)")
@@ -1597,7 +1603,7 @@ func printTiledRunSummary(
     let tileWidth = options.width / options.tileColumns
     let tileHeight = options.height / options.tileRows
 
-    print("iBridge Primary encoder")
+    print("iBridge Studio Primary encoder")
     print("run_label=synthetic-tiled")
     print("source=\(options.source)")
     print("resolution=\(options.width)x\(options.height)")

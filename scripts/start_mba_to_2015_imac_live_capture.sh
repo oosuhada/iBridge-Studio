@@ -19,7 +19,7 @@ swift build --package-path apps/primary-macos -c release
 apps/primary-macos/.build/release/ibridge-primary --list-displays | tee "$RUN_ROOT/capture_displays.txt"
 
 cat <<EOF
-iBridge live capture sender
+iBridge Studio live capture sender
 - Receiver: $RECEIVER_IP:$RECEIVER_PORT
 - Capture display index: $CAPTURE_DISPLAY_INDEX
 - Resolution/FPS: $RESOLUTION @ $FPS

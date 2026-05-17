@@ -39,7 +39,7 @@ $ReportDir = Join-Path $OutputRoot "ibridge-imac-prep-$Timestamp"
 New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null
 
 $Summary = New-Object System.Collections.Generic.List[string]
-$Summary.Add("iBridge iMac setup inventory")
+$Summary.Add("iBridge Studio iMac setup inventory")
 $Summary.Add("Generated: $(Get-Date -Format o)")
 $Summary.Add("Computer: $env:COMPUTERNAME")
 $Summary.Add("User: $env:USERNAME")
@@ -137,7 +137,7 @@ Save-Command "bootcamp" {
 }
 
 Save-Command "receiver" {
-    Write-Section "iBridge receiver process/listener"
+    Write-Section "iBridge Studio receiver process/listener"
     Get-Process -ErrorAction SilentlyContinue |
         Where-Object { $_.ProcessName -match "ibridge|receiver" } |
         Select-Object ProcessName, Id, Path
@@ -152,6 +152,6 @@ Get-ChildItem $ReportDir -File | Sort-Object Name | ForEach-Object {
 $SummaryPath = Join-Path $ReportDir "SUMMARY.txt"
 $Summary | Set-Content -Path $SummaryPath -Encoding UTF8
 
-Write-Host "iBridge iMac inventory complete."
+Write-Host "iBridge Studio iMac inventory complete."
 Write-Host "Report directory: $ReportDir"
 Write-Host "Summary: $SummaryPath"

@@ -8,7 +8,7 @@ struct Options {
     var port = 48320
     var fullscreen = false
     var showStatus = true
-    var title = "iBridge Receiver"
+    var title = "iBridge Studio Receiver"
     var enableInput = true
 }
 
@@ -62,7 +62,7 @@ func logLine(_ message: String) {
 
 func usage() {
     print("""
-    ibridge-receiver-macos [--port 48320] [--fullscreen] [--hide-status] [--disable-input] [--title "iBridge Receiver"]
+    ibridge-receiver-macos [--port 48320] [--fullscreen] [--hide-status] [--disable-input] [--title "iBridge Studio Receiver"]
 
     Receives protocol v0 TCP frames with Annex-B H.264/HEVC payloads and displays
     them with AVSampleBufferDisplayLayer.
@@ -486,6 +486,10 @@ final class ReceiverView: NSView {
         sendKey("up", event: event)
     }
 
+    override func flagsChanged(with event: NSEvent) {
+        sendKey("flags", event: event)
+    }
+
     @discardableResult
     func routeMonitoredEvent(_ event: NSEvent) -> Bool {
         switch event.type {
@@ -504,6 +508,8 @@ final class ReceiverView: NSView {
             sendKey("down", event: event)
         case .keyUp:
             sendKey("up", event: event)
+        case .flagsChanged:
+            sendKey("flags", event: event)
         default:
             return false
         }
@@ -584,7 +590,7 @@ final class ReceiverView: NSView {
 
 final class ReceiverViewController: NSViewController {
     let displayLayer = AVSampleBufferDisplayLayer()
-    private let statusLabel = NSTextField(labelWithString: "Waiting for iBridge stream")
+    private let statusLabel = NSTextField(labelWithString: "Waiting for iBridge Studio stream")
     private let showStatus: Bool
     private let enableInput: Bool
     private var displayedFrames: UInt64 = 0
@@ -654,7 +660,7 @@ final class ReceiverViewController: NSViewController {
             self.displayLayer.enqueue(sendableSampleBuffer.value)
             self.displayedFrames += 1
             if self.showStatus, self.displayedFrames % 30 == 1 {
-                self.statusLabel.stringValue = "iBridge \(header.width)x\(header.height)@\(header.fps) frame \(header.frameID) dropped_before \(header.droppedBefore)"
+                self.statusLabel.stringValue = "iBridge Studio \(header.width)x\(header.height)@\(header.fps) frame \(header.frameID) dropped_before \(header.droppedBefore)"
             }
         }
     }
@@ -738,7 +744,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installLocalEventMonitor() {
         let mask: NSEvent.EventTypeMask = [
             .keyDown,
-            .keyUp
+            .keyUp,
+            .flagsChanged
         ]
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
             guard let self else { return event }
@@ -940,7 +947,7 @@ final class TCPReceiver: @unchecked Sendable {
         }
 
         viewController?.setStatus("Listening on TCP \(port)")
-        logLine("iBridge macOS receiver listening on TCP \(port)")
+        logLine("iBridge Studio macOS receiver listening on TCP \(port)")
 
         while true {
             let clientFD = accept(listenFD, nil, nil)

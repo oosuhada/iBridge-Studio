@@ -1,4 +1,4 @@
-# iBridge Protocol v0
+# iBridge Studio Protocol v0
 
 Prompt: `prompts/07_PROTOCOL_AND_TRANSPORT.md`
 

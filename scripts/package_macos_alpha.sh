@@ -3,8 +3,8 @@ set -euo pipefail
 
 VERSION="${VERSION:-0.1.0-alpha}"
 DIST_ROOT="${DIST_ROOT:-dist}"
-PACKAGE_ROOT="$DIST_ROOT/iBridge-$VERSION"
-RECEIVER_APP="$PACKAGE_ROOT/iBridge Receiver.app"
+PACKAGE_ROOT="$DIST_ROOT/iBridge-Studio-$VERSION"
+RECEIVER_APP="$PACKAGE_ROOT/iBridge Studio Receiver.app"
 CONTROL_APP="$PACKAGE_ROOT/iBridge Studio.app"
 PRIMARY_BIN="apps/primary-macos/.build/release/ibridge-primary"
 CONTROL_BIN="apps/controller-macos/.build/release/iBridgeController"
@@ -109,7 +109,9 @@ cp scripts/start_2017_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2017_i
 cp scripts/start_mbp_to_2017_imac_4k60.sh "$PACKAGE_ROOT/scripts/start_mbp_to_2017_imac_4k60.sh"
 cp scripts/start_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/start_2015_imac_receiver_macos.sh"
 cp scripts/stop_2015_imac_receiver_macos.sh "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh"
-cp docs/18_ALPHA_RELEASE.md "$PACKAGE_ROOT/docs/18_ALPHA_RELEASE.md"
+if [[ -f docs/18_ALPHA_RELEASE.md ]]; then
+  cp docs/18_ALPHA_RELEASE.md "$PACKAGE_ROOT/docs/18_ALPHA_RELEASE.md"
+fi
 
 cat > "$RECEIVER_APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -123,13 +125,13 @@ cat > "$RECEIVER_APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key>
   <string>iBridgeReceiver</string>
   <key>CFBundleDisplayName</key>
-  <string>iBridge Receiver</string>
+  <string>iBridge Studio Receiver</string>
   <key>CFBundleIdentifier</key>
-  <string>dev.oosu.iBridge.receiver</string>
+  <string>dev.oosu.iBridgeStudio.receiver</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>iBridge Receiver</string>
+  <string>iBridge Studio Receiver</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -150,7 +152,7 @@ cat > "$RECEIVER_APP/Contents/MacOS/iBridgeReceiver.command" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-exec "$DIR/iBridgeReceiver" --port "${PORT:-48320}" --fullscreen --hide-status --title "iBridge Receiver"
+exec "$DIR/iBridgeReceiver" --port "${PORT:-48320}" --fullscreen --hide-status --title "iBridge Studio Receiver"
 SCRIPT
 
 cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
@@ -167,7 +169,7 @@ cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key>
   <string>iBridge Studio</string>
   <key>CFBundleIdentifier</key>
-  <string>dev.oosu.iBridge.control</string>
+  <string>dev.oosu.iBridgeStudio.control</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -186,7 +188,7 @@ cat > "$CONTROL_APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-cat > "$PACKAGE_ROOT/Start iBridge Virtual Capture.command" <<'SCRIPT'
+cat > "$PACKAGE_ROOT/Start iBridge Studio Virtual Capture.command" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -194,7 +196,7 @@ cd "$ROOT"
 exec scripts/start_ibridge_virtual_capture.sh
 SCRIPT
 
-cat > "$PACKAGE_ROOT/Start iBridge LAN High Quality.command" <<'SCRIPT'
+cat > "$PACKAGE_ROOT/Start iBridge Studio LAN High Quality.command" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -203,7 +205,7 @@ export PROFILE="${PROFILE:-lan-readable}"
 exec scripts/start_ibridge_virtual_capture.sh
 SCRIPT
 
-cat > "$PACKAGE_ROOT/Start iBridge 4K60.command" <<'SCRIPT'
+cat > "$PACKAGE_ROOT/Start iBridge Studio 4K60.command" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -212,83 +214,7 @@ export PROFILE="${PROFILE:-lan-4k}"
 exec scripts/start_ibridge_virtual_capture.sh
 SCRIPT
 
-cat > "$PACKAGE_ROOT/README.md" <<'README'
-# iBridge Alpha
-
-This is an internal alpha package for local testing.
-
-## Receiver iMac
-
-Open `iBridge Receiver.app` on the receiver iMac. It listens on TCP `48320`,
-opens a standard macOS fullscreen receiver window, and hides the debug status
-overlay by default. Use `Command-F` to toggle fullscreen and `Esc` to leave
-fullscreen. The receiver app is a universal macOS binary for Apple Silicon and
-Intel iMac receivers.
-
-## Source Mac
-
-1. Keep BetterDisplay `Virtual 16:9` connected as an extended display.
-2. Set `RECEIVER_IP` if needed.
-3. Run `Start iBridge 4K60.command` when BetterDisplay `Virtual 16:9` is set
-   to 4K60, `Start iBridge LAN High Quality.command` for the safer wired
-   readability profile, or `Start iBridge Virtual Capture.command` for the
-   balanced default.
-
-Default sender profile:
-
-- `1920x1080 @ 60fps`
-- HEVC
-- 25Mbps
-- receiver endpoint from `RECEIVER_IP`
-
-Wired high-quality profile:
-
-- `2560x1440 @ 30fps`
-- HEVC
-- 35Mbps
-- `PROFILE=lan-readable`
-
-4K60 wired profile:
-
-- `3840x2160 @ 60fps`
-- HEVC
-- 80Mbps
-- `PROFILE=lan-4k`
-
-Input relay is enabled by default. The receiver sends mouse and keyboard events
-back to the source Mac over the same iBridge TCP connection. The source Mac may
-ask for Accessibility permission the first time input injection is used.
-
-Example:
-
-```bash
-RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ Virtual\ Capture.command
-RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ LAN\ High\ Quality.command
-RECEIVER_IP=169.254.70.114 ./Start\ iBridge\ 4K60.command
-```
-
-From a repo checkout, the current MacBook Pro -> 2017 iMac wired test path is:
-
-```bash
-scripts/start_mbp_to_2017_imac_4k60.sh
-```
-
-For a lighter smoke:
-
-```bash
-FPS=30 BITRATE_MBPS=8 RECEIVER_IP=100.84.32.31 ./Start\ iBridge\ Virtual\ Capture.command
-```
-
-## Current Limits
-
-- This alpha is not notarized.
-- Screen Recording permission is required for the source sender.
-- 4K capture works but is not yet smooth enough for the default profile.
-- Display auto-selection chooses the first non-origin extended display; use
-  `CAPTURE_DISPLAY_INDEX=<n>` if the wrong display is selected.
-
-See `docs/18_ALPHA_RELEASE.md` for the repo release notes.
-README
+cp README.md "$PACKAGE_ROOT/README.md"
 
 chmod +x \
   "$CONTROL_APP/Contents/MacOS/iBridgeControl" \
@@ -300,14 +226,14 @@ chmod +x \
   "$PACKAGE_ROOT/scripts/start_mbp_to_2017_imac_4k60.sh" \
   "$PACKAGE_ROOT/scripts/start_2015_imac_receiver_macos.sh" \
   "$PACKAGE_ROOT/scripts/stop_2015_imac_receiver_macos.sh" \
-  "$PACKAGE_ROOT/Start iBridge Virtual Capture.command" \
-  "$PACKAGE_ROOT/Start iBridge LAN High Quality.command" \
-  "$PACKAGE_ROOT/Start iBridge 4K60.command"
+  "$PACKAGE_ROOT/Start iBridge Studio Virtual Capture.command" \
+  "$PACKAGE_ROOT/Start iBridge Studio LAN High Quality.command" \
+  "$PACKAGE_ROOT/Start iBridge Studio 4K60.command"
 
 codesign --force --deep --sign - "$CONTROL_APP" >/dev/null 2>&1 || true
 codesign --force --deep --sign - "$RECEIVER_APP" >/dev/null 2>&1 || true
 
-(cd "$DIST_ROOT" && ditto -c -k --sequesterRsrc --keepParent "iBridge-$VERSION" "iBridge-$VERSION.zip")
+(cd "$DIST_ROOT" && ditto -c -k --sequesterRsrc --keepParent "iBridge-Studio-$VERSION" "iBridge-Studio-$VERSION.zip")
 
 echo "$PACKAGE_ROOT"
-echo "$DIST_ROOT/iBridge-$VERSION.zip"
+echo "$DIST_ROOT/iBridge-Studio-$VERSION.zip"

@@ -8,12 +8,25 @@ struct ReceiverTab: View {
         GeometryReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Receiver")
-                            .font(.title3.weight(.semibold))
-                        Text("Run the receiver on an iMac, or start it remotely over SSH.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Receiver")
+                                .font(.title3.weight(.semibold))
+                            Text("Run the receiver on an iMac, or start it remotely over SSH.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Menu {
+                            PresetMenuItems { preset in
+                                model.addSession(preset: preset, focus: .receiver)
+                            }
+                        } label: {
+                            Label("Add Receiver iMac", systemImage: "plus")
+                        }
+                        .controlSize(.large)
                     }
 
                     if proxy.size.width < 980 {
@@ -31,7 +44,7 @@ struct ReceiverTab: View {
                     }
                 }
                 .padding(18)
-                .frame(maxWidth: 1280, alignment: .leading)
+                .frame(minWidth: proxy.size.width, alignment: .topLeading)
             }
         }
     }
@@ -91,6 +104,7 @@ struct ReceiverTab: View {
         LabeledField("Window title") {
             TextField("Window title", text: $model.receiverTitle)
                 .frame(minWidth: 240)
+                .frame(maxWidth: .infinity)
         }
     }
 

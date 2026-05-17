@@ -16,7 +16,7 @@ swift build --package-path apps/receiver-macos -c release
 Run fullscreen on the iMac:
 
 ```bash
-apps/receiver-macos/.build/release/ibridge-receiver-macos --port 48320 --fullscreen --title "iBridge 4K Receiver"
+apps/receiver-macos/.build/release/ibridge-receiver-macos --port 48320 --fullscreen --title "iBridge Studio 4K Receiver"
 ```
 
 Send a synthetic 4K HEVC stream from the MacBook Pro over direct Ethernet:
