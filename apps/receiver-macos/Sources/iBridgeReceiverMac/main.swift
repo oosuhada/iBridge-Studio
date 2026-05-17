@@ -486,13 +486,65 @@ final class ReceiverView: NSView {
         sendKey("up", event: event)
     }
 
+    @discardableResult
+    func routeMonitoredEvent(_ event: NSEvent) -> Bool {
+        switch event.type {
+        case .mouseMoved:
+            sendPointer("move", event: event)
+        case .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
+            sendPointer("drag", event: event)
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            sendPointer("down", event: event)
+        case .leftMouseUp, .rightMouseUp, .otherMouseUp:
+            sendPointer("up", event: event)
+        case .keyDown:
+            if handleLocalCommand(event) {
+                return true
+            }
+            sendKey("down", event: event)
+        case .keyUp:
+            sendKey("up", event: event)
+        default:
+            return false
+        }
+        return true
+    }
+
+    func routeScreenPointer(_ phase: String, screenPoint: NSPoint, button: Int, modifiers: NSEvent.ModifierFlags) {
+        guard let window else { return }
+        let windowPoint = window.convertPoint(fromScreen: screenPoint)
+        let local = convert(windowPoint, from: nil)
+        sendPointer(phase, localPoint: local, button: button, modifiers: modifiers)
+    }
+
+    func routeNormalizedPointer(_ phase: String, x: Double, y: Double, button: Int, modifiers: UInt64) {
+        recordInputEvent("pointer_\(phase)")
+        inputSink?(
+            String(format: "IBRIDGE_INPUT pointer %@ %.6f %.6f %d %llu\n",
+                   phase,
+                   min(max(x, 0), 1),
+                   min(max(y, 0), 1),
+                   button,
+                   modifiers)
+        )
+    }
+
     private func sendPointer(_ phase: String, event: NSEvent) {
         guard bounds.width > 0, bounds.height > 0 else { return }
         let local = convert(event.locationInWindow, from: nil)
-        let normalizedX = min(max(local.x / bounds.width, 0), 1)
-        let normalizedY = min(max(1 - (local.y / bounds.height), 0), 1)
-        let button = max(event.buttonNumber, 0)
-        let modifiers = event.modifierFlags.rawValue
+        sendPointer(
+            phase,
+            localPoint: local,
+            button: max(event.buttonNumber, 0),
+            modifiers: event.modifierFlags
+        )
+    }
+
+    private func sendPointer(_ phase: String, localPoint: NSPoint, button: Int, modifiers: NSEvent.ModifierFlags) {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let normalizedX = min(max(localPoint.x / bounds.width, 0), 1)
+        let normalizedY = min(max(1 - (localPoint.y / bounds.height), 0), 1)
+        let modifierRaw = modifiers.rawValue
         recordInputEvent("pointer_\(phase)")
         inputSink?(
             String(format: "IBRIDGE_INPUT pointer %@ %.6f %.6f %d %llu\n",
@@ -500,7 +552,7 @@ final class ReceiverView: NSView {
                    Double(normalizedX),
                    Double(normalizedY),
                    button,
-                   modifiers)
+                   modifierRaw)
         )
     }
 
@@ -614,6 +666,19 @@ final class ReceiverViewController: NSViewController {
             }
         }
     }
+
+    @discardableResult
+    func routeMonitoredEvent(_ event: NSEvent) -> Bool {
+        receiverView?.routeMonitoredEvent(event) ?? false
+    }
+
+    func routeScreenPointer(_ phase: String, screenPoint: NSPoint, button: Int, modifiers: NSEvent.ModifierFlags) {
+        receiverView?.routeScreenPointer(phase, screenPoint: screenPoint, button: button, modifiers: modifiers)
+    }
+
+    func routeNormalizedPointer(_ phase: String, x: Double, y: Double, button: Int, modifiers: UInt64) {
+        receiverView?.routeNormalizedPointer(phase, x: x, y: y, button: button, modifiers: modifiers)
+    }
 }
 
 @MainActor
@@ -622,6 +687,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let receiver: ReceiverViewController
     private var window: NSWindow?
     private var server: TCPReceiver?
+    private var localEventMonitor: Any?
+    private var globalPointerMonitor: Any?
+    private var eventTap: CFMachPort?
+    private var eventTapSource: CFRunLoopSource?
 
     init(options: Options) {
         self.options = options
@@ -661,7 +730,131 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         receiver.inputSink = { [weak server] line in
             server?.sendInputLine(line)
         }
+        installLocalEventMonitor()
+        installEventTap()
         server.start()
+    }
+
+    private func installLocalEventMonitor() {
+        let mask: NSEvent.EventTypeMask = [
+            .mouseMoved,
+            .leftMouseDragged,
+            .rightMouseDragged,
+            .otherMouseDragged,
+            .leftMouseDown,
+            .rightMouseDown,
+            .otherMouseDown,
+            .leftMouseUp,
+            .rightMouseUp,
+            .otherMouseUp,
+            .keyDown,
+            .keyUp
+        ]
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+            guard let self else { return event }
+            if event.window === self.window {
+                _ = self.receiver.routeMonitoredEvent(event)
+            }
+            return event
+        }
+        globalPointerMonitor = NSEvent.addGlobalMonitorForEvents(matching: [
+            .mouseMoved,
+            .leftMouseDragged,
+            .rightMouseDragged,
+            .otherMouseDragged,
+            .leftMouseDown,
+            .rightMouseDown,
+            .otherMouseDown,
+            .leftMouseUp,
+            .rightMouseUp,
+            .otherMouseUp
+        ]) { [weak self] event in
+            guard let self, let window = self.window else { return }
+            let screenPoint = NSEvent.mouseLocation
+            guard window.frame.contains(screenPoint) else { return }
+            let phase: String
+            switch event.type {
+            case .mouseMoved:
+                phase = "move"
+            case .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
+                phase = "drag"
+            case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+                phase = "down"
+            case .leftMouseUp, .rightMouseUp, .otherMouseUp:
+                phase = "up"
+            default:
+                return
+            }
+            self.receiver.routeScreenPointer(
+                phase,
+                screenPoint: screenPoint,
+                button: max(event.buttonNumber, 0),
+                modifiers: event.modifierFlags
+            )
+        }
+        logLine("receiver_local_event_monitor_installed")
+    }
+
+    private func installEventTap() {
+        var mask: CGEventMask = 0
+        for eventType in [
+            CGEventType.mouseMoved,
+            .leftMouseDown,
+            .leftMouseUp,
+            .leftMouseDragged,
+            .rightMouseDown,
+            .rightMouseUp,
+            .rightMouseDragged,
+            .otherMouseDown,
+            .otherMouseUp,
+            .otherMouseDragged
+        ] {
+            mask |= CGEventMask(1) << CGEventMask(eventType.rawValue)
+        }
+        let refcon = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .listenOnly,
+            eventsOfInterest: mask,
+            callback: receiverEventTapCallback,
+            userInfo: refcon
+        ) else {
+            logLine("receiver_event_tap_install_failed")
+            return
+        }
+        eventTap = tap
+        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        eventTapSource = source
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        logLine("receiver_event_tap_installed")
+    }
+
+    func routeTappedPointer(type: CGEventType, location: CGPoint, button: Int, modifiers: UInt64) {
+        guard let window else { return }
+        let frame = window.frame
+        let appKitPoint = NSPoint(x: location.x, y: location.y)
+        if !frame.contains(appKitPoint) {
+            logLine("receiver_event_tap_outside type=\(type.rawValue) x=\(String(format: "%.1f", location.x)) y=\(String(format: "%.1f", location.y))")
+            return
+        }
+        let phase: String
+        switch type {
+        case .mouseMoved:
+            phase = "move"
+        case .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
+            phase = "drag"
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            phase = "down"
+        case .leftMouseUp, .rightMouseUp, .otherMouseUp:
+            phase = "up"
+        default:
+            return
+        }
+        let normalizedX = Double((appKitPoint.x - frame.minX) / max(frame.width, 1))
+        let normalizedY = Double(1 - ((appKitPoint.y - frame.minY) / max(frame.height, 1)))
+        receiver.routeNormalizedPointer(phase, x: normalizedX, y: normalizedY, button: button, modifiers: modifiers)
     }
 
     private func handleReceiverCommand(_ command: String) {
@@ -825,6 +1018,38 @@ final class TCPReceiver: @unchecked Sendable {
             viewController?.setStatus("Disconnected: \(receivedFrames) frames")
         }
     }
+}
+
+func receiverEventTapCallback(
+    proxy: CGEventTapProxy,
+    type: CGEventType,
+    event: CGEvent,
+    refcon: UnsafeMutableRawPointer?
+) -> Unmanaged<CGEvent>? {
+    guard let refcon else {
+        return Unmanaged.passUnretained(event)
+    }
+    let delegate = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue()
+    let button: Int
+    switch type {
+    case .rightMouseDown, .rightMouseUp, .rightMouseDragged:
+        button = 1
+    case .otherMouseDown, .otherMouseUp, .otherMouseDragged:
+        button = Int(event.getIntegerValueField(.mouseEventButtonNumber))
+    default:
+        button = 0
+    }
+    let location = event.location
+    let modifiers = event.flags.rawValue
+    DispatchQueue.main.async {
+        delegate.routeTappedPointer(
+            type: type,
+            location: location,
+            button: button,
+            modifiers: modifiers
+        )
+    }
+    return Unmanaged.passUnretained(event)
 }
 
 func readLine(fd: Int32, limit: Int) throws -> String {
