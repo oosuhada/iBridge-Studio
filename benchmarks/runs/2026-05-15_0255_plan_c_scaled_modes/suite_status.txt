@@ -1,5 +1,0 @@
-1440p_nearest LastTaskResult=0 State=3
-1440p_linear LastTaskResult=0 State=3
-3200x1800_linear LastTaskResult=0 State=3
-4k_linear LastTaskResult=0 State=3
-4096x2304_linear LastTaskResult=0 State=3

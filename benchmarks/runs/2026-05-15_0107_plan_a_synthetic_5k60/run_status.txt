@@ -1,4 +1,0 @@
-exit_code=0 
-Computer: OOSU-IMAC 
-User: ȫ�浿 
-Date: 2026-05-15  1:07:56.37 

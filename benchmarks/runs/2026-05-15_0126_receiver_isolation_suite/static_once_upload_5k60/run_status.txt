@@ -1,5 +1,0 @@
-args=--synthetic --resolution 5120x2880 --fps 60 --duration 60 --fullscreen --static-frame 
-Computer: OOSU-IMAC 
-User: ȫ�浿 
-Date: 2026-05-15  1:27:09.82 
-exit_code=0 

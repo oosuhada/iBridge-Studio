@@ -1,5 +1,0 @@
-hostname=Gabriels-MacBook-Pro.local
-whoami=gabriel
-pwd=/Users/gabriel/development/iBridge
-target=100.86.52.88
-Fri May 15 13:44:31 KST 2026

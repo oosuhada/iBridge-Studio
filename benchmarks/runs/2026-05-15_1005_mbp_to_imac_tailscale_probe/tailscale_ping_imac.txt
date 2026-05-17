@@ -1,4 +1,0 @@
-pong from oosu-imac (100.86.52.88) via DERP(tok) in 465ms
-pong from oosu-imac (100.86.52.88) via DERP(tok) in 146ms
-pong from oosu-imac (100.86.52.88) via DERP(tok) in 199ms
-pong from oosu-imac (100.86.52.88) via 14.4.153.167:1050 in 94ms
