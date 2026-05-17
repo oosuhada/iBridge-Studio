@@ -302,9 +302,9 @@ let durationOptions = [
 ]
 
 let cursorOptions = [
-    ValueOption(id: "universal-control", title: "Universal Control Cursor", value: "0"),
+    ValueOption(id: "universal-control", title: "Universal Control Relay", value: "1"),
     ValueOption(id: "captured", title: "Show Captured Cursor", value: "1"),
-    ValueOption(id: "hidden", title: "Hide Cursor", value: "0")
+    ValueOption(id: "hidden", title: "Hide Captured Cursor", value: "0")
 ]
 
 @MainActor

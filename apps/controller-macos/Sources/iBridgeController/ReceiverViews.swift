@@ -72,6 +72,13 @@ struct ReceiverTab: View {
                 } label: {
                     Label("Start Receiver on This Mac", systemImage: "play.rectangle")
                 }
+
+                Button {
+                    model.repairLocalSystemSettings()
+                } label: {
+                    Label("Repair System Settings", systemImage: "wrench.and.screwdriver")
+                }
+                .buttonStyle(.bordered)
             }
         }
     }
@@ -113,11 +120,11 @@ struct ReceiverTab: View {
             HStack(alignment: .center, spacing: 12) {
                 remoteReceiverSummary(session)
                 Spacer(minLength: 12)
-                startRemoteButton(session)
+                remoteReceiverActions(session)
             }
             VStack(alignment: .leading, spacing: 10) {
                 remoteReceiverSummary(session)
-                startRemoteButton(session)
+                remoteReceiverActions(session)
             }
         }
     }
@@ -144,5 +151,27 @@ struct ReceiverTab: View {
             Label("Start", systemImage: "play.fill")
         }
         .disabled(model.isReceiverBusy(session))
+    }
+
+    private func remoteReceiverActions(_ session: DisplaySession) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                startRemoteButton(session)
+                repairRemoteButton(session)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                startRemoteButton(session)
+                repairRemoteButton(session)
+            }
+        }
+    }
+
+    private func repairRemoteButton(_ session: DisplaySession) -> some View {
+        Button {
+            model.repairRemoteSystemSettings(session)
+        } label: {
+            Label("Repair Settings", systemImage: "wrench.and.screwdriver")
+        }
+        .disabled(session.discoveryHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 }
