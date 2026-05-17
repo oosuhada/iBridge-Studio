@@ -122,6 +122,7 @@ struct SenderSessionCard: View {
             }
 
             GridRow {
+                cursorField
                 durationSecondsField
             }
         }
@@ -138,6 +139,7 @@ struct SenderSessionCard: View {
             signalField
             bitrateFields
             durationField
+            cursorField
             durationSecondsField
         }
     }
@@ -250,6 +252,18 @@ struct SenderSessionCard: View {
         LabeledField("Custom seconds") {
             TextField("Seconds", text: $session.duration)
                 .disabled(session.durationOptionID != "custom")
+        }
+    }
+
+    private var cursorField: some View {
+        LabeledField("Cursor") {
+            Picker("Cursor", selection: $session.cursorModeID) {
+                ForEach(cursorOptions) { option in
+                    Text(option.title).tag(option.id)
+                }
+            }
+            .labelsHidden()
+            .frame(minWidth: 220)
         }
     }
 

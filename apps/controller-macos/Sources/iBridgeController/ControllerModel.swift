@@ -144,6 +144,7 @@ final class ControllerModel: ObservableObject {
         RESOLUTION='\(shellEscape(session.resolution))' \
         BITRATE_MBPS='\(shellEscape(session.bitrateMbps))' \
         DURATION='\(shellEscape(session.duration))' \
+        CAPTURE_SHOW_CURSOR='\(shellEscape(session.captureShowCursor))' \
         scripts/start_ibridge_virtual_capture.sh
         """
         append("Starting sender: \(session.name)")
